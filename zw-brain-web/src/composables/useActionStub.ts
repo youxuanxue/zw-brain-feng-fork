@@ -44,6 +44,7 @@ export interface ActionStubOptions {
   pendingBackend?: string; // e.g. "E2 申请管理 handler"
   refreshSnapshotAfter?: boolean;
   role?: string;
+  suppressSuccessToast?: boolean;
 }
 
 // Sticky confirmation default — see policy.py:386 (human_confirmation_required runtime gate).
@@ -61,7 +62,9 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
     });
     if (resp.ok) {
       const data = await resp.json().catch(() => undefined);
-      pushToast({ kind: 'ok', title: opts.successTitle ?? '已提交' });
+      if (!opts.suppressSuccessToast) {
+        pushToast({ kind: 'ok', title: opts.successTitle ?? '已提交' });
+      }
       if (opts.refreshSnapshotAfter !== false) {
         // FU-3 写后失效：写能力改了真实库积压，作废该 role 的快照 + 工作台缓存再拉新——
         //   工作台待办（workbench_backlog_projection 现算）不再停在写前的陈旧值。

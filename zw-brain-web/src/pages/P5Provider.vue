@@ -27,45 +27,6 @@ const dataQualityRows = computed(() =>
 
 const counts = computed(() => providerTodoCounts(provider.value as Record<string, unknown>));
 
-// 供数 IA 重排（0605#8 方案 a）：进「供数据」第一眼看到「怎么编目 / 挂接 / 注册」，
-// 而非协作待办。供数主线动作升为首屏主卡，按角色权限渲染（无权=不可见）。
-// D57⑧ 同级展示：反向编目从页头药丸升为首屏主卡，与「在线编制目录」并列（6.10#17）。
-const supplyActions = computed(() => {
-  const items = [
-    {
-      key: 'inline-catalog',
-      title: '在线编制目录',
-      hint: '新建数据目录，登记来源、领域、共享方式等编制信息',
-      href: '#/provider/wizard/inline-catalog',
-      route: '/provider/wizard/inline-catalog',
-    },
-    {
-      key: 'reverse-catalog',
-      title: '反向编目',
-      hint: '从已有库表字段结构反推生成目录草稿，确认后进入审核',
-      href: '#/provider/wizard/reverse-catalog',
-      route: '/provider/wizard/reverse-catalog',
-    },
-    {
-      key: 'hookup-submit',
-      title: '资源挂接',
-      hint: '把库表 / 文件挂接到目录下，登记资源注册信息',
-      href: '#/provider/wizard/hookup-submit',
-      route: '/provider/wizard/hookup-submit',
-    },
-    {
-      key: 'api-service',
-      title: '接口服务注册',
-      hint: '把接口服务登记为共享资源，关联数据目录',
-      href: '#/provider/wizard/api-service',
-      route: '/provider/wizard/api-service',
-    },
-  ];
-  // 无权=不可见：按路由可达性过滤（单源 = isRouteAllowedForRole，与导航/路由守卫同口径），
-  // 不另猜 cap 名（未注册 cap 会对全角色放行，反而越权可见）。
-  return items.filter((it) => isRouteAllowedForRole(it.route, role.value));
-});
-
 // 目录 / 资源管理概览（负责人加注）：本部门「编了多少 / 在审多少 / 待发布 / 已发布」管理态，
 // 让供数人不止看审批待办、还看到自己经手目录与资源的整体情况（真实 snapshot 派生）。
 // 入口门 = 清单页视图门同源（canViewProviderAssets，供数三岗位）：操作员=编制者也需看本部门
@@ -110,8 +71,22 @@ const showNationalExtElem = computed(
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
-  if (supplyActions.value.length) return '从这里编目、挂接、注册你对外提供的数据（发布/审核去工作台办理）';
-  return '查看本部门目录与资源、处理协作待办';
+  return '从这里编目、挂接、注册你对外提供的数据（发布/审核去工作台办理）';
+});
+
+// 供数主线动作提升到页头药丸区，与质量规则并排（参考找数据页的入口药丸样式）。
+// 在线编制目录、反向编目、资源挂接、接口服务注册 + 质量规则，按角色权限过滤（无权=不可见）。
+const providerHeaderLinks = computed(() => {
+  const items = [
+    { label: '在线编制目录', href: '#/provider/wizard/inline-catalog', route: '/provider/wizard/inline-catalog' },
+    { label: '反向编目', href: '#/provider/wizard/reverse-catalog', route: '/provider/wizard/reverse-catalog' },
+    { label: '资源挂接', href: '#/provider/wizard/hookup-submit', route: '/provider/wizard/hookup-submit' },
+    { label: '接口服务注册', href: '#/provider/wizard/api-service', route: '/provider/wizard/api-service' },
+    { label: '质量规则', href: '#/provider/wizard/quality-rule', route: '/provider/wizard/quality-rule' },
+  ];
+  // 无权=不可见：按路由可达性过滤（单源 = isRouteAllowedForRole，与导航/路由守卫同口径），
+  // 不另猜 cap 名（未注册 cap 会对全角色放行，反而越权可见）。
+  return items.filter((it) => isRouteAllowedForRole(it.route, role.value));
 });
 </script>
 
@@ -121,18 +96,8 @@ const headerMeta = computed(() => {
       <PageFocusHeader
         title="提供方管理"
         :meta="headerMeta"
-        :links="[
-          { label: '质量规则', href: '#/provider/wizard/quality-rule' },
-        ]"
+        :links="providerHeaderLinks"
       />
-
-      <!-- 供数主线（首屏主卡，0605#8 方案 a）：进页第一眼 = 怎么编目 / 挂接 / 注册 -->
-      <div v-if="source === 'live' && supplyActions.length" class="supply-grid">
-        <a v-for="a in supplyActions" :key="a.key" :href="a.href" class="supply-card">
-          <strong>{{ a.title }}</strong>
-          <em>{{ a.hint }}</em>
-        </a>
-      </div>
 
       <!-- 目录 / 资源管理概览（负责人加注）：本部门目录 / 资源的管理态全局感（只读现算）。
            T9：概览卡标题做成可点入口 → 进 provider 子路由清单页（/provider/catalogs、
@@ -219,11 +184,6 @@ const headerMeta = computed(() => {
 </template>
 
 <style scoped>
-.supply-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin-top: 16px; }
-.supply-card { display: grid; gap: 6px; padding: 18px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; text-decoration: none; color: inherit; background: linear-gradient(180deg, #f5f9fe 0%, #fff 100%); transition: box-shadow .15s, transform .15s; }
-.supply-card:hover { box-shadow: 0 4px 14px rgba(0, 107, 230, .12); transform: translateY(-1px); }
-.supply-card strong { font-size: 16px; color: var(--b-primary, #006be6); }
-.supply-card em { font-style: normal; font-size: 13px; line-height: 1.6; color: var(--b-muted, #5c6370); }
 .manage-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 24px; }
 .manage-card { padding: 16px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
 .manage-head { display: flex; align-items: baseline; margin-bottom: 8px; }

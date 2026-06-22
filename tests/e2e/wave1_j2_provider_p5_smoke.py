@@ -35,7 +35,7 @@ ROUTES: tuple[tuple[str, str], ...] = (
     ("#/provider/inbox/hookup-review", "挂接审核收件箱"),
     ("#/provider/inbox/demand-match", "供需对接收件箱"),
     ("#/provider/inbox/objection", "异议响应收件箱"),
-    ("#/provider/wizard/reverse-catalog", "反向编目向导"),
+    ("#/provider/wizard/reverse-catalog", "反向编目"),
 )
 
 STEPS: list[dict] = []

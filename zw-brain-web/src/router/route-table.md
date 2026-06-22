@@ -23,7 +23,8 @@
 | `#/delivery-exchange/task/:id`     | `PAGES.deliveryTaskDetail`        | P4 任务详情          | J1   |
 | `#/delivery-exchange/credential/:id` | `PAGES.deliveryCredential`      | P4 凭据领取（API Key + curl/Python 样例） | J1 |
 | `#/provider`                  | `PAGES.provider`                      | **P5 提供方管理**     | J2   |
-| `#/provider/wizard/reverse-catalog`  | `PAGES.providerWizardReverseCatalog` | P5 反向编目向导    | J2   |
+| `#/provider/wizard/reverse-catalog`  | `PAGES.providerWizardReverseCatalog` | P5 反向编目列表    | J2   |
+| `#/provider/wizard/reverse-catalog/detail`  | `PAGES.providerWizardReverseCatalogDetail` | P5 反向编目向导    | J2   |
 | `#/provider/wizard/api-service`      | `PAGES.providerWizardApiService`     | P5 API 服务化向导  | J2   |
 | `#/provider/wizard/quality-rule`     | `PAGES.providerWizardQualityRule`    | P5 质量规则向导    | J2   |
 | `#/provider/inbox/field-decision`        | `PAGES.providerInboxFieldDecision`        | P5 反向编目审核收件箱 | J2 |

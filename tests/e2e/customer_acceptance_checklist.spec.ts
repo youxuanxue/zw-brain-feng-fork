@@ -171,7 +171,7 @@ test.describe('客户验收 — 部门管理员 J2', () => {
   });
 
   test('P5 反向编目向导可生成建议', async ({ page }) => {
-    await gotoHash(page, '#/provider/wizard/reverse-catalog');
+    await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');
     await expect(page.getByRole('heading', { name: '反向编目向导' })).toBeVisible();
     await page.locator('.gov-select').selectOption({ index: 1 });
     await page.getByRole('button', { name: '生成字段建议' }).click();

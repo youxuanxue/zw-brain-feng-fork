@@ -1,259 +1,264 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue';
+import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
-import DetailPanel from '@/components/DetailPanel.vue';
-import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
-import { invokeActionStub, pushToast } from '@/composables/useActionStub';
-import { getProductRole } from '@/composables/useProductRole';
-import { canPerformAction } from '@/lib/pageAccess';
-import { mapDetailRows } from '@/lib/detailDisplay';
 import { displayRecordName } from '@/lib/userLanguage';
-import {
-  buildReverseDraftCreatePayload,
-  buildReverseDraftSuggestPayload,
-  mapReverseDraftCatalog,
-  parseFieldSuggestions,
-  parseTitleSuggestion,
-  validateReverseDraftCatalog,
-  type ReverseDraftCatalog,
-  type ReverseFieldDecision,
-} from '@/lib/reverseDraftPayload';
+import { mapReverseDraftCatalog } from '@/lib/reverseDraftPayload';
+import { providerLifecycleBucket, providerLifecycleLabel } from '@/lib/providerProjection';
 
-const provider = useProvider();
+interface ResourceRow {
+  id: string;
+  name: string;
+  provider: string;
+  catalogued: boolean;
+  catalogId: string;
+  catalogCode: string;
+  statusLabel: string;
+}
+
 const { source } = useSnapshot();
-const role = getProductRole();
-const selectedCatalogId = ref('');
+const provider = useProvider();
 
-// 反向编目字段候选：suggest 后端解析 schema 给出（含 PII 定密 sensitive_level），
-// 在此渲染成可勾选/可改的候选表，确认后随 create 一并入库（j2-online-catalog-compile.feature:33-35
-// 「修订→确认入库」）。每次切目录或重新 suggest 时清空，避免跨目录串候选。
-const fieldCandidates = ref<ReverseFieldDecision[]>([]);
-const suggestedTitle = ref('');
-const suggesting = ref(false);
+const searchQuery = ref('');
+const statusFilter = ref('');
+const providerFilter = ref('');
 
-const SENSITIVE_LABEL: Record<string, string> = {
-  '1': '1 级 · 公开',
-  '2': '2 级 · 内部',
-  '3': '3 级 · 敏感',
-  '4': '4 级 · 高敏',
-};
-
-// 操作员 + 管理员均可发起反向编目草稿（v5 旧平台口径，permission-realignment）
-// R-014：走 canPerformAction chokepoint（catalog.entry.reverse_draft.create gate），
-// 不在 page 内硬编码 role 比对；与后端 policy set-equal。
-const canCreateDraft = computed(() =>
-  canPerformAction('catalog.entry.reverse_draft.create', role.value),
-);
-
-const catalogs = computed(() => {
+const rawResources = computed<ResourceRow[]>(() => {
   const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
   return list
-    .map((c) => mapReverseDraftCatalog(c as Record<string, unknown>))
-    // 只列可发起的（有 schema 引用）：缺 schema_ref 的行（如新编草稿）选中也只会被
-    // validate 拦下，列出来即虚数（headerMeta 计数夸大）——无法操作 = 不出现。
-    .filter((c) => c.schema_ref.trim().length > 0);
+    .map((c) => {
+      const raw = c as Record<string, unknown>;
+      const mapped = mapReverseDraftCatalog(raw);
+      const lifecycleStatus = raw.lifecycle_status ?? mapped.status;
+      return { mapped, lifecycleStatus };
+    })
+    .filter((c) => c.mapped.schema_ref.trim().length > 0)
+    .map((c) => ({
+      id: c.mapped.id,
+      name: displayRecordName(c.mapped.name, c.mapped.catalog_code, '目录'),
+      provider: c.mapped.owner ?? '—',
+      catalogued: providerLifecycleBucket(c.lifecycleStatus) === 'published',
+      catalogId: c.mapped.id,
+      catalogCode: c.mapped.catalog_code,
+      statusLabel: providerLifecycleLabel(c.lifecycleStatus),
+    }));
 });
 
-watch(catalogs, (list) => {
-  if (!selectedCatalogId.value && list.length) {
-    selectedCatalogId.value = list[0].id;
+const providerOptions = computed<string[]>(() => {
+  const set = new Set(rawResources.value.map((r) => r.provider).filter((p) => p && p !== '—'));
+  return [...set].sort();
+});
+
+const filteredResources = computed<ResourceRow[]>(() => {
+  let list = rawResources.value;
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase();
+    list = list.filter((r) => r.name.toLowerCase().includes(q));
   }
-}, { immediate: true });
-
-// 切换目录即清空上一目录的候选/标题，候选只对当前选中目录有效。
-watch(selectedCatalogId, () => {
-  fieldCandidates.value = [];
-  suggestedTitle.value = '';
-});
-
-const selected = computed(
-  (): ReverseDraftCatalog | null =>
-    catalogs.value.find((c) => c.id === selectedCatalogId.value) ?? null,
-);
-
-const previewRows = computed(() => {
-  const c = selected.value;
-  if (!c) return [];
-  return mapDetailRows([
-    // 名==编码 / 名是裸编码 → 「未命名目录（编码 …）」，不把目录码当名直出（R12）。
-    { label: '目录名称', value: displayRecordName(c.name, c.catalog_code, '目录') },
-    { label: '目录编码', value: c.catalog_code },
-    { label: '当前状态', value: c.status || '—' },
-    { label: '责任单位', value: c.owner || '—' },
-    { label: '待补说明', value: c.issue || '暂无' },
-  ]);
+  if (statusFilter.value === 'catalogued') {
+    list = list.filter((r) => r.catalogued);
+  } else if (statusFilter.value === 'uncatalogued') {
+    list = list.filter((r) => !r.catalogued);
+  }
+  if (providerFilter.value) {
+    list = list.filter((r) => r.provider === providerFilter.value);
+  }
+  return list;
 });
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
-  return catalogs.value.length ? `${catalogs.value.length} 个目录可发起反向编目` : '暂无目录数据';
+  const total = rawResources.value.length;
+  return total ? `共 ${total} 项可反向编目目录` : '暂无可反向编目目录';
 });
-
-function guardSelected(): ReverseDraftCatalog | null {
-  const err = validateReverseDraftCatalog(selected.value);
-  if (err) {
-    pushToast({ kind: 'info', title: '暂无法操作', detail: err });
-    return null;
-  }
-  return selected.value;
-}
-
-async function createDraft() {
-  if (!canCreateDraft.value) {
-    pushToast({
-      kind: 'info',
-      title: '暂无创建权限',
-      detail: '创建反向编目草稿由部门操作员、部门管理员办理；草稿经部门管理员部门审、业务运营员平台审后发布。',
-    });
-    return;
-  }
-  const catalog = guardSelected();
-  if (!catalog) return;
-  // 用户可在候选表里把标题改进到草稿名（suggest 给的 title_suggestion 已回填到此处）。
-  const named: ReverseDraftCatalog =
-    suggestedTitle.value.trim() && suggestedTitle.value.trim() !== catalog.name
-      ? { ...catalog, name: suggestedTitle.value.trim() }
-      : catalog;
-  const res = await invokeActionStub({
-    skillId: 'catalog.entry.reverse_draft.create',
-    payload: buildReverseDraftCreatePayload(named, fieldCandidates.value),
-    successTitle: '反向编目草稿已创建',
-  });
-  if (res.ok) {
-    // 入库成功即清空候选，避免对同一目录重复创建时串入旧候选。
-    fieldCandidates.value = [];
-  }
-}
-
-async function suggestFields() {
-  const catalog = guardSelected();
-  if (!catalog) return;
-  suggesting.value = true;
-  try {
-    const res = await invokeActionStub({
-      skillId: 'catalog.entry.reverse_draft.suggest',
-      payload: buildReverseDraftSuggestPayload(catalog),
-      successTitle: '字段建议已生成',
-    });
-    if (res.ok) {
-      // 接住 res.data：把后端三档建议渲染成可勾选/可改的候选表（默认全选）。
-      fieldCandidates.value = parseFieldSuggestions(res.data).map((s) => ({
-        field_en: s.field_en,
-        field_cn: s.field_cn,
-        sensitive_level: s.sensitive_level,
-        source: s.source,
-        selected: true,
-      }));
-      suggestedTitle.value = parseTitleSuggestion(res.data);
-    }
-  } finally {
-    suggesting.value = false;
-  }
-}
-
-const selectedCount = computed(() => fieldCandidates.value.filter((c) => c.selected).length);
 </script>
 
 <template>
-  <main class="focus-page focus-detail">
+  <main class="focus-page">
     <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
       <PageFocusHeader
-        title="反向编目向导"
+        title="反向编目"
         :meta="headerMeta"
         :links="[{ label: '反向编目审核收件箱', href: '#/provider/inbox/field-decision' }]"
       />
 
-      <template v-if="source === 'live' && catalogs.length">
-        <label class="field-label">选择待编目目录</label>
-        <select v-model="selectedCatalogId" class="gov-select">
-          <option value="" disabled>请选择目录</option>
-          <option v-for="c in catalogs" :key="c.id" :value="c.id">{{ displayRecordName(c.name, c.catalog_code, '目录') }}（{{ c.status }}）</option>
-        </select>
-
-        <DetailPanel v-if="selected" title="编目前预览" :rows="previewRows" />
-
-        <section v-if="fieldCandidates.length" class="field-candidates" data-testid="reverse-field-candidates">
-          <header class="fc-head">
-            <h3 class="fc-title">字段候选（{{ selectedCount }}/{{ fieldCandidates.length }} 项将入库）</h3>
-            <p class="fc-sub">系统已解析 schema 给出字段名与敏感级建议，请逐项核对、修订并勾选后确认入库；敏感级由系统按 PII 规则预判，可调整。</p>
-          </header>
-          <label v-if="suggestedTitle" class="field-label">目录名称（建议，可改）</label>
+      <template v-if="source === 'live'">
+        <div class="filter-bar">
           <input
-            v-if="suggestedTitle"
-            v-model="suggestedTitle"
-            class="gov-input"
-            data-testid="reverse-title-suggestion"
-            placeholder="目录名称"
+            v-model="searchQuery"
+            type="search"
+            class="filter-input"
+            placeholder="按目录名称搜索"
           />
-          <table class="fc-table">
-            <thead>
-              <tr>
-                <th class="fc-col-pick">入库</th>
-                <th>字段（英文）</th>
-                <th>中文名（可改）</th>
-                <th>敏感级</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr v-for="(c, i) in fieldCandidates" :key="c.field_en + i">
-                <td class="fc-col-pick">
-                  <input type="checkbox" v-model="c.selected" :data-testid="`fc-pick-${c.field_en}`" />
-                </td>
-                <td class="fc-en">{{ c.field_en }}</td>
-                <td>
-                  <input v-model="c.field_cn" class="gov-input fc-cn" :data-testid="`fc-cn-${c.field_en}`" />
-                </td>
-                <td>
-                  <select v-model="c.sensitive_level" class="gov-select fc-level" :data-testid="`fc-level-${c.field_en}`">
-                    <option v-for="lvl in ['1', '2', '3', '4']" :key="lvl" :value="lvl">{{ SENSITIVE_LABEL[lvl] }}</option>
-                  </select>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </section>
+          <select v-model="statusFilter" class="filter-select">
+            <option value="">全部状态</option>
+            <option value="catalogued">已编目</option>
+            <option value="uncatalogued">未编目</option>
+          </select>
+          <select v-model="providerFilter" class="filter-select">
+            <option value="">全部提供方</option>
+            <option v-for="p in providerOptions" :key="p" :value="p">{{ p }}</option>
+          </select>
+        </div>
 
-        <DetailActions v-if="selected">
-          <button
-            type="button"
-            class="gov-btn gov-btn-secondary"
-            data-testid="reverse-suggest-btn"
-            :disabled="suggesting"
-            @click="suggestFields"
-          >
-            {{ suggesting ? '生成中…' : '生成字段建议' }}
-          </button>
-          <button v-if="canCreateDraft" type="button" class="gov-btn gov-btn-primary" @click="createDraft">
-            创建反向编目草稿
-          </button>
-        </DetailActions>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>数据名称</th>
+              <th>提供方</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-if="!filteredResources.length">
+              <td colspan="4" class="empty-cell">暂无匹配的目录数据</td>
+            </tr>
+            <tr v-for="r in filteredResources" :key="r.id">
+              <td class="cell-name">{{ r.name }}</td>
+              <td>{{ r.provider }}</td>
+              <td>
+                <span :class="['status-tag', r.catalogued ? 'status-done' : 'status-pending']">
+                  {{ r.catalogued ? '已编目' : '未编目' }}
+                </span>
+                <span class="status-detail">{{ r.statusLabel }}</span>
+              </td>
+              <td class="cell-actions">
+                <a
+                  v-if="r.catalogued"
+                  :href="`#/provider/catalog/${encodeURIComponent(r.catalogCode)}`"
+                  class="action-link"
+                >查看目录</a>
+                <a
+                  v-else
+                  :href="`#/provider/wizard/reverse-catalog/detail?catalogId=${encodeURIComponent(r.catalogId)}`"
+                  class="action-link action-primary"
+                  data-testid="reverse-catalog-start"
+                >反向编目</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </template>
 
-      <p v-else-if="source === 'live'" class="focus-empty">当前快照中暂无目录条目，待提供方数据同步后可在此发起反向编目。</p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>
 </template>
 
 <style scoped>
-.field-label { display: block; font-size: 13px; color: var(--b-muted, #5c6370); margin: 8px 0 6px; }
-.gov-select { width: 100%; max-width: 420px; padding: 8px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
-.gov-input { width: 100%; max-width: 420px; padding: 8px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; font-size: 14px; margin-bottom: 12px; }
-.gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }
-.gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
-.gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }
-.gov-btn:disabled { opacity: 0.6; cursor: not-allowed; }
-.field-candidates { margin: 14px 0; }
-.fc-head { margin-bottom: 8px; }
-.fc-title { font-size: 14px; font-weight: 600; color: var(--b-neutral-text, #1a1d21); margin: 0 0 4px; }
-.fc-sub { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0 0 8px; }
-.fc-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.fc-table th, .fc-table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--b-border, #e6eef8); }
-.fc-table th { font-size: 12px; color: var(--b-muted, #5c6370); font-weight: 600; }
-.fc-col-pick { width: 48px; text-align: center; }
-.fc-en { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--b-neutral-text, #1a1d21); }
-.fc-cn { max-width: 220px; margin-bottom: 0; }
-.fc-level { max-width: 160px; margin-bottom: 0; }
+.crumbs { margin-bottom: 4px; }
+.crumbs a { font-size: 13px; color: var(--b-primary, #006be6); text-decoration: none; }
+.crumbs a:hover { text-decoration: underline; }
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+  margin-bottom: 16px;
+}
+.filter-input {
+  flex: 1 1 200px;
+  min-width: 160px;
+  padding: 7px 12px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--b-neutral-text, #1a1d21);
+  background: #fff;
+  outline: none;
+  transition: border-color 0.15s;
+}
+.filter-input:focus {
+  border-color: var(--b-primary, #006be6);
+}
+.filter-select {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--b-neutral-text, #1a1d21);
+  background: #fff;
+  cursor: pointer;
+  outline: none;
+}
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.data-table thead {
+  background: #f5f9fe;
+}
+.data-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--b-muted, #5c6370);
+  border-bottom: 1px solid var(--b-border, #d4e2f4);
+  white-space: nowrap;
+}
+.data-table td {
+  padding: 12px 14px;
+  color: var(--b-neutral-text, #1a1d21);
+  border-bottom: 1px solid var(--b-border-subtle, #e6eef8);
+}
+.data-table tbody tr:last-child td {
+  border-bottom: none;
+}
+.data-table tbody tr:hover {
+  background: #fafcff;
+}
+.cell-name {
+  font-weight: 500;
+}
+.empty-cell {
+  text-align: center;
+  color: var(--b-muted, #5c6370);
+  padding: 40px 14px !important;
+}
+.status-tag {
+  display: inline-flex;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+.status-done {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.status-pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+.status-detail {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--b-muted, #5c6370);
+}
+.cell-actions {
+  display: flex;
+  gap: 10px;
+}
+.action-link {
+  color: var(--b-primary, #006be6);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.action-link:hover {
+  text-decoration: underline;
+}
+.action-primary {
+  font-weight: 600;
+}
 </style>

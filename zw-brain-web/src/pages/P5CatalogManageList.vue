@@ -58,6 +58,7 @@ async function onRowAction({ actionId }: { actionId: string; row: ProviderAssetR
     :can-view="canView"
     :can-act="canAct"
     empty-text="本部门暂无已编目目录。"
+    empty-filtered-text="暂无匹配的目录数据"
     deny-text="当前岗位无目录管理视图权限。"
     testid="provider-catalog-list"
     @row-action="onRowAction"

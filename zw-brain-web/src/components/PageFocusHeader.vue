@@ -76,9 +76,11 @@ const visibleLinks = computed<FocusLink[]>(() => {
 .focus-head-row {
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 12px 20px;
   flex-wrap: wrap;
+}
+.focus-head-main {
+  flex-shrink: 0;
 }
 .focus-title {
   margin: 0;
@@ -96,13 +98,17 @@ const visibleLinks = computed<FocusLink[]>(() => {
 .focus-links {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 13px;
 }
 .focus-link-pill {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   padding: 5px 14px;
   border: 1px solid var(--b-border, #d4e2f4);
   border-radius: 999px;
@@ -111,6 +117,7 @@ const visibleLinks = computed<FocusLink[]>(() => {
   text-decoration: none;
   font-weight: 500;
   line-height: 1.2;
+  text-align: center;
   transition: background-color 0.15s ease, border-color 0.15s ease;
 }
 a.focus-link-pill:hover {

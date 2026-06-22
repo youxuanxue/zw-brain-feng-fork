@@ -143,14 +143,16 @@ test('链路2：反向编目两级审核全链——操作员UI创建→管理�
   await skipUnlessBackend(page, testInfo);
   await waitAppReady(page);
 
-  // 1) 部门操作员：B2 同级展示——供数首屏主卡「反向编目」与「在线编制目录」并列，点卡进向导。
+  // 1) 部门操作员：供数据页头药丸区「反向编目」与「在线编制目录」并列，点药丸进向导。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider');
-  const reverseCard = page.locator('a.supply-card', { hasText: '反向编目' });
+  const reverseCard = page.locator('a.focus-link-pill', { hasText: '反向编目' });
   await expect(reverseCard).toHaveCount(1, { timeout: 15_000 });
-  await expect(page.locator('a.supply-card', { hasText: '在线编制目录' })).toHaveCount(1);
+  await expect(page.locator('a.focus-link-pill', { hasText: '在线编制目录' })).toHaveCount(1);
   await reverseCard.click();
-  await expect(page.locator('body')).toContainText('反向编目向导', { timeout: 15_000 });
+  await expect(page.getByRole('heading', { name: '反向编目' })).toBeVisible({ timeout: 15_000 });
+  await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');
+  await expect(page.getByRole('heading', { name: '反向编目向导' })).toBeVisible({ timeout: 15_000 });
 
   // 2) 操作员经真实 UI 创建两条反向草稿（产品语义=对既有带 schema 目录反查重编）：
   //    A 走「部门审通过→平台审→发布」，B 走「部门审驳回」。

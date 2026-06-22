@@ -24,6 +24,7 @@ import P5CatalogManageList from '@/pages/P5CatalogManageList.vue';
 import P5ResourceManageList from '@/pages/P5ResourceManageList.vue';
 import P5CatalogReviewInbox from '@/pages/P5CatalogReviewInbox.vue';
 import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
+import P5ReverseCatalogDetail from '@/pages/P5ReverseCatalogDetail.vue';
 import P5ApiServiceWizard from '@/pages/P5ApiServiceWizard.vue';
 import P5HookupSubmitWizard from '@/pages/P5HookupSubmitWizard.vue';
 import P5QualityRuleWizard from '@/pages/P5QualityRuleWizard.vue';
@@ -94,7 +95,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/provider/resource/:id', component: P2ResourceDetail, meta: { page: 'P5', title: 'P5 资源详情（供数管理视角）' } },
   { path: '/provider/catalog/:code', component: P2CatalogDetail, meta: { page: 'P5', title: 'P5 目录详情（供数管理视角）' } },
   { path: '/provider/inbox/catalog-review', component: P5CatalogReviewInbox, meta: { page: 'P5', title: 'P5 目录审核收件箱' } },
-  { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目向导' } },
+  { path: '/provider/wizard/reverse-catalog/detail', component: P5ReverseCatalogDetail, meta: { page: 'P5', title: 'P5 反向编目向导' } },
+  { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目' } },
   { path: '/provider/wizard/api-service', component: P5ApiServiceWizard, meta: { page: 'P5', title: 'P5 API 服务化向导' } },
   { path: '/provider/wizard/hookup-submit', component: P5HookupSubmitWizard, meta: { page: 'P5', title: 'P5 资源挂接向导' } },
   { path: '/provider/wizard/quality-rule', component: P5QualityRuleWizard, meta: { page: 'P5', title: 'P5 质量规则向导' } },

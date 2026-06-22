@@ -226,6 +226,10 @@ function _bucketStatus(raw: unknown): _ActiveBucket | null {
   return null;
 }
 
+export function providerLifecycleBucket(raw: unknown): _ActiveBucket | null {
+  return _bucketStatus(raw);
+}
+
 function _summarize(rows: unknown[]): AssetStatusSummary {
   const out: AssetStatusSummary = { total: 0, draft: 0, reviewing: 0, pendingPublish: 0, published: 0, inactive: 0 };
   for (const row of rows) {
@@ -285,6 +289,10 @@ function _statusLabel(raw: unknown): string {
   if (bucket) return _BUCKET_LABEL[bucket];
   if (/[一-鿿]/.test(s)) return s; // 已是中文（snapshot 部分行直接落中文态）
   return _INACTIVE_LABEL[s.toLowerCase()] ?? (s || '—');
+}
+
+export function providerLifecycleLabel(raw: unknown): string {
+  return _statusLabel(raw);
 }
 
 /** 行内动作（C：草稿续编/提交审核）。href=跳转链接；actionId=点击调能力（由页面承接）。 */

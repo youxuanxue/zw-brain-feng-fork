@@ -40,6 +40,7 @@ const meta = computed(() => {
     :loaded="source === 'live'"
     :can-view="canView"
     empty-text="本部门暂无已挂接资源。"
+    empty-filtered-text="暂无匹配的资源数据"
     deny-text="当前岗位无资源管理视图权限。"
     testid="provider-resource-list"
   />

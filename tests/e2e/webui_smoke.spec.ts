@@ -39,6 +39,33 @@ async function mintRejectedRequest(api: APIRequestContext): Promise<string | nul
   return requestId;
 }
 
+async function prepareReverseDraftCatalog(api: APIRequestContext): Promise<string | null> {
+  const snapResp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_MANAGER`);
+  if (!snapResp.ok()) return null;
+  const snap = (await snapResp.json()) as { provider?: { catalogs?: Array<Record<string, unknown>> } };
+  const catalog = (snap.provider?.catalogs ?? []).find((c) => c.catalog_code || c.id);
+  const catalogCode = String(catalog?.catalog_code ?? catalog?.id ?? '');
+  const schemaRef = String(catalog?.schema_ref ?? `e2e:reverse-catalog:${catalogCode}`);
+  if (!catalogCode || !schemaRef) return null;
+
+  const upsertResp = await api.post(`${E2E_BASE_URL}/api/skills/metadata.schema.snapshot.upsert`, {
+    data: {
+      role: 'ROLE_ORGAN_OPERATER',
+      confirmed: true,
+      resource_code: catalogCode,
+      snapshot_ref: schemaRef,
+      schema_json: {
+        columns: [
+          { column_name: 'name', comment: '姓名', data_type: 'varchar', sensitive_level: '3' },
+          { column_name: 'mobile', comment: '手机号', data_type: 'varchar', sensitive_level: '3' },
+        ],
+      },
+    },
+  });
+  if (!upsertResp.ok()) return null;
+  return catalogCode;
+}
+
 test.beforeEach(async ({ page }, testInfo) => {
   await skipUnlessBackend(page, testInfo);
   await page.goto('/');
@@ -187,15 +214,17 @@ test('岗位切换：部门管理员可进提供方管理', async ({ page }) => 
   await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
 });
 
-test('P5 子路由：反向编目向导可点通', async ({ page }) => {
+test('P5 子路由：反向编目列表与向导可点通', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_MANAGER');
   await gotoHash(page, '#/provider/wizard/reverse-catalog');
+  await expect(page.getByRole('heading', { name: '反向编目' })).toBeVisible();
+  await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');
   await expect(page.getByRole('heading', { name: '反向编目向导' })).toBeVisible();
 });
 
 test('P5 反向编目：部门管理员可生成字段建议', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_MANAGER');
-  await gotoHash(page, '#/provider/wizard/reverse-catalog');
+  await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');
   await page.locator('.gov-select').selectOption({ index: 1 });
   await page.getByRole('button', { name: '生成字段建议' }).click();
   await page.waitForTimeout(800);
@@ -203,15 +232,19 @@ test('P5 反向编目：部门管理员可生成字段建议', async ({ page }) 
   await expect(page.locator('body')).not.toContainText('missing required input field');
 });
 
-test('P5 反向编目：字段候选被接住并渲染成可勾选/可改的候选表（j2 修订→确认入库）', async ({ page }) => {
+test('P5 反向编目：字段候选被接住并渲染成可勾选/可改的候选表（j2 修订→确认入库）', async ({ page, playwright }) => {
   // 接缝诚实化 A：suggestFields 接住 res.data.fields，渲染候选表（含敏感级），
   // 确认后随 create 发 draft_field_suggestions。本用例钉死「候选被接住」这一断点
   // （此前 res.data 被丢弃，字段链断在前端）。
+  const api = await playwright.request.newContext();
+  const catalogCode = await prepareReverseDraftCatalog(api);
+  await api.dispose();
+  test.skip(!catalogCode, '无法准备反向编目字段候选测试数据');
+
   await setRole(page, 'ROLE_ORGAN_MANAGER');
-  await gotoHash(page, '#/provider/wizard/reverse-catalog');
-  await page.locator('.gov-select').selectOption({ index: 1 });
+  await gotoHash(page, `#/provider/wizard/reverse-catalog/detail?catalogId=${encodeURIComponent(catalogCode)}`);
+  await page.locator('.gov-select').selectOption(catalogCode);
   await page.getByTestId('reverse-suggest-btn').click();
-  await page.waitForTimeout(800);
   await expect(page.locator('body')).toContainText('字段建议已生成');
   // 候选表出现 + 至少一行字段（含勾选框 / 中文名输入框 / 敏感级下拉）。
   const candidates = page.getByTestId('reverse-field-candidates');
