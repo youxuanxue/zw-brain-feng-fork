@@ -36,7 +36,7 @@ const item = computed(() => {
 
 // 召回候选（NL 召回字典命中，id="recall:<标题>"）是"提示有这个目录"的软候选：
 // 该目录还未录入 catalog_entry 主表（搜不到）、也没有详情页（catalog.resource_view
-// 会 entity_not_found）。诚实降级——不渲染会坏的标题链接/查看详情/申请资源，
+// 会 entity_not_found）。诚实降级——不渲染会坏的标题链接/查看详情/发起申请，
 // 只标注"已在官方召回字典、录入中，暂无详情/申请入口"。根因（召回字典↔主表脱节）记 backlog。
 const isRecallCandidate = computed(
   () => item.value.kind === 'recall_dictionary' || item.value.id.startsWith('recall:'),
@@ -82,17 +82,17 @@ const emit = defineEmits<{
       <li v-for="f in item.fields.slice(0, 8)" :key="f">{{ f }}</li>
     </ul>
     <p v-if="isRecallCandidate" class="res-pending">该目录已收录，正在录入，暂无详情与申请入口。</p>
-    <footer v-if="showAction && !isRecallCandidate" class="res-foot">
-      <!-- A1（0605#1）：只有「已发布（机器值 active）」资源可申请。发现页投影已只返已发布态，
-           此处再以机器值门控为纵深防御——任何非 active 态（待发布等）不渲染申请按钮（比机器值不比中文）。 -->
+    <footer v-if="!isRecallCandidate" class="res-foot">
+      <!-- A1（0605#1）：只有申请人岗位 +「已发布（机器值 active）」资源可申请。
+           ResourceCard 仍始终给详情入口；申请 CTA 由父级申请人权限 + active 机器值共同门控。 -->
       <button
-        v-if="item.lifecycleStatus === 'active'"
+        v-if="showAction && item.lifecycleStatus === 'active'"
         type="button"
         class="gov-btn gov-btn-primary"
         data-skill="request.create"
         @click="emit('apply', item.id)"
       >
-        申请资源
+        发起申请
       </button>
       <a :href="`#/discovery/resource/${encodeURIComponent(item.id)}`" class="gov-btn gov-btn-secondary">查看详情</a>
     </footer>

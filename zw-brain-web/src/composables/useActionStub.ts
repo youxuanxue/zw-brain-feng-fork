@@ -18,23 +18,61 @@ export interface ToastEntry {
   title: string;
   detail?: string;
   ttl?: number;
+  channel?: string;
+  key?: string;
 }
 
 let _idSeq = 1;
 export const toasts = ref<ToastEntry[]>([]);
+const _toastTimers = new Map<number, number>();
+const MAX_TOASTS = 3;
 
 export function pushToast(entry: Omit<ToastEntry, 'id'>): number {
-  const id = _idSeq++;
-  toasts.value.push({ id, ...entry });
-  if (entry.ttl !== 0) {
-    const ms = entry.ttl ?? 4500;
-    window.setTimeout(() => dismissToast(id), ms);
+  const normalized = normalizeToastEntry(entry);
+  const existing = normalized.channel && normalized.key
+    ? toasts.value.find((t) => t.channel === normalized.channel && t.key === normalized.key)
+    : undefined;
+  if (existing) {
+    toasts.value = toasts.value.map((t) => (
+      t.id === existing.id ? { ...t, ...normalized, id: t.id } : t
+    ));
+    scheduleToastDismiss(existing.id, normalized.ttl);
+    return existing.id;
   }
+
+  const id = _idSeq++;
+  toasts.value = [...toasts.value, { id, ...normalized }];
+  while (toasts.value.length > MAX_TOASTS) {
+    dismissToast(toasts.value[0].id);
+  }
+  scheduleToastDismiss(id, normalized.ttl);
   return id;
 }
 
 export function dismissToast(id: number): void {
+  const timer = _toastTimers.get(id);
+  if (timer !== undefined) {
+    window.clearTimeout(timer);
+    _toastTimers.delete(id);
+  }
   toasts.value = toasts.value.filter((t) => t.id !== id);
+}
+
+function normalizeToastEntry(entry: Omit<ToastEntry, 'id'>): Omit<ToastEntry, 'id'> {
+  if (entry.channel || entry.key) return entry;
+  if (['已切换岗位', '岗位已自动调整', '无权访问该页面'].includes(entry.title)) {
+    return { ...entry, channel: 'access', key: 'role-route' };
+  }
+  return entry;
+}
+
+function scheduleToastDismiss(id: number, ttl?: number): void {
+  const previous = _toastTimers.get(id);
+  if (previous !== undefined) window.clearTimeout(previous);
+  _toastTimers.delete(id);
+  if (ttl === 0) return;
+  const ms = ttl ?? 4500;
+  _toastTimers.set(id, window.setTimeout(() => dismissToast(id), ms));
 }
 
 export interface ActionStubOptions {

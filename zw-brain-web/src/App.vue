@@ -40,6 +40,7 @@ const { source: snapSource } = useSnapshot();
 const webui = useWebUiConfig();
 const currentRole = getProductRole();
 const initError = ref<string | null>(null);
+const authChecked = ref(false);
 
 const deploymentLabel = computed(() => String(webui.value.deploymentLabel ?? ''));
 const legalNotice = computed(() => String(webui.value.legalNotice ?? ''));
@@ -60,11 +61,15 @@ const canSwitchRole = computed(() => allowRoleSwitch.value && allowedRoles.value
 const missingProductRole = computed(
   () => Boolean(user.value && !isLoginRoute.value && !hasAllowedProductRoles())
 );
+const canRenderRouter = computed(() => (
+  isLoginRoute.value || Boolean(authChecked.value && user.value && !missingProductRole.value)
+));
 
 // 侧边栏（旅程分组主导航）：登录页 / 登录中不渲染；与旧 ProductTopNav 渲染条件一致。
 const showSideNav = computed(() => !isLoginRoute.value && !authLoading.value);
 
 async function refreshAll() {
+  authChecked.value = false;
   initError.value = null;
   try {
     await bootstrapAuth();
@@ -92,6 +97,8 @@ async function refreshAll() {
     const detail = e instanceof Error ? e.message : String(e);
     initError.value = detail;
     if (!user.value && !isLoginRoute.value) await router.replace('/login');
+  } finally {
+    authChecked.value = true;
   }
 }
 
@@ -278,7 +285,11 @@ watch(
             数据暂不可达。请确认 brain REST（8800）已启动后刷新。
           </div>
           <div v-if="authLoading && !isLoginRoute" class="boot-banner boot-banner-info">正在完成登录…</div>
-          <RouterView v-if="!authLoading || isLoginRoute" />
+          <RouterView v-if="canRenderRouter" />
+          <div
+            v-else-if="!isLoginRoute && !authChecked"
+            class="boot-banner boot-banner-info"
+          >正在确认登录状态…</div>
           <div v-if="initError && !missingProductRole" class="boot-banner boot-banner-warn">初始化告警：{{ initError }}</div>
         </div>
       </div>

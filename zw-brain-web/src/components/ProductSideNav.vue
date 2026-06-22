@@ -93,25 +93,34 @@ const active = computed(() => activeShellKey(route.path));
   .side-nav {
     position: static;
     flex-direction: row;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 8px;
     border-bottom: 1px solid var(--b-border, #d4e2f4);
     padding-bottom: 10px;
     margin-bottom: 12px;
+    max-width: 100%;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
   }
   .side-nav-group {
     flex-direction: row;
-    flex-wrap: wrap;
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
     gap: 6px;
     align-items: center;
   }
   .side-nav-group-label {
+    flex: 0 0 auto;
     margin: 0 6px 0 0;
   }
   .side-nav-item {
+    flex: 0 0 auto;
     padding: 6px 12px;
     border-left: 0;
     border-bottom: 2px solid transparent;
+    white-space: nowrap;
   }
   .side-nav-item.is-active {
     border-left: 0;

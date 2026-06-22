@@ -83,6 +83,29 @@ def handler(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> An
     return search_resources(brain, query, page)
 
 
+def _active_catalog_cards(
+    deps: Any,
+    records: list[Any],
+    store: Any,
+) -> list[dict[str, Any]]:
+    """Project active catalog records for P2 data.search.
+
+    `catalog.browse` defaults to active, real catalog entries. `data.search`
+    must use the same availability gate: lifecycle active is enough for a
+    directory card to be searchable/applicable. Topic projection cards are kept
+    as explanation metadata only; they must not hide active catalog entries from
+    search.
+    """
+    cards_by_catalog = deps.services.catalog.topic_projection_cards_by_catalog(
+        [record.catalog_code for record in records], store
+    )
+    return [
+        deps.services.catalog.record_to_card_dict(record)
+        | {"topicProjections": cards_by_catalog.get(record.catalog_code, [])}
+        for record in records
+    ]
+
+
 def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str, Any]:
     deps = brain._get_handler_deps()  # Action B/C — recover deps for view/repo access
     query = query.strip()
@@ -149,22 +172,19 @@ def search_resources(brain: BrainService, query: str, page: int = 1) -> dict[str
             resources = real if real else deps.view.discovery.get_resources()  # Action C — already deepcopied
         else:
             haystack = query.lower()
-            records = deps.repos.catalog.search_entries(query, tenant_id=_DEFAULT_TENANT_ID)
+            records = deps.repos.catalog.search_entries(
+                query,
+                tenant_id=_DEFAULT_TENANT_ID,
+                lifecycle_status="active",
+                exclude_catalog_code_prefix="api-group:",
+            )
             # P1 N+1 消除：旧实现对每条命中 record 各跑一次 topic_projection_cards
             # （每次遍历全部专题包），且 :111 与 is_discoverable 内各算一遍（重复计算）。
             # 改为：一次性批量算出所有命中 catalog 的投影卡片（catalog→package 反查索引 +
             # 单次 list batch context），再 O(1) 复用，既去重复算也去三重嵌套 N+1。
-            cards_by_catalog = deps.services.catalog.topic_projection_cards_by_catalog(
-                [record.catalog_code for record in records], store
-            )
-            resources = [
-                deps.services.catalog.record_to_card_dict(record)
-                | {"topicProjections": cards_by_catalog.get(record.catalog_code, [])}
-                for record in records
-                if deps.services.catalog.is_discoverable_with_cards(
-                    record, cards_by_catalog.get(record.catalog_code, [])
-                )
-            ]
+            # 但可申请搜索入口的可见性口径与 catalog.browse/catalog.entry.query
+            # 对齐为 active 目录；专题 projectionStatus 仅作说明，不再过滤搜索结果。
+            resources = _active_catalog_cards(deps, records, store)
             existing_ids = {r["id"] for r in resources}
             for item in deps.view.discovery.get_resources():  # Action C — read facade
                 text = " ".join(

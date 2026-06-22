@@ -100,7 +100,13 @@ watch(role, () => { void load(); });
           </tr>
         </tbody>
       </table>
-      <p v-else-if="source === 'live'" class="focus-empty">暂无目录数据。</p>
+      <div v-else-if="source === 'live'" class="focus-empty catalog-empty">
+        <p>暂无目录数据。</p>
+        <div class="empty-actions" aria-label="暂无目录后的下一步">
+          <a class="row-link" href="#/discovery">返回找数据</a>
+          <a class="row-link" href="#/request-flow/supply-demand">登记需求 / 找不到数据</a>
+        </div>
+      </div>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>
@@ -112,4 +118,7 @@ watch(role, () => { void load(); });
 .hint-cell { max-width: 280px; color: var(--b-muted, #5c6370); font-size: 12px; }
 .res-count { font-weight: 600; color: var(--b-primary, #006be6); }
 .res-count-zero { color: var(--b-muted, #5c6370); font-weight: 400; }
+.catalog-empty { display: flex; flex-direction: column; gap: 8px; }
+.catalog-empty p { margin: 0; }
+.empty-actions { display: flex; flex-wrap: wrap; gap: 12px; }
 </style>

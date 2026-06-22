@@ -71,6 +71,12 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
 /* ----- Minimal utilities (single path — no Tailwind) ----- */
 .flex {
   display: flex;
@@ -2334,6 +2340,92 @@ pre.code {
 }
 
 @media (max-width: 768px) {
+  :root {
+    --zw-header-stack: 96px;
+    --zw-main-pad-x: 12px;
+    --zw-main-pad-y: 12px;
+  }
+
+  .global-header-inner {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  .global-brand {
+    flex: 1 1 150px;
+  }
+
+  .brand-title {
+    font-size: 16px;
+  }
+
+  .brand-subtitle {
+    display: none;
+  }
+
+  .global-actions {
+    flex: 1 1 100%;
+    min-width: 0;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .user-menu {
+    min-width: 0;
+  }
+
+  .user-menu-button {
+    max-width: 7rem;
+  }
+
+  .role-control {
+    min-width: 0;
+    padding-left: 10px;
+    gap: 6px;
+  }
+
+  .role-select {
+    width: min(190px, 48vw);
+    min-width: 0;
+  }
+
+  .focus-page,
+  .focus-head,
+  .focus-head-row,
+  .focus-head-main,
+  .focus-links,
+  .panel,
+  .panel-body {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .focus-head-row {
+    flex-wrap: wrap;
+  }
+
+  .focus-head-main {
+    flex: 1 1 100%;
+  }
+
+  .focus-title,
+  .focus-meta {
+    overflow-wrap: anywhere;
+  }
+
+  .focus-links {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    overflow: hidden;
+  }
+
+  .focus-link-pill,
+  .gov-btn {
+    max-width: 100%;
+    white-space: normal;
+    text-align: center;
+  }
+
   .page-toolbar {
     flex-direction: column;
     align-items: flex-start;

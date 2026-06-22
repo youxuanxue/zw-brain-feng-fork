@@ -25,7 +25,7 @@ const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const { resource, loading, fetchError } = useResourceDetail(() => id.value);
 // request.create = OPERATER + MANAGER（D57④ 管理员申请人身份照 v5 保留）；BUSIAUDIT/SECURITY_AUDIT
-// 在 P2 详情页不渲染「申请资源」。
+// 在 P2 详情页不渲染「发起申请」。
 // A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（机器值 active）」才可申请——
 // 叠加状态门控（比对机器值 lifecycleStatus 而非中文展示词，单一事实源），非 active 一律拦下。
 // 档 B（供数管理视角）：供数侧详情走独立路由 /provider/resource/:id（复用本组件），按 route.path
@@ -300,7 +300,7 @@ async function apply() {
       </section>
 
       <DetailActions>
-        <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">申请资源</button>
+        <button v-if="canApply" type="button" class="gov-btn gov-btn-primary" data-skill="request.create" @click="apply">发起申请</button>
         <!-- 档 B（供数管理视角，/provider/resource/:id）——供数方看自己的数据，给「回供数管理」而非消费「申请」框架。 -->
         <p v-else-if="providerView" class="apply-note" data-testid="resource-provider-manage-note">
           本部门提供的资源（管理视角）。<a href="#/provider/resources" class="row-link">← 回供数管理</a>

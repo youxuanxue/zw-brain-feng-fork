@@ -80,7 +80,7 @@ onMounted(() => {
 
 // G5：申请是申请人动作。request.create = 部门操作员 + 部门管理员（D57④ 管理员申请人身份照 v5
 // 保留，与 P2 详情页 canApply、后端 policy.request.create set-equal）；业务运营员 / 审计员在发现页
-// 不渲染「申请资源」CTA（无权=不可见，纵深防御叠加 ResourceCard 的 active-only 机器值门）。
+// 不渲染「发起申请」CTA（无权=不可见，纵深防御叠加 ResourceCard 的 active-only 机器值门）。
 const canApply = computed(() => canPerformAction('request.create', getProductRole().value));
 
 // 非申请人岗位（含业务运营员）浏览找数据时不出现「申请资源」字样——页头标题与命中统计同步中性化。
@@ -90,10 +90,10 @@ const headerMeta = computed(() => {
   if (searching.value) return '正在检索……';
   if (searchError.value && isSearchMode.value) return `检索失败：${searchError.value}`;
   if (source.value === 'live') {
-    if (!displayed.value.length) return '未命中，可换关键词或浏览专题包';
+    if (!visibleResources.value.length) return '未命中，可浏览目录或登记需求';
     return canApply.value
-      ? `命中 ${displayed.value.length} 条可申请资源`
-      : `命中 ${displayed.value.length} 条数据资源`;
+      ? `命中 ${visibleResources.value.length} 条可申请资源`
+      : `命中 ${visibleResources.value.length} 条数据资源`;
   }
   return '正在加载资源目录……';
 });
@@ -113,7 +113,7 @@ const headerLinks = computed(() => {
 
 async function applyTo(id: string) {
   // 采草稿流（0605#8）：生成草稿 → 跳详情确认 → 用户手动提交才进审批。
-  // 去掉前端硬塞的零内容用途「通过资源发现页申请资源」（描述 UI 路径≠用户诉求，掩耳盗铃）：
+  // 去掉前端硬塞的零内容用途「通过资源发现页发起申请」（描述 UI 路径≠用户诉求，掩耳盗铃）：
   // 与 P2ResourceDetail.apply 一致只传 resource_id，用途由用户在详情页确认/修订。
   const result = await invokeActionStub({
     skillId: 'request.create',
@@ -172,7 +172,11 @@ async function applyTo(id: string) {
       </div>
       <div v-else-if="source === 'live'" class="focus-empty discovery-empty">
         <p class="discovery-empty-line">未命中资源。</p>
-        <p class="discovery-empty-promise">要数据，不用再跑窗口、不用再问我是哪个角色、拿到就能调用。</p>
+        <p class="discovery-empty-promise">可以继续浏览目录；确实找不到时，登记需求进入供需对接。</p>
+        <div class="empty-actions" aria-label="未命中后的下一步">
+          <a class="gov-btn gov-btn-secondary" href="#/discovery/catalog-browse">浏览目录</a>
+          <a class="gov-btn gov-btn-primary" href="#/request-flow/supply-demand">登记需求 / 找不到数据</a>
+        </div>
       </div>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
@@ -188,4 +192,9 @@ async function applyTo(id: string) {
 .discovery-empty { display: flex; flex-direction: column; gap: 6px; }
 .discovery-empty-line { margin: 0; }
 .discovery-empty-promise { margin: 0; font-size: 13px; color: var(--b-muted, #5c6370); }
+.empty-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.gov-btn { display: inline-flex; align-items: center; justify-content: center; padding: 6px 14px; border-radius: 6px; font-size: 13px; text-decoration: none; cursor: pointer; border: 1px solid transparent; }
+.gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
+.gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); color: var(--b-neutral-text, #1a1d21); }
+.gov-btn-secondary:hover { background: var(--b-bg-subtle, #e8f2fc); }
 </style>

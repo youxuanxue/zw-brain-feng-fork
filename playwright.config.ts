@@ -19,6 +19,7 @@ export default defineConfig({
     'p5_duplicate_warnings.spec.ts',
     'twin_browser_pages.spec.ts',
     'scenario_agents_ui.spec.ts',
+    'trial_shell_experience.spec.ts',
     'customer_acceptance_checklist.spec.ts',
     'b12_iam_governance.spec.ts',
     'permission_invisibility.spec.ts',

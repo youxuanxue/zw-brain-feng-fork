@@ -34,7 +34,7 @@ const stubs = {
 };
 const mountPage = () => mount(P2ResourceDetail, { global: { stubs } });
 const applyBtn = (w: ReturnType<typeof mountPage>) =>
-  w.findAll('button').find((b) => b.text() === '申请资源');
+  w.findAll('button').find((b) => b.text() === '发起申请');
 const notPublishedNote = (w: ReturnType<typeof mountPage>) =>
   w.find('[data-testid="resource-not-published-note"]');
 const providerManageNote = (w: ReturnType<typeof mountPage>) =>

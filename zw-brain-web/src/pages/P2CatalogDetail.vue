@@ -4,12 +4,15 @@ import { computed, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import { useCatalogResources } from '@/composables/useCatalogResources';
 import { getProductRole } from '@/composables/useProductRole';
+import { invokeActionStub } from '@/composables/useActionStub';
+import { navigateToRequestDetail, resolveRequestIdFromAction } from '@/composables/useRequestNavigation';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
 import { decisionRows, compilationRows, catalogSummary, DECISION_SECTION_TITLE } from '@/lib/typedDetailDisplay';
 import { resourceKindLabel } from '@/lib/resourceKind';
 import { displayRecordName } from '@/lib/userLanguage';
+import { canPerformAction } from '@/lib/pageAccess';
 
 const route = useRoute();
 const code = computed(() => String(route.params.code ?? ''));
@@ -22,6 +25,7 @@ const { catalog, resources, total, loading, fetchError, source } = useCatalogRes
   () => code.value,
   role.value,
 );
+const canApply = computed(() => !providerView.value && canPerformAction('request.create', role.value));
 
 // 物化形式中文标签经单源 resourceKindLabel（lib/resourceKind.ts）—— 与 ResourceCard 徽标同口径。
 
@@ -61,6 +65,16 @@ const decisionDetailRows = computed(() => decisionRows(accessPolicy.value, catal
 const compilationDetailRows = computed(() => compilationRows(catalogMeta.value));
 const summaryText = computed(() => catalogSummary(catalogMeta.value));
 const showCompilation = ref(false);
+
+async function applyTo(id: string) {
+  const result = await invokeActionStub({
+    skillId: 'request.create',
+    payload: { resource_id: id },
+    successTitle: '申请草稿已生成，请在详情页确认后提交',
+  });
+  const requestId = resolveRequestIdFromAction(result);
+  if (requestId) navigateToRequestDetail(requestId);
+}
 </script>
 
 <template>
@@ -118,7 +132,13 @@ const showCompilation = ref(false);
         >{{ resourceKindLabel(k) || k }}</button>
       </div>
       <div v-if="filteredResources.length" class="card-grid">
-        <ResourceCard v-for="r in filteredResources" :key="String(r.id ?? '')" :resource="r" />
+        <ResourceCard
+          v-for="r in filteredResources"
+          :key="String(r.id ?? '')"
+          :resource="r"
+          :show-action="canApply"
+          @apply="applyTo"
+        />
       </div>
       <p v-else-if="!loading && source === 'live'" class="focus-empty">该目录暂无关联资源。</p>
       <p v-else class="focus-empty">正在加载目录资源……</p>

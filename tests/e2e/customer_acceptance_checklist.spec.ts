@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test';
 import {
   E2E_BASE_URL,
   ensurePublishQueue,
@@ -15,6 +15,88 @@ import {
  * 失败即代表客户演示会踩坑，必须修到全绿。
  */
 
+const REQUEST_CREATE_BLOCKING_STATUSES = new Set(['pending', 'submitted', 'supplementing', 'summary-pending']);
+
+async function requestCreateBlockedResourceIds(api: APIRequestContext): Promise<Set<string>> {
+  const resp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  if (!resp.ok()) return new Set();
+  const body = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+  const requests = (body.requests ?? []) as Array<Record<string, unknown>>;
+  return new Set(
+    requests
+      .filter((r) => REQUEST_CREATE_BLOCKING_STATUSES.has(String(r.status ?? '')))
+      .map((r) => String(r.resourceId ?? r.resource_id ?? ''))
+      .filter(Boolean),
+  );
+}
+
+async function firstDiscoveryResourceForRequest(api: APIRequestContext): Promise<string | null> {
+  const blocked = await requestCreateBlockedResourceIds(api);
+  const resp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  if (!resp.ok()) return null;
+  const body = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+  const discovery = (body.discovery ?? {}) as Record<string, unknown>;
+  const resources = (discovery.resources ?? []) as Array<Record<string, unknown>>;
+  const candidates = resources.filter((r) => {
+    const id = String(r.id ?? '');
+    return id && !id.startsWith('recall:') && !blocked.has(id);
+  });
+  for (const row of candidates) {
+    const id = String(row.id ?? '');
+    const detail = await api.get(
+      `${E2E_BASE_URL}/api/skills/catalog.resource_view?role=ROLE_ORGAN_OPERATER&resource_id=${encodeURIComponent(id)}`,
+    );
+    if (!detail.ok()) continue;
+    const body = (await detail.json().catch(() => ({}))) as Record<string, unknown>;
+    if (String(body.lifecycleStatus ?? '') === 'active') return id;
+  }
+  return null;
+}
+
+async function firstCatalogResourceForRequest(
+  api: APIRequestContext,
+): Promise<{ catalogCode: string; resourceId: string } | null> {
+  const blocked = await requestCreateBlockedResourceIds(api);
+  const browse = await api.post(`${E2E_BASE_URL}/api/skills/catalog.browse`, {
+    data: { role: 'ROLE_ORGAN_OPERATER', lifecycle: 'active', limit: 100 },
+  });
+  if (!browse.ok()) return null;
+  const body = (await browse.json().catch(() => ({}))) as { items?: Array<{ catalog_code?: string }> };
+  const codes = (body.items ?? []).map((it) => String(it.catalog_code ?? '')).filter(Boolean);
+  for (const catalogCode of codes) {
+    const list = await api.post(`${E2E_BASE_URL}/api/skills/catalog.resource.list`, {
+      data: { role: 'ROLE_ORGAN_OPERATER', catalog_code: catalogCode, lifecycle: 'active', limit: 50 },
+    });
+    if (!list.ok()) continue;
+    const listBody = (await list.json().catch(() => ({}))) as {
+      items?: Array<{ resource_code?: string }>;
+    };
+    const resource = (listBody.items ?? []).find((it) => {
+      const id = String(it.resource_code ?? '');
+      return id && !blocked.has(id);
+    });
+    if (resource?.resource_code) return { catalogCode, resourceId: resource.resource_code };
+  }
+  return null;
+}
+
+async function expectDraftSubmitVisible(page: Page): Promise<string> {
+  await expect
+    .poll(async () => page.evaluate(() => window.location.hash), { timeout: 12_000 })
+    .toMatch(/#\/request-flow\/request\/(REQ-\d{4}-\d{2}-\d{2}-\d{4}|[0-9a-f]{32})/);
+  const hash = await page.evaluate(() => window.location.hash);
+  const requestId = decodeURIComponent(hash.split('/').pop() ?? '');
+  expect(requestId, '发起申请后应进入申请详情页').toBeTruthy();
+
+  // request.create 后快照刷新与详情读取可能竞速；重新进入详情页，断言用户最终能确认提交。
+  await page.reload();
+  await waitAppReady(page);
+  await setRole(page, 'ROLE_ORGAN_OPERATER');
+  await gotoHash(page, `#/request-flow/request/${encodeURIComponent(requestId)}`);
+  await expect(page.getByRole('button', { name: '确认提交申请' })).toBeVisible({ timeout: 15_000 });
+  return requestId;
+}
+
 test.describe('客户验收 — 部门操作员 J1', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
@@ -23,25 +105,53 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
   });
 
-  test('P2 发现 → 发起申请入口可见', async ({ page }) => {
+  test('P2 找数据：资源卡查看详情 → 发起申请 → 申请详情可确认提交', async ({ page, playwright }) => {
+    const api = await playwright.request.newContext();
+    const resourceId = await firstDiscoveryResourceForRequest(api);
+    await api.dispose();
+    test.skip(!resourceId, 'no requestable discovery resource available');
+
     await gotoHash(page, '#/discovery');
     // D53①：找数据页标题随「只展示已发布资源」改版为「可申请资源」（原「可复用资源」退役）。
     await expect(page.getByRole('heading', { name: '可申请资源' })).toBeVisible();
     await expect(page.getByText('功能建设中')).toHaveCount(0);
-    const applyBtn = page.getByRole('button', { name: /发起申请|申请/i }).first();
+
+    const resourceHref = `#/discovery/resource/${encodeURIComponent(resourceId!)}`;
+    const card = page.locator('article.res-card').filter({ has: page.locator(`a[href="${resourceHref}"]`) }).first();
+    await expect(card.getByRole('link', { name: '查看详情' })).toBeVisible({ timeout: 10_000 });
+    await card.getByRole('link', { name: '查看详情' }).click();
+    await expect(page).toHaveURL(new RegExp(`#\\/discovery\\/resource\\/${encodeURIComponent(resourceId!)}`), {
+      timeout: 8_000,
+    });
+    const applyBtn = page.getByRole('button', { name: '发起申请' });
     await expect(applyBtn).toBeVisible();
+    await applyBtn.click();
+    await expectDraftSubmitVisible(page);
   });
 
-  test('P2 目录浏览 → 列真实目录并可钻取资源', async ({ page }) => {
+  test('P2 目录浏览：目录详情资源卡 → 发起申请 → 申请详情可确认提交', async ({ page, playwright }) => {
+    const api = await playwright.request.newContext();
+    const anchor = await firstCatalogResourceForRequest(api);
+    await api.dispose();
+    test.skip(!anchor, 'no catalog resource available for request.create');
+
     // D43 后目录浏览页改为真 catalog_entry 列表 + 逐行钻取到目录详情看资源
     // （旧「在发现页检索「案例」」分类快捷链接已随改版移除；断言当前真实行为，
     // 不再硬编码已不存在的分类链接 / seed 依赖的「案例」分类）。
     await gotoHash(page, '#/discovery/catalog-browse');
     await expect(page.getByRole('heading', { name: '目录浏览' })).toBeVisible();
-    const drill = page.getByRole('link', { name: '查看目录资源' }).first();
+    const catalogHref = `#/discovery/catalog/${encodeURIComponent(anchor!.catalogCode)}`;
+    const drill = page.locator(`a[href="${catalogHref}"]`).first();
     await expect(drill).toBeVisible({ timeout: 10_000 });
     await drill.click();
     await expect(page).toHaveURL(/#\/discovery\/catalog\//, { timeout: 8_000 });
+
+    const resourceHref = `#/discovery/resource/${encodeURIComponent(anchor!.resourceId)}`;
+    const card = page.locator('article.res-card').filter({ has: page.locator(`a[href="${resourceHref}"]`) }).first();
+    const applyBtn = card.getByRole('button', { name: '发起申请' });
+    await expect(applyBtn).toBeVisible({ timeout: 10_000 });
+    await applyBtn.click();
+    await expectDraftSubmitVisible(page);
   });
 
   test('P2 NL 加速器 → 自动搜索出资源', async ({ page }) => {
@@ -52,6 +162,15 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     // C-1 删演示单后真实库未必有「营商环境」命中：断言 NL 加速器真实驱动了搜索
     // （命中 N 条 或 诚实「未命中」状态文案），不依赖已删的演示资源存在。
     await expect(page.getByText(/命中 \d+ 条可申请资源|未命中/).first()).toBeVisible({ timeout: 10_000 });
+  });
+
+  test('P2 空态给真实下一步：浏览目录 / 登记需求', async ({ page }) => {
+    await gotoHash(page, '#/discovery');
+    await page.locator('#p2-search').fill(`验收无命中-${Date.now()}-not-found`);
+    await expect(page.getByText('未命中资源。')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole('link', { name: '浏览目录' })).toBeVisible();
+    await expect(page.getByRole('link', { name: '登记需求 / 找不到数据' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '发起申请' })).toHaveCount(0);
   });
 
   test('P3 异议：新建 → 详情 → 提交至平台', async ({ page, playwright }) => {
@@ -135,7 +254,8 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     const reqId = await firstDeliveryRequestId(page, 'granted');
     test.skip(!reqId, 'no granted delivery_task in snapshot');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: new RegExp(`${reqId}.*凭据`) })).toBeVisible();
+    // R12：凭据页 H1 使用资源名，不把 32 位 request_id 当主标题直出；编号另在次行短码呈现。
+    await expect(page.getByRole('heading', { name: /凭据|授权/, level: 1 })).toBeVisible();
     await expect(
       page.getByRole('heading', { name: 'curl', exact: true }).or(page.getByText(/未签发|尚未签发|凭据尚未/)).first(),
     ).toBeVisible({ timeout: 12_000 });
