@@ -1,12 +1,7 @@
-# 本地开发 PostgreSQL —— zw-brain 默认运行时后端（见 zw_brain/shared/db.py DEFAULT_PG_URL）。
-#   docker compose up -d postgres   # 起库，等 healthcheck 绿
-#   bash scripts/start-local.sh      # 无 env 即默认连本库
-#   bash scripts/start-docker.sh     # 全容器部署（rest + postgres 同网络）
-# db/user/password/port 与 DEFAULT_PG_URL 完全对齐，故无需任何 env 配置。
-# 想换库：设 ZW_BRAIN_DATABASE_URL（唯一覆盖旋钮）。
-#
-# rest 服务默认通过 IMAGE_TAG 指定镜像（start-docker.sh 传入），
-# 也可直接 docker compose build rest 本地构建。
+# D68 三件套：postgres + agent-runtime + zw-brain。
+#   bash scripts/start-docker.sh     # 全容器部署
+# Zw-brain 是主 REST 服务（含 WebUI），经 HTTP 驱动 agent-runtime；两者共读同一 agents/。
+# agent-runtime 为独立进程（embedded 已退役）。
 services:
   postgres:
     image: postgres:16
@@ -27,30 +22,6 @@ services:
     networks:
       - zw-brain-net
 
-  rest:
-    profiles: ["legacy-rest"]
-    # 镜像由 start-docker.sh 通过 IMAGE_TAG 环境变量注入，外部 docker compose 调用方也可同样覆盖。
-    # 本地开发 docker compose build rest 时自动构建。
-    image: ${IMAGE_TAG:-zw-brain:1.0.1}
-    container_name: ${CONTAINER_NAME:-zw-brain-rest}
-    restart: unless-stopped
-    ports:
-      - "${HOST_PORT:-8800}:8800"
-    env_file:
-      - "${ENV_FILE:-.env}"
-    environment:
-      # PostgreSQL 连接：同 compose network 下通过服务名访问
-      # env_file 中的 ZW_BRAIN_DATABASE_URL 优先，未设时回落默认 PG 连接串
-      ZW_BRAIN_DATABASE_URL: "${ZW_BRAIN_DATABASE_URL:-postgresql+psycopg://zw_brain:zw_brain@zw-brain-pg:5432/zw_brain}"
-    volumes:
-      - ./docs:/app/docs
-    depends_on:
-      postgres:
-        condition: service_healthy
-    networks:
-      - zw-brain-net
-    # EXTRA_HOSTS 由 start-docker.sh 通过 .compose.override.yml 动态注入，此文件不占位
-
   # D68 单一模型：独立 AgentRuntime 服务（zw-brain REST 经 HTTP 驱动）。
   #   docker compose up -d agent-runtime   # 起独立 AR；zw-brain 设 ZW_BRAIN_AGENT_RUNTIME_URL=http://localhost:8001
   # openai_compatible 适配器只读 AR 服务侧 OPENAI_COMPATIBLE_* / AGENT_RUNTIME_DEFAULT_MODEL。
@@ -68,7 +39,6 @@ services:
       # AR 内 agent 经 kind:api 回调 zw-brain（compose 内服务名）；entrypoint 渲染进 *.openapi.yaml servers
       ZW_BRAIN_REST_BASE_URL: http://zw-brain:8800
     volumes:
-      # agents 单一源（只读源）：entrypoint 拷到 /app/agents 并渲染 openapi servers 后再 serve。
       - ./agents:/srv/agents-src:ro
     ports:
       - "8001:8001"
@@ -82,25 +52,30 @@ services:
     # dev/demo：用 agent-runtime.dev.yaml（auth none）。生产用默认 CMD（agent-runtime.yaml / trusted_gateway）。
     command: ["agent-runtime", "serve", "--config", "/app/agent-runtime.dev.yaml", "--product", "--host", "0.0.0.0", "--port", "8001"]
 
-  # D68 单一模型：zw-brain REST（含 WebUI），经 HTTP 驱动 agent-runtime；与 AR **共读同一 agents/**。
+  # D68 单一模型：zw-brain REST（含 WebUI），经 HTTP 驱动 agent-runtime；与 AR 共读同一 agents/。
   #   docker compose up   # 一起起 postgres + agent-runtime + zw-brain（三件套）
-  # ⚠️ dev/demo 部署（dev-iam-bypass 免登录）：仅用于本地看效果。生产走 docs/deployment/docker-image-deployment.md（真 IAF/OIDC）。
+  # dev/demo 部署（dev-iam-bypass 免登录）：仅用于本地看效果。生产走 docs/deployment/docker-image-deployment.md（真 IAF/OIDC）。
   zw-brain:
     build:
       context: .
       dockerfile: Dockerfile
     image: zw-brain:latest
     container_name: zw-brain-rest
+    restart: unless-stopped
     depends_on:
       postgres:
         condition: service_healthy
       agent-runtime:
         condition: service_healthy
+    env_file:
+      - path: "${ENV_FILE:-.env}"
+        required: false
     environment:
+      # compose 内通过服务名连接 PG，覆写 .env 中的远程地址
       ZW_BRAIN_DATABASE_URL: postgresql+psycopg://zw_brain:zw_brain@postgres:5432/zw_brain
       ZW_BRAIN_AGENT_RUNTIME_MODE: http
       ZW_BRAIN_AGENT_RUNTIME_ENABLED: "1"
-      ZW_BRAIN_AGENT_RUNTIME_URL: http://agent-runtime:8001   # 经服务名驱动独立 AR
+      ZW_BRAIN_AGENT_RUNTIME_URL: http://agent-runtime:8001
       ZW_BRAIN_REST_HOST: 0.0.0.0
       ZW_BRAIN_REST_PORT: "8800"
       # dev/demo 免登录（覆盖镜像默认 DEPLOY_MODE=prod 的 M5 fail-closed）；生产删掉这三行 + 配真 IAF。
@@ -113,16 +88,17 @@ services:
       # dev/demo：打开国家通道 UI 门但不配置接入凭据，呈现“已上线未接入”的诚实状态。
       ZW_BRAIN_NATIONAL_CHANNEL_ENABLED: "1"
     volumes:
-      - ./agents:/app/agents:ro          # agents 单一源：zw-brain「列」+ AR「跑」同一 git 目录（live）
+      - ./agents:/app/agents:ro
+      - ./docs:/app/docs
     ports:
       - "8800:8800"
+    networks:
+      - zw-brain-net
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0) if urllib.request.urlopen('http://127.0.0.1:8800/health',timeout=2).status==200 else sys.exit(1)\""]
       interval: 10s
       timeout: 5s
       retries: 12
-    networks:
-      - zw-brain-net
 
 networks:
   zw-brain-net:
