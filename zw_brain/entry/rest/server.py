@@ -57,6 +57,7 @@ from zw_brain.shared.logkit import (
     set_log_actor,
     setup_logging,
 )
+from zw_brain.shared.migrate import ensure_runtime_schema
 from zw_brain.shared.runtime_config import (
     DevBypassInProductionError,
     InsecureIafTlsInProductionError,
@@ -203,6 +204,10 @@ def _dev_iam_bypass_org_code() -> str:
     return (os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_ORG") or "dev").strip() or "dev"
 
 
+def _dev_iam_bypass_display_name() -> str:
+    return (os.environ.get("ZW_BRAIN_DEV_IAM_BYPASS_DISPLAY_NAME") or _DEV_IAM_BYPASS_DISPLAY_NAME).strip() or _DEV_IAM_BYPASS_DISPLAY_NAME
+
+
 def _dev_iam_bypass_user_profile(org_code: str | None = None) -> dict[str, Any]:
     from zw_brain.shared.session_context import apply_runtime_context, contexts_from_role_codes
 
@@ -212,7 +217,7 @@ def _dev_iam_bypass_user_profile(org_code: str | None = None) -> dict[str, Any]:
     snapshot = {
         "subject": _DEV_IAM_BYPASS_SUBJECT,
         "username": _DEV_IAM_BYPASS_USERNAME,
-        "display_name": _DEV_IAM_BYPASS_DISPLAY_NAME,
+        "display_name": _dev_iam_bypass_display_name(),
         "tenant_id": "sd-default",
         "org_code": org_code,
         "role_codes": role_codes,
@@ -1482,6 +1487,7 @@ def main(host: str | None = None, port: int | None = None) -> None:
     # with the M5 fail-closed block above): prod refuses to boot on a missing shell, dev just logs.
     _validate_webui_shell()
     log_iaf_runtime_warnings()
+    ensure_runtime_schema()
     # H2: bring up the in-process blockchain-anchor worker as part of the service
     # lifecycle so the durable anchor_outbox table is drained into audit_receipt.
     # Env-gated (ZW_BRAIN_ANCHOR_WORKER) and auto-off under pytest; the test

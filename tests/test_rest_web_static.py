@@ -119,3 +119,33 @@ def test_validate_webui_shell_noop_when_present(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(rest_server, "_is_prod_deploy_mode", lambda: True)
     rest_server._validate_webui_shell()  # 不抛即通过
 
+
+def test_rest_main_ensures_schema_before_anchor_worker(monkeypatch: pytest.MonkeyPatch) -> None:
+    events: list[str] = []
+
+    class FakeServer:
+        def __init__(self, *_args, **_kwargs) -> None:
+            events.append("server-init")
+
+        def serve_forever(self) -> None:
+            events.append("serve")
+
+        def server_close(self) -> None:
+            events.append("close")
+
+    monkeypatch.setattr(rest_server, "setup_logging", lambda _surface: None)
+    monkeypatch.setattr(rest_server, "validate_session_store_for_deploy", lambda: None)
+    monkeypatch.setattr(rest_server, "get_dev_iam_bypass_enabled", lambda: False)
+    monkeypatch.setattr(rest_server, "get_iaf_insecure_tls_enabled", lambda: False)
+    monkeypatch.setattr(rest_server, "_validate_webui_shell", lambda: None)
+    monkeypatch.setattr(rest_server, "log_iaf_runtime_warnings", lambda: None)
+    monkeypatch.setattr(rest_server, "ensure_runtime_schema", lambda: events.append("schema"))
+    monkeypatch.setattr(rest_server, "get_rest_host", lambda: "127.0.0.1")
+    monkeypatch.setattr(rest_server, "get_rest_port", lambda: 0)
+    monkeypatch.setattr(rest_server, "ThreadingRestServer", FakeServer)
+    monkeypatch.setattr("zw_brain.background_tasks.start_anchor_worker", lambda: events.append("anchor-start"))
+    monkeypatch.setattr("zw_brain.background_tasks.stop_anchor_worker", lambda: events.append("anchor-stop"))
+
+    rest_server.main()
+
+    assert events == ["schema", "anchor-start", "server-init", "serve", "anchor-stop", "close"]

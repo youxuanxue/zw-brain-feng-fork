@@ -13,7 +13,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 ARG AR_TARBALL=vendor/agent-runtime/release/v1.1.3/agent-runtime-1.1.3-py312-pyc-only.tar.gz
 ARG AR_EXTRACT=agent-runtime-1.1.3-py312-pyc-only
 
-RUN pip install --no-cache-dir uv
 COPY vendor/agent-runtime/requirements-deepagents.txt /tmp/ar-deepagents.txt
 COPY ${AR_TARBALL} /tmp/ar.tar.gz
 COPY ${AR_TARBALL}.sha256 /tmp/ar.tar.gz.sha256
@@ -21,7 +20,7 @@ RUN cd /tmp && \
     sed 's|  .*|  ar.tar.gz|' ar.tar.gz.sha256 | sha256sum -c - && \
     mkdir -p /tmp/ar-pkg && tar -xzf ar.tar.gz -C /tmp/ar-pkg && \
     cd "/tmp/ar-pkg/${AR_EXTRACT}" && \
-    uv pip install --system -r requirements.txt -r /tmp/ar-deepagents.txt && \
+    python -m pip install --no-cache-dir -r requirements.txt -r /tmp/ar-deepagents.txt && \
     ./install.sh && \
     rm -rf /tmp/ar-pkg /tmp/ar.tar.gz /tmp/ar.tar.gz.sha256 /tmp/ar-deepagents.txt
 

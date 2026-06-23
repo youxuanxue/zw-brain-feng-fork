@@ -60,6 +60,9 @@ function formatFinalOutput(raw: unknown): string {
 
 export function sanitizeAssistantText(text: string): string {
   return text
+    .replace(/任务执行失败，请查看服务端日志/g, '本次智能分析没有形成可用答案，请换一个问题或稍后重试')
+    .replace(/查看服务端日志/g, '联系平台运维员')
+    .replace(/\bHTTP\s+\d{3}\b/gi, '服务暂不可用')
     .replace(/\bAgentRuntime\s+unreachable\b/gi, '智能问答服务暂不可用')
     .replace(/\bagent[_-]?runtime[_-]?unreachable\b/gi, '智能问答服务暂不可用')
     .replace(/\bagent[_-]?runtime[_-]?disabled\b/gi, '智能问答未启用')
@@ -70,6 +73,15 @@ export function sanitizeAssistantText(text: string): string {
     .replace(/Agent\s*列表接口/g, '助手列表接口')
     .replace(/可用的\s*Agent/g, '可用助手')
     .replace(/等\s*Agent/g, '等助手');
+}
+
+function agentErrorMessage(status: number, detail = ''): string {
+  if (status === 503) return '智能问答服务暂未就绪，请稍后重试。';
+  if (status >= 500) return '智能问答服务暂不可用，请稍后重试。';
+  if (/agent[_-]?runtime|AgentRuntime|服务端日志|HTTP\s+\d{3}/i.test(detail)) {
+    return '智能问答服务暂不可用，请稍后重试。';
+  }
+  return '智能问答暂时无法处理这个问题，请换一种问法或稍后重试。';
 }
 
 export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
@@ -127,9 +139,8 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
           continue;
         }
         const detail = await resp.text().catch(() => '');
-        const errMsg = `轮询任务失败（HTTP ${resp.status}）${detail ? `：${detail.slice(0, 200)}` : ''}`;
-        logError(`[轮询 #${pollCount}] ${errMsg}`);
-        throw new Error(errMsg);
+        logError(`[轮询 #${pollCount}] 失败 status=${resp.status}`, detail.slice(0, 200));
+        throw new Error(agentErrorMessage(resp.status, detail));
       }
       const body = (await resp.json()) as AgentRuntimeTaskResponse;
       lastStatus = body.status || 'pending';
@@ -169,9 +180,6 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
           request_id: newRequestId(requestPrefix),
         }),
       });
-      if (resp.status === 503) {
-        throw new Error('智能问答未启用或依赖未就绪（HTTP 503）');
-      }
       if (resp.status === 403) {
         const names = options?.allowedRoleNames ?? [];
         const suffix = names.length ? `可切换到：${names.join(' / ')}。` : '';
@@ -179,14 +187,21 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
       }
       if (!resp.ok) {
         const detail = await resp.text();
-        throw new Error(`请求失败（HTTP ${resp.status}）${detail ? `：${detail.slice(0, 200)}` : ''}`);
+        throw new Error(agentErrorMessage(resp.status, detail));
       }
       const body = (await resp.json()) as AgentRuntimeTaskResponse;
 
       const handleTerminal = (b: AgentRuntimeTaskResponse) => {
-        if (b.status === 'failed') throw new Error('任务执行失败，请查看服务端日志');
-        if (b.status === 'cancelled') throw new Error('任务被取消');
-        if (b.status === 'timeout') throw new Error('任务响应超时');
+        if (b.status === 'failed') {
+          const detail = formatFinalOutput(b.final_output);
+          throw new Error(
+            detail && detail !== '（无回复内容）'
+              ? detail
+              : '本次智能分析没有形成可用答案，请换一个问题或稍后重试。'
+          );
+        }
+        if (b.status === 'cancelled') throw new Error('本次智能分析已停止，请重新发起。');
+        if (b.status === 'timeout') throw new Error('本次智能分析耗时较长，请稍后重试。');
         messages.value.push({ role: 'assistant', text: formatFinalOutput(b.final_output) });
       };
 
@@ -196,7 +211,7 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
       }
       const taskId = body.task_id;
       if (!taskId) {
-        throw new Error('服务端未返回 task_id，无法轮询');
+        throw new Error('智能问答服务暂不可用，请稍后重试。');
       }
       const finalBody = await pollUntilTerminal(taskId, POLL_TIMEOUT_MS);
       if (cancelled) return; // 组件已卸载：不要把结果写进游离的 messages ref
@@ -205,7 +220,7 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
       const msg = sanitizeAssistantText(e instanceof Error ? e.message : String(e));
       logError(`ask() 失败: ${msg}`);
       error.value = msg;
-      messages.value.push({ role: 'assistant', text: `暂时无法回答：${msg}` });
+      messages.value.push({ role: 'assistant', text: msg });
     } finally {
       loading.value = false;
     }

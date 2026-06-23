@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue';
 import { useWorkbench } from '@/composables/useWorkbench';
+import { useSnapshot } from '@/composables/useSnapshot';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { humanizeTitle } from '@/lib/userLanguage';
 import { getProductRole } from '@/composables/useProductRole';
@@ -19,6 +20,7 @@ import {
 // 后端投影（语义定义见 docs/decisions/role-projection-views-business-review-package.md），
 // 前端只渲染、不自算（避免两套口径漂移）。
 const { data, source, error, refresh } = useWorkbench();
+const { data: snapshot } = useSnapshot();
 const role = getProductRole();
 
 // 行内办理：仅当待办带 action 且当前岗位对其 gate 有权时，才让该行可就地展开办理
@@ -78,6 +80,24 @@ const emptyText = computed(
 );
 
 const todoCount = computed(() => data.value?.todos.length ?? 0);
+const discoverableCount = computed(() => {
+  const resources = snapshot.value?.discovery?.resources;
+  return Array.isArray(resources) ? resources.length : 0;
+});
+const deliveryTaskCount = computed(() => {
+  const tasks = snapshot.value?.delivery_tasks;
+  return Array.isArray(tasks) ? tasks.length : 0;
+});
+const suggestedResources = computed(() => {
+  const resources = snapshot.value?.discovery?.resources;
+  if (!Array.isArray(resources)) return [] as Array<Record<string, unknown>>;
+  return (resources as Array<Record<string, unknown>>)
+    .filter((r) => r.id && r.name)
+    .slice(0, 3);
+});
+const applicantHasNoProgress = computed(
+  () => contextVariant.value === 'applicant' && !!data.value && data.value.todos.length === 0,
+);
 const urgentCount = computed(
   () =>
     data.value?.todos.filter((t) =>
@@ -159,6 +179,19 @@ const urgentCount = computed(
         </ul>
         <div v-else class="p1-empty-state">
           <p class="p1-empty">{{ emptyText }}</p>
+          <section v-if="applicantHasNoProgress" class="p1-opportunity" aria-label="可用数据推荐">
+            <div class="p1-opportunity-stats">
+              <span><strong>{{ discoverableCount }}</strong> 项可申请资源</span>
+              <span><strong>{{ deliveryTaskCount }}</strong> 条交付任务可查看</span>
+            </div>
+            <ul v-if="suggestedResources.length" class="p1-suggest-list">
+              <li v-for="r in suggestedResources" :key="String(r.id)">
+                <a :href="`#/discovery/resource/${encodeURIComponent(String(r.id))}`">
+                  {{ humanizeTitle(String(r.name)) }}
+                </a>
+              </li>
+            </ul>
+          </section>
           <!-- 申请人空态主行动：与「领数据 / 供需」空态一致，给出「去找数据 →」主 CTA
                （而非只留次要「查看依据」链接）。其余岗位空态无可发起的申请动作，不出 CTA。 -->
           <a
@@ -259,6 +292,42 @@ const urgentCount = computed(
   flex-direction: column;
   align-items: flex-start;
   gap: 14px;
+}
+.p1-opportunity {
+  width: 100%;
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 10px;
+  background: #f8fbff;
+}
+.p1-opportunity-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--b-muted, #5c6370);
+}
+.p1-opportunity-stats strong {
+  margin-right: 4px;
+  color: var(--b-primary, #006be6);
+  font-size: 18px;
+}
+.p1-suggest-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.p1-suggest-list a {
+  font-size: 13px;
+  color: var(--b-primary, #006be6);
+  text-decoration: none;
+}
+.p1-suggest-list a:hover {
+  text-decoration: underline;
 }
 .p1-empty-cta {
   display: inline-block;

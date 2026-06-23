@@ -28,6 +28,7 @@ services:
       - zw-brain-net
 
   rest:
+    profiles: ["legacy-rest"]
     # 镜像由 start-docker.sh 通过 IMAGE_TAG 环境变量注入，外部 docker compose 调用方也可同样覆盖。
     # 本地开发 docker compose build rest 时自动构建。
     image: ${IMAGE_TAG:-zw-brain:1.0.1}
@@ -49,10 +50,6 @@ services:
     networks:
       - zw-brain-net
     # EXTRA_HOSTS 由 start-docker.sh 通过 .compose.override.yml 动态注入，此文件不占位
-
-networks:
-  zw-brain-net:
-    driver: bridge
 
   # D68 单一模型：独立 AgentRuntime 服务（zw-brain REST 经 HTTP 驱动）。
   #   docker compose up -d agent-runtime   # 起独立 AR；zw-brain 设 ZW_BRAIN_AGENT_RUNTIME_URL=http://localhost:8001
@@ -80,6 +77,8 @@ networks:
       interval: 10s
       timeout: 5s
       retries: 12
+    networks:
+      - zw-brain-net
     # dev/demo：用 agent-runtime.dev.yaml（auth none）。生产用默认 CMD（agent-runtime.yaml / trusted_gateway）。
     command: ["agent-runtime", "serve", "--config", "/app/agent-runtime.dev.yaml", "--product", "--host", "0.0.0.0", "--port", "8001"]
 
@@ -108,7 +107,11 @@ networks:
       ZW_BRAIN_DEPLOY_MODE: dev
       ZW_BRAIN_DEV_IAM_BYPASS: "1"
       ZW_BRAIN_DEV_IAM_BYPASS_ACK: development-only
+      ZW_BRAIN_DEV_IAM_BYPASS_ORG: "11370000MB284651XL"
+      ZW_BRAIN_DEV_IAM_BYPASS_DISPLAY_NAME: "省大数据局试用账号"
       ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH: "1"
+      # dev/demo：打开国家通道 UI 门但不配置接入凭据，呈现“已上线未接入”的诚实状态。
+      ZW_BRAIN_NATIONAL_CHANNEL_ENABLED: "1"
     volumes:
       - ./agents:/app/agents:ro          # agents 单一源：zw-brain「列」+ AR「跑」同一 git 目录（live）
     ports:
@@ -118,6 +121,12 @@ networks:
       interval: 10s
       timeout: 5s
       retries: 12
+    networks:
+      - zw-brain-net
+
+networks:
+  zw-brain-net:
+    driver: bridge
 
 volumes:
   zw_brain_pgdata:

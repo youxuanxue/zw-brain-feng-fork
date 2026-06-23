@@ -80,6 +80,47 @@ async function firstCatalogResourceForRequest(
   return null;
 }
 
+async function firstReverseDraftCatalogWithSuggestions(
+  api: APIRequestContext,
+): Promise<{ catalogCode: string; schemaRef: string } | null> {
+  const resp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_MANAGER`);
+  if (!resp.ok()) return null;
+  const body = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+  const provider = (body.provider ?? {}) as Record<string, unknown>;
+  const catalogs = (provider.catalogs ?? []) as Array<Record<string, unknown>>;
+  const candidates = catalogs
+    .map((c) => ({
+      catalogCode: String(c.catalog_code ?? c.id ?? ''),
+      schemaRef: String(c.schema_ref ?? c.schema_snapshot_ref ?? c.source_ref ?? ''),
+      name: String(c.name ?? c.title ?? ''),
+      status: String(c.status ?? c.lifecycle_status ?? ''),
+    }))
+    .filter((c) => c.catalogCode && c.schemaRef)
+    .sort((a, b) => reverseDraftCandidateScore(b) - reverseDraftCandidateScore(a));
+  for (const candidate of candidates) {
+    const suggest = await api.post(`${E2E_BASE_URL}/api/skills/catalog.entry.reverse_draft.suggest`, {
+      data: { role: 'ROLE_ORGAN_MANAGER', schema_ref: candidate.schemaRef, catalog_code: candidate.catalogCode },
+    });
+    if (!suggest.ok()) continue;
+    const result = (await suggest.json().catch(() => ({}))) as Record<string, unknown>;
+    const coverage = (result.coverage ?? {}) as Record<string, unknown>;
+    if (Number(coverage.total ?? 0) > 0) {
+      return { catalogCode: candidate.catalogCode, schemaRef: candidate.schemaRef };
+    }
+  }
+  return null;
+}
+
+function reverseDraftCandidateScore(candidate: { name: string; status: string }): number {
+  let score = 0;
+  if (candidate.status === 'active') score += 1000;
+  if (candidate.status === 'draft') score += 100;
+  if (candidate.status === 'pending_review') score += 50;
+  if (!/测试|test|ces|dhh|未命名/i.test(candidate.name)) score += 100;
+  if (candidate.name && !/^\d{12,}/.test(candidate.name)) score += 50;
+  return score;
+}
+
 async function expectDraftSubmitVisible(page: Page): Promise<string> {
   await expect
     .poll(async () => page.evaluate(() => window.location.hash), { timeout: 12_000 })
@@ -157,11 +198,10 @@ test.describe('客户验收 — 部门操作员 J1', () => {
   test('P2 NL 加速器 → 自动搜索出资源', async ({ page }) => {
     await gotoHash(page, '#/discovery');
     await page.getByRole('button', { name: '找数助手' }).click();
-    await page.getByRole('button', { name: '查省营商环境相关数据' }).click();
-    await expect(page.locator('#p2-search')).toHaveValue('营商环境', { timeout: 30_000 });
-    // C-1 删演示单后真实库未必有「营商环境」命中：断言 NL 加速器真实驱动了搜索
-    // （命中 N 条 或 诚实「未命中」状态文案），不依赖已删的演示资源存在。
-    await expect(page.getByText(/命中 \d+ 条可申请资源|未命中/).first()).toBeVisible({ timeout: 10_000 });
+    await page.getByRole('button', { name: '查历年GDP信息' }).click();
+    await expect(page.locator('#p2-search')).toHaveValue(/历年GDP|GDP/, { timeout: 30_000 });
+    // 客户试用入口必须把用户带到真实命中，而不是快捷按钮带空结果。
+    await expect(page.getByText(/命中 [1-9]\d* 条可申请资源/).first()).toBeVisible({ timeout: 10_000 });
   });
 
   test('P2 空态给真实下一步：浏览目录 / 登记需求', async ({ page }) => {
@@ -290,12 +330,18 @@ test.describe('客户验收 — 部门管理员 J2', () => {
     await expect(page.getByText('功能建设中')).toHaveCount(0);
   });
 
-  test('P5 反向编目向导可生成建议', async ({ page }) => {
+  test('P5 反向编目向导可生成建议', async ({ page, playwright }) => {
+    const api = await playwright.request.newContext();
+    const anchor = await firstReverseDraftCatalogWithSuggestions(api);
+    await api.dispose();
+    test.skip(!anchor, 'no reverse-draft catalog with schema suggestions available');
+
     await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');
     await expect(page.getByRole('heading', { name: '反向编目向导' })).toBeVisible();
-    await page.locator('.gov-select').selectOption({ index: 1 });
+    await page.locator('.gov-select').selectOption(anchor!.catalogCode);
     await page.getByRole('button', { name: '生成字段建议' }).click();
     await expect(page.getByText('字段建议已生成')).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByTestId('reverse-field-candidates')).toBeVisible();
   });
 });
 

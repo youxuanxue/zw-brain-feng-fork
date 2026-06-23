@@ -27,7 +27,7 @@ const COPY_BY_ANCHOR: Record<string, typeof DEFAULT_COPY> = {
   P2: {
     label: '找数助手',
     hint: '输入一句找数诉求，解析后会自动填入搜索并展示结果。',
-    placeholder: '例如：查省营商环境相关数据',
+    placeholder: '例如：查历年GDP信息',
   },
   P3: {
     label: '申请助手',

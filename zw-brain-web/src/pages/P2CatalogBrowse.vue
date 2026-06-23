@@ -62,6 +62,10 @@ async function load(): Promise<void> {
         owner: String(it.ownerName ?? '') || '—',
         description,
       };
+    }).sort((a, b) => {
+      const resourceRank = Number(b.resourceCount > 0) - Number(a.resourceCount > 0);
+      if (resourceRank !== 0) return resourceRank;
+      return a.title.localeCompare(b.title, 'zh-Hans-CN');
     });
     total.value = Number(body.total ?? rows.value.length);
   } finally {

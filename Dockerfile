@@ -17,7 +17,6 @@ COPY zw-brain-web/ ./
 RUN npm run build
 
 FROM zw-brain-os-patch:3.12-slim AS builder
-# uv 已在基础镜像 zw-brain-os-patch 中预置。
 
 WORKDIR /build
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -26,7 +25,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 COPY . /build/zw-brain/
 COPY --from=web-builder /build/zw-brain-web/dist-vite /build/zw-brain/zw-brain-web/dist-vite
 WORKDIR /build/zw-brain
-RUN uv build --wheel --out-dir /dist
+RUN python -m pip install --no-cache-dir build && python -m build --wheel --outdir /dist
 
 # 安全姿态（漏扫 0609 Layer 2，详见 docs/deployment/security-hardening-0609.md）：
 # - CPython "Python DoS" 发现按版本 banner 匹配；真正补丁靠**周期性重建本镜像**拉取最新 python:3.12-slim
@@ -41,7 +40,6 @@ RUN uv build --wheel --out-dir /dist
 #  已存在（先构建上面命令，或用 scripts/start-docker.sh 自动 ensure 该基础镜像）。
 # ============================================
 FROM zw-brain-os-patch:3.12-slim AS runtime
-# uv 已在基础镜像 zw-brain-os-patch 中预置，此处不再重复 COPY。
 
 # ZW_BRAIN_DEPLOY_MODE=prod: the shipped image self-identifies as production so the M5
 # fail-closed guards are ACTIVE by default (dev IAM bypass refused, insecure IAF TLS refused,
@@ -66,6 +64,6 @@ COPY --from=builder /dist/*.whl /tmp/
 
 # psycopg：运行时后端 = PostgreSQL（db.py DEFAULT_PG_URL），镜像须自带 v3 驱动，
 # 否则容器起栈即 ImportError。与 redis 同为「extra 不随 wheel 核心装、显式补」。
-RUN uv pip install --system /tmp/*.whl && uv pip install --system 'redis>=5.0' 'psycopg[binary]>=3.2' && rm -f /tmp/*.whl
+RUN python -m pip install --no-cache-dir /tmp/*.whl 'redis>=5.0' 'psycopg[binary]>=3.2' && rm -f /tmp/*.whl
 EXPOSE 8800
 CMD ["zw-brain-rest"]

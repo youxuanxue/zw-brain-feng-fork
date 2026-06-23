@@ -47,8 +47,39 @@ const catalogs = computed(() => {
   const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
   return list
     .map((c) => mapReverseDraftCatalog(c as Record<string, unknown>))
-    .filter((c) => c.schema_ref.trim().length > 0);
+    .filter((c) => c.schema_ref.trim().length > 0)
+    .sort(compareReverseDraftCatalog);
 });
+
+function compareReverseDraftCatalog(a: ReverseDraftCatalog, b: ReverseDraftCatalog): number {
+  const score = reverseDraftCatalogScore(b) - reverseDraftCatalogScore(a);
+  if (score !== 0) return score;
+  const byName = a.name.localeCompare(b.name, 'zh-Hans-CN');
+  if (byName !== 0) return byName;
+  return a.catalog_code.localeCompare(b.catalog_code, 'zh-Hans-CN');
+}
+
+function reverseDraftCatalogScore(c: ReverseDraftCatalog): number {
+  const status = c.status || '';
+  const name = c.name.trim();
+  let score = 0;
+  if (status === 'active') score += 1000;
+  if (status === 'draft') score += 100;
+  if (status === 'pending_review') score += 50;
+  if (status === 'rejected' || status === 'retired') score -= 400;
+  if (isBusinessCatalogName(c)) score += 200;
+  if (c.owner) score += 10;
+  if (/测试|test|ces|dhh|未命名/i.test(name)) score -= 500;
+  return score;
+}
+
+function isBusinessCatalogName(c: ReverseDraftCatalog): boolean {
+  const name = c.name.trim();
+  if (!name || name === c.id || name === c.catalog_code || name === c.schema_ref) return false;
+  if (/^\d{12,}/.test(name)) return false;
+  if (/^[A-F0-9-]{16,}$/i.test(name)) return false;
+  return true;
+}
 
 function catalogIdFromRoute(): string {
   const raw = route.query.catalogId;

@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
-import { lookupRequest, useSnapshot } from '@/composables/useSnapshot';
+import { useRequests, useSnapshot } from '@/composables/useSnapshot';
+import { authFetch } from '@/composables/useAuth';
+import { apiUrl } from '@/composables/useApiBase';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction, hasRole } from '@/lib/pageAccess';
@@ -17,8 +19,50 @@ import { displayRecordName, shortId } from '@/lib/userLanguage';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
-const req = lookupRequest(id.value);
+const requests = useRequests();
+const snapshotReq = computed(() => {
+  const requestId = id.value;
+  return ((requests.value as Record<string, unknown>[] | undefined) ?? []).find(
+    (it) => String(it.id ?? '') === requestId,
+  ) ?? null;
+});
+const fetchedReq = ref<Record<string, unknown> | null>(null);
+const detailLoading = ref(false);
+const detailError = ref<string | null>(null);
 const { source } = useSnapshot();
+
+watch(
+  [id, snapshotReq],
+  async ([requestId, current]) => {
+    fetchedReq.value = null;
+    detailError.value = null;
+    if (!requestId || current) return;
+    detailLoading.value = true;
+    try {
+      const role = getProductRole().value;
+      const resp = await authFetch(apiUrl('/api/skills/request.view'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ role, request_id: requestId }),
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const body = (await resp.json()) as Record<string, unknown>;
+      const result = body.result && typeof body.result === 'object'
+        ? (body.result as Record<string, unknown>)
+        : body;
+      fetchedReq.value = result;
+    } catch (e) {
+      detailError.value = e instanceof Error ? e.message : String(e);
+    } finally {
+      detailLoading.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+// Snapshot 是列表页投影，写后刷新可能滞后；详情页必须能按 id 自救，否则
+// 「申请草稿已生成」后立即跳转会显示「未找到该申请」。
+const req = computed(() => snapshotReq.value ?? fetchedReq.value);
 
 const rows = computed(() => {
   const r = req.value;
@@ -61,7 +105,8 @@ const headerMeta = computed(() => {
     const name = String(req.value.resourceName ?? req.value.purpose ?? '') || '—';
     return `${name} · ${status}`;
   }
-  if (source.value !== 'live') return '正在加载……';
+  if (detailLoading.value || source.value !== 'live') return '正在加载……';
+  if (detailError.value) return '暂时无法加载该申请，请稍后重试。';
   return '未找到该申请';
 });
 

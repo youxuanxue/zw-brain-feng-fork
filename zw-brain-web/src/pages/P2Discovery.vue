@@ -13,7 +13,8 @@ import { canPerformAction } from '@/lib/pageAccess';
 import { resourceKindLabel } from '@/lib/resourceKind';
 import { isTestMarkerName } from '@/lib/userLanguage';
 
-const NL_PRESETS_P2 = ['查省营商环境相关数据', '近 7 天高使用资源', '关联水电气交叉数据'];
+// 客户试用入口必须确定命中当前演示库。不要把用户带到空结果。
+const NL_PRESETS_P2 = ['查历年GDP信息', '查高等职业学校名单', '查法人登记注册信息'];
 
 // 物化形态 kind → 中文经单源 resourceKindLabel（lib/resourceKind.ts），与 ResourceCard / 资源详情同口径。
 
@@ -143,7 +144,7 @@ async function applyTo(id: string) {
             v-model="query"
             type="search"
             class="focus-search"
-            placeholder="例如：停车场信息 / 营商环境 / 一表通"
+            placeholder="例如：GDP / 高等职业学校 / 法人登记"
             autocomplete="off"
           />
           <!-- 反馈 7：资源类型筛选（库表/文件/文件夹/接口/链接，从结果集现算） -->

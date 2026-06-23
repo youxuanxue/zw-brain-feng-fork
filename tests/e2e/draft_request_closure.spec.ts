@@ -69,9 +69,9 @@ test.describe('起草复用申请 · 直达草稿详情闭环', () => {
     const hash = await page.evaluate(() => window.location.hash);
     const reqId = hash.split('/').pop() as string;
 
-    // 详情页确实把这条草稿渲染出来：标题=申请号，基本信息块可见（用户可确认内容）。
+    // 详情页确实把这条草稿渲染出来：用户可确认并提交，且不出现“申请已生成但未找到”断头。
     await expect(page.locator('main.focus-page')).toBeVisible();
-    await expect(page.getByRole('heading', { name: reqId })).toBeVisible();
     await expect(page.getByText('未找到该申请')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '确认提交申请' })).toBeVisible();
   });
 });

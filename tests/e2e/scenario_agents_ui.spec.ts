@@ -38,7 +38,7 @@ test.describe('场景智能体 UI：数据应用', () => {
     const assistant = page.locator('.achat-msg[data-role="assistant"] .achat-msg-body').last();
     await expect(assistant).toBeVisible({ timeout: 180_000 });
     await expect(assistant).not.toContainText(
-      /暂时无法回答|任务执行失败|智能问答未启用|未返回 task_id|轮询超时|HTTP 5/,
+      /暂时无法回答|任务执行失败|智能问答未启用|未返回 task_id|轮询超时|HTTP 5|服务端日志/,
       { timeout: 1_000 },
     );
     await expect(assistant).not.toHaveText('（无回复内容）');
@@ -69,7 +69,7 @@ test.describe('平台指南悬浮问答', () => {
     const answer = page.locator('.guide-msg[data-role="assistant"] .guide-msg-body').last();
     await expect(answer).toBeVisible({ timeout: 180_000 });
     await expect(answer).not.toContainText(
-      /暂时无法回答|任务执行失败|智能问答未启用|未返回 task_id|轮询超时|HTTP 5|AgentRuntime/,
+      /暂时无法回答|任务执行失败|智能问答未启用|未返回 task_id|轮询超时|HTTP 5|AgentRuntime|服务端日志/,
       { timeout: 1_000 },
     );
     await expect(answer).not.toHaveText('（无回复内容）');

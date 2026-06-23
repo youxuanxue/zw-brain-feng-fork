@@ -5,7 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    pass
+    from sqlalchemy.orm import Session
+
+    from zw_brain.domain.models import CatalogEntryRecord, ResourceSchemaSnapshotRecord
 
 import copy
 import hashlib
@@ -330,12 +332,21 @@ def _suggest_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
     schema_ref = str(payload["schema_ref"])
     SessionLocal = create_session_factory()
     with SessionLocal() as session:
-        snap = session.execute(
+        exact = session.execute(
             select(ResourceSchemaSnapshotRecord)
             .where(ResourceSchemaSnapshotRecord.tenant_id == tenant_id)
             .where(ResourceSchemaSnapshotRecord.snapshot_ref == schema_ref)
         ).scalar_one_or_none()
-    if snap is None:
+        catalog = _resolve_reverse_draft_catalog(session, tenant_id, schema_ref, payload)
+        snapshots = _resolve_reverse_draft_snapshots(
+            session,
+            tenant_id,
+            schema_ref=schema_ref,
+            exact=exact,
+            catalog=catalog,
+            payload=payload,
+        )
+    if not snapshots:
         return {
             "schema_ref": schema_ref,
             "title_suggestion": build_title_suggestion(None),
@@ -343,20 +354,159 @@ def _suggest_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, An
             "coverage": {"green": 0, "yellow": 0, "orange": 0, "total": 0},
             "found": False,
         }
-    schema_json = snap.schema_json if isinstance(snap.schema_json, dict) else {}
+    schema_json = _reverse_draft_schema_payload(snapshots)
+    first = snapshots[0]
+    title_context = dict(schema_json)
+    if catalog is not None:
+        title_context.setdefault("title", catalog.title)
+        title_context.setdefault("catalog_code", catalog.catalog_code)
+    title_context.setdefault("schema_ref", schema_ref)
+    title_context.setdefault("resource_code", first.resource_code)
     suggestions, coverage = build_field_suggestions(schema_json)
-    title_suggestion = build_title_suggestion(
-        schema_json | {"schema_ref": schema_ref, "resource_code": snap.resource_code}
-    )
+    title_suggestion = build_title_suggestion(title_context)
     return {
         "schema_ref": schema_ref,
-        "resource_code": snap.resource_code,
-        "binding_code": snap.binding_code,
+        "resource_code": first.resource_code,
+        "binding_code": first.binding_code,
         "title_suggestion": title_suggestion,
         "fields": suggestions,
         "coverage": coverage,
         "found": True,
     }
+
+
+def _resolve_reverse_draft_catalog(
+    session: Session,
+    tenant_id: str,
+    schema_ref: str,
+    payload: dict[str, Any],
+) -> CatalogEntryRecord | None:
+    """Resolve the catalog selected by P5 reverse-cataloging.
+
+    The UI operates on catalogs, but legacy import rows often expose a
+    ``dsp-catalog3:data_catalog:*`` source ref while field snapshots are keyed by
+    resource/table IDs. Keep exact ``catalog_code`` fast-path, then tolerate
+    source/legacy refs from older snapshots.
+    """
+    from sqlalchemy import or_, select  # noqa: PLC0415
+
+    from zw_brain.domain.models import CatalogEntryRecord  # noqa: PLC0415
+
+    candidates = [
+        str(payload.get("catalog_code") or "").strip(),
+        str(payload.get("catalog_id") or "").strip(),
+        schema_ref.strip(),
+    ]
+    codes = [c for c in dict.fromkeys(candidates) if c]
+    if codes:
+        direct = session.execute(
+            select(CatalogEntryRecord)
+            .where(CatalogEntryRecord.tenant_id == tenant_id)
+            .where(CatalogEntryRecord.catalog_code.in_(codes))
+            .order_by(CatalogEntryRecord.updated_at.desc())
+        ).scalars().first()
+        if direct is not None:
+            return direct
+
+    if not schema_ref:
+        return None
+    return session.execute(
+        select(CatalogEntryRecord)
+        .where(CatalogEntryRecord.tenant_id == tenant_id)
+        .where(
+            or_(
+                CatalogEntryRecord.summary_json["source_ref"].as_string() == schema_ref,
+                CatalogEntryRecord.summary_json["legacy_object_ref"].as_string() == schema_ref,
+                CatalogEntryRecord.summary_json["schema_ref"].as_string() == schema_ref,
+            )
+        )
+        .order_by(CatalogEntryRecord.updated_at.desc())
+        .limit(1)
+    ).scalars().first()
+
+
+def _resolve_reverse_draft_snapshots(
+    session: Session,
+    tenant_id: str,
+    *,
+    schema_ref: str,
+    exact: ResourceSchemaSnapshotRecord | None,
+    catalog: CatalogEntryRecord | None,
+    payload: dict[str, Any],
+) -> list[ResourceSchemaSnapshotRecord]:
+    if exact is not None:
+        related = _schema_snapshots_for_codes(session, tenant_id, [exact.resource_code, exact.binding_code or ""])
+        return related or [exact]
+
+    from sqlalchemy import select  # noqa: PLC0415
+
+    from zw_brain.domain.models import ResourceAssetRecord  # noqa: PLC0415
+
+    resource_codes: list[str] = []
+    if catalog is not None:
+        assets = session.execute(
+            select(ResourceAssetRecord)
+            .where(ResourceAssetRecord.tenant_id == tenant_id)
+            .where(ResourceAssetRecord.catalog_code == catalog.catalog_code)
+            .order_by(ResourceAssetRecord.lifecycle_status.desc(), ResourceAssetRecord.updated_at.desc())
+        ).scalars()
+        resource_codes.extend(asset.resource_code for asset in assets)
+
+    for key in ("resource_code", "binding_code"):
+        value = str(payload.get(key) or "").strip()
+        if value:
+            resource_codes.append(value)
+    if schema_ref:
+        resource_codes.append(schema_ref)
+
+    return _schema_snapshots_for_codes(session, tenant_id, resource_codes)
+
+
+def _schema_snapshots_for_codes(
+    session: Session,
+    tenant_id: str,
+    codes: list[str],
+) -> list[ResourceSchemaSnapshotRecord]:
+    normalized = [code for code in dict.fromkeys(codes) if code]
+    if not normalized:
+        return []
+    from sqlalchemy import or_, select  # noqa: PLC0415
+
+    from zw_brain.domain.models import ResourceSchemaSnapshotRecord  # noqa: PLC0415
+
+    return list(
+        session.execute(
+            select(ResourceSchemaSnapshotRecord)
+            .where(ResourceSchemaSnapshotRecord.tenant_id == tenant_id)
+            .where(
+                or_(
+                    ResourceSchemaSnapshotRecord.resource_code.in_(normalized),
+                    ResourceSchemaSnapshotRecord.binding_code.in_(normalized),
+                )
+            )
+            .order_by(ResourceSchemaSnapshotRecord.captured_at)
+        ).scalars()
+    )
+
+
+def _reverse_draft_schema_payload(snapshots: list[ResourceSchemaSnapshotRecord]) -> dict[str, Any]:
+    columns: list[dict[str, Any]] = []
+    meta: dict[str, Any] = {}
+    for snap in snapshots:
+        schema = snap.schema_json if isinstance(snap.schema_json, dict) else {}
+        if not meta:
+            meta = {k: v for k, v in schema.items() if k not in {"columns", "fields", "column_list", "field_list"}}
+        for key in ("columns", "fields", "column_list", "field_list"):
+            value = schema.get(key)
+            if isinstance(value, list):
+                columns.extend(col for col in value if isinstance(col, dict))
+                break
+        else:
+            if any(k in schema for k in ("column_name", "field_name", "name", "name_en", "column_code")):
+                columns.append(schema)
+    if columns:
+        return {**meta, "columns": columns}
+    return meta
 
 def _create_catalog_entry_reverse_draft(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role = str(payload.get("role", ctx.role))
@@ -626,4 +776,3 @@ def handler_catalog_entry_update(deps: HandlerDeps, ctx: SkillContext, payload: 
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _update_catalog_entry(brain, deps, ctx, payload)
-

@@ -36,7 +36,7 @@ const userMenuTitle = computed(() => {
   const extra = [u.username, u.orgCode].filter(Boolean).join(' · ');
   return extra || u.displayName;
 });
-const { source: snapSource } = useSnapshot();
+const { source: snapSource, data: snapData } = useSnapshot();
 const webui = useWebUiConfig();
 const currentRole = getProductRole();
 const initError = ref<string | null>(null);
@@ -67,6 +67,9 @@ const canRenderRouter = computed(() => (
 
 // 侧边栏（旅程分组主导航）：登录页 / 登录中不渲染；与旧 ProductTopNav 渲染条件一致。
 const showSideNav = computed(() => !isLoginRoute.value && !authLoading.value);
+const showSnapshotUnavailable = computed(() => (
+  !isLoginRoute.value && snapSource.value === 'error' && !snapData.value
+));
 
 async function refreshAll() {
   authChecked.value = false;
@@ -281,8 +284,8 @@ watch(
             v-if="!isLoginRoute && snapSource === 'loading' && !roleSwitchBusy"
             class="boot-banner boot-banner-info"
           >正在加载数据……</div>
-          <div v-else-if="!isLoginRoute && snapSource === 'error'" class="boot-banner boot-banner-warn">
-            数据暂不可达。请确认 brain REST（8800）已启动后刷新。
+          <div v-else-if="showSnapshotUnavailable" class="boot-banner boot-banner-warn">
+            暂时无法刷新全局数据，已保留可用页面；请稍后重试或联系平台运维。
           </div>
           <div v-if="authLoading && !isLoginRoute" class="boot-banner boot-banner-info">正在完成登录…</div>
           <RouterView v-if="canRenderRouter" />

@@ -29,7 +29,7 @@ export function useAgentCatalog() {
     try {
       const resp = await authFetch(apiUrl('/api/agent-runtime/agents'));
       if (!resp.ok) {
-        throw new Error(`加载应用列表失败（HTTP ${resp.status}）`);
+        throw new Error('暂时无法加载应用列表，请稍后重试。');
       }
       const body = (await resp.json()) as { agents?: AgentInfo[] };
       agents.value = Array.isArray(body.agents) ? body.agents : [];

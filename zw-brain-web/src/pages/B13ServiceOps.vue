@@ -37,6 +37,7 @@ function gatewayStatusLabel(s: string): string {
   return GATEWAY_STATUS_LABELS[s] ?? '未知';
 }
 const gatewayRows = computed(() => gateway.data.value?.gateways ?? []);
+const hasGatewaySignals = computed(() => gatewayRows.value.length > 0);
 const gatewayCounts = computed(() => {
   let online = 0;
   let offline = 0;
@@ -48,6 +49,11 @@ const gatewayCounts = computed(() => {
   }
   return { online, degraded, offline };
 });
+const readinessCards = computed(() => [
+  { title: '授权可追溯', body: '已签发的交付任务可查看授权要素、调用样例与审计边界。', href: '#/delivery-exchange' },
+  { title: '审计可回放', body: '申请、审批、交付动作进入审计链路，便于客户现场追责与复盘。', href: '#/compliance-ops' },
+  { title: '网关待接入', body: '客户网关心跳接入后，本页会自动显示实例在线、降级与离线状态。', href: '#/integration-admin' },
+]);
 </script>
 
 <template>
@@ -65,7 +71,7 @@ const gatewayCounts = computed(() => {
           <h2 class="focus-section-title">网关运行</h2>
           <DataSourceBadge :source="gateway.source.value" />
         </header>
-        <div class="gw-count-strip" role="group" aria-label="网关运行状态汇总">
+        <div v-if="hasGatewaySignals" class="gw-count-strip" role="group" aria-label="网关运行状态汇总">
           <span class="gw-count gw-count--online"><strong>{{ gatewayCounts.online }}</strong> 在线</span>
           <span class="gw-count gw-count--degraded"><strong>{{ gatewayCounts.degraded }}</strong> 降级</span>
           <span class="gw-count gw-count--offline"><strong>{{ gatewayCounts.offline }}</strong> 离线</span>
@@ -88,7 +94,16 @@ const gatewayCounts = computed(() => {
           </tbody>
         </table>
         <p v-else-if="gateway.source.value === 'error'" class="focus-prose focus-prose--muted">数据暂不可用，请稍后重试。</p>
-        <p v-else class="focus-prose focus-prose--muted">暂无网关上报。</p>
+        <div v-else class="gw-ready">
+          <p class="gw-ready-lead">客户网关心跳尚未接入，本页不编造运行数据；当前可先验收授权、审计与交付闭环。</p>
+          <ul class="gw-ready-grid">
+            <li v-for="card in readinessCards" :key="card.title" class="gw-ready-card">
+              <h3>{{ card.title }}</h3>
+              <p>{{ card.body }}</p>
+              <a :href="card.href">查看</a>
+            </li>
+          </ul>
+        </div>
       </section>
     </section>
   </main>
@@ -105,4 +120,12 @@ const gatewayCounts = computed(() => {
 .gw-status--online { background: #e6f4ea; color: #1e7e34; }
 .gw-status--warning, .gw-status--degraded { background: #fcf3e3; color: #8a6d3b; }
 .gw-status--offline { background: #fdecea; color: #a02622; }
+.gw-ready { display: grid; gap: 12px; margin-top: 12px; }
+.gw-ready-lead { margin: 0; color: var(--b-muted, #5c6370); font-size: 13px; }
+.gw-ready-grid { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin: 0; padding: 0; }
+.gw-ready-card { border: 1px solid var(--b-border, #d4e2f4); border-radius: 10px; padding: 12px; background: #fff; }
+.gw-ready-card h3 { margin: 0 0 6px; font-size: 14px; color: var(--b-neutral-text, #1a1d21); }
+.gw-ready-card p { margin: 0 0 10px; color: var(--b-muted, #5c6370); font-size: 12px; line-height: 1.5; }
+.gw-ready-card a { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; }
+.gw-ready-card a:hover { text-decoration: underline; }
 </style>
