@@ -11,11 +11,10 @@ Tier 2 (deterministic, ships now):
     → yellow confidence "pii-pattern"; also flips sensitive_level to 3
       so 部门管理员 doesn't accidentally ship a leaky catalog
 
-Tier 3 (stub, swap to inference gateway in W5):
+Tier 3 (deterministic placeholder):
     - placeholder "字段_<en_name>" with low confidence "llm-stub"
-    - the LLM call will go through `zw_brain.shared.inference.client`
-      per D6 (no third-party LLM SDKs). For now we just emit a
-      placeholder so the UI flow is complete end-to-end.
+    - zw-brain 主进程不持有推理平台 SDK/env；如需模型增强，放到独立
+      AgentRuntime 服务侧。当前只发 placeholder 保证 UI flow 端到端完整。
 
 Output shape is stable and stored under `summary_json.draft_field_suggestions`
 when the user accepts the suggestion, so 业务运营员 can later see exactly which

@@ -1,7 +1,7 @@
 {
   "slug": "approval_flow.nl_draft",
   "title": "用一句话生成审批流草稿",
-  "description": "管理员一句话描述审批流程意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+  "description": "管理员一句话描述审批流程意向 → 通过本地确定性规则生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -77,8 +77,7 @@
   },
   "side_effects": [
     "audit",
-    "db_write",
-    "external_inference"
+    "db_write"
   ],
   "tenant_scope": "tenant",
   "auth_policy": "user",

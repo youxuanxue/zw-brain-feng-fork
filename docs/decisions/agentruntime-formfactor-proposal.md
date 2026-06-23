@@ -28,13 +28,15 @@
 > **AgentRuntime = 独立进程服务**（按信任级可分实例），暴露 run-task **API/HTTP（+CLI）**，**被 zw-brain 调用**（zw-brain → AR：起任务）。
 > **所有团队编写的 Agent 统一在 AR 服务内运行**，用 zw-brain 能力/数据时**作为带身份/凭据的普通客户端走 zw-brain 已发布的认证 API（前门）**。
 
+> **实施更新（2026-06-22）**：本提案早期写过 embedded fallback 占位；落地时已反转为 standalone-only。当前代码中 `zw_brain/` 零 AgentRuntime SDK import，REST 是否启用看 `ZW_BRAIN_AGENT_RUNTIME_ENABLED`，目标服务看 `ZW_BRAIN_AGENT_RUNTIME_URL`；`ZW_BRAIN_AGENT_RUNTIME_MODE=http` 只保留为 `start-local.sh` 本地兼容启动开关。
+
 - zw-brain 的 `/api/agent-runtime/*` facade 变成对 AR HTTP API 的**薄代理**；WebUI 不变。
 - **agent 编写范式统一为 declared api-tools**（`tools:[kind:api]` 指向 zw-brain 已发布认证 API）；A 类一并改此范式，最终删进程内 `ZwBrainCapabilityProvider` 特例。
 - **两种访问模式（= A/B 唯一差别，策略维度非两套架构）**：
   - **A 类（平台内副驾 · on-behalf-of）**：zw-brain 调 AR 带 acting user（`subject_user_id`+凭据）→ AR 内 agent 回调 `/api/skills/{id}` 携该 user 凭据 → zw-brain 现有 per-user 鉴权照常（绑定派生角色 + trusted-session），**role 服务端解析、agent 不可伪造**。
   - **B 类（用数方 · 凭据）**：agent 持已签发凭据（application.resource.submit→approval→credential.issue→credential.query）经数据消费面取数 —— 本就是标准带凭据 API 客户端，out-of-process 天然契合。
 - **近路 vs T1 按编写方分（不是 A/B 域）**：**内部团队编写&部署**的 agent（A 类、B 类都在 `agents/`）= 近路，下周一起突增；**真正外部第三方提供 AGENT.yaml**（ANP/Cursor/三方 IDE）= **T1**（Registry/validate/doctor + 沙箱/Daytona if code-exec）。团队写的 B 类（net_new=none、API 取数、无 code-exec）**不需要 Daytona**。法人画像试点 = 团队写的 B 类 → 走近路，不触发 T1。
-- **可回退**：`ZW_BRAIN_AGENT_RUNTIME_MODE=embedded` 永远是 fallback 配置。
+- **不保留进程内回退**：embedded（in-process SDK）已退役；`ZW_BRAIN_AGENT_RUNTIME_MODE=embedded` 不再是可用 fallback。
 
 ---
 
@@ -48,7 +50,7 @@
 ## 4. 接缝（低耦合的载重件，已存在）
 
 - **接缝已在代码里**：所有 `from agent_runtime`（SDK）import 只在 2 文件（`zw_brain/shared/agent_runtime/service.py` + `capability_provider.py`）；上层只调 ~6 函数 facade（`run_agent_task[_sync]` / `resume_agent_task` / `get_agent_runtime` / `register_brain_provider` / ...）。
-- 故切 embedded→http = **换 adapter 实现体**（`service.py` 函数体打 AR REST、删后台循环/drain），facade 签名不变、manifests + command 层不动。
+- 故从 embedded 切到独立服务 = **换 adapter 实现体**（`service.py` 函数体打 AR REST、删后台循环/drain），facade 签名不变、manifests + command 层不动。
 - **本轮把接缝硬化为不变量**：新增 preflight 段 77 `check_agent_runtime_import_confinement.py` 断言 SDK import 只在那 2 文件，越界即 FAIL（防接缝悄悄烂掉、退回嵌入）。
 
 ---
@@ -70,11 +72,11 @@ spike 产出 `docs/agent-runtime/copilot-out-of-process-spike.md`：R1 结论 + 
 1. §8.2 line 810 改写为单一模型 + 更正 R4 归因（本提案 §1/§2）。
 2. preflight 段 77 接缝导入守卫 + 真命中测试（`tests/test_check_agent_runtime_import_confinement.py`）。
 3. decision-log **D68** 条目。
-4. `ZW_BRAIN_AGENT_RUNTIME_MODE` 占位管线（`config.py` `agent_runtime_mode()`/`agent_runtime_base_url()`，默认 embedded；`service.py` http 分支 `NotImplementedError` 占位）。
+4. 历史 `ZW_BRAIN_AGENT_RUNTIME_MODE` 占位管线已被后续实施收敛：运行时只保留 `ZW_BRAIN_AGENT_RUNTIME_ENABLED` / `ZW_BRAIN_AGENT_RUNTIME_URL`；`ZW_BRAIN_AGENT_RUNTIME_MODE=http` 仅作为 `start-local.sh` 本地兼容启动开关。
 5. 本提案文档（即本文件）。
 6. spike 报告（§5）。
 
-**不碰**任何形态切换运行时代码（adapter/transport/cutover 全在下一轮、spike 之后）。
+**历史说明**：本 proposal 阶段原计划不碰运行时代码；2026-06-22 后续实施已完成 standalone-only cutover，删除 in-process SDK 回退。
 
 ---
 
@@ -100,7 +102,7 @@ AgentRuntimeClient HTTP adapter（重写 `service.py` 函数体打 AR REST、删
 - **`trust_level` 双命名空间**：包级 F4（`baseline/...`）vs AGENT.yaml Registry 级（`platform/verified/untrusted`）—— T1 须 rename 一方（`runtime.py:18-19` 已标注）。
 - **`skill`/`capability`（D33）**：AR 协议词 `skill_id`/`skills:` 留 JSON/协议字符串（在 `agents/`，非 `zw_brain/` Python 标识符）；未来 HTTP adapter 禁在 `zw_brain/` 暴露 `skill` 命名符号（段 50 守卫）。
 - **`anp-agent` spec_version**：钉死 v1.2，T1 validate/doctor 机械强制。
-- 推理 SDK：无冲突（走 `ZW_BRAIN_INFERENCE_*` 网关桥到 `OPENAI_COMPATIBLE_*`，独立命名空间）。
+- 推理 SDK：zw-brain 主进程不持有；独立 AgentRuntime 服务侧读 `OPENAI_COMPATIBLE_*` / `AGENT_RUNTIME_DEFAULT_MODEL`。
 
 ---
 

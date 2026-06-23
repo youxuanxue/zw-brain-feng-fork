@@ -674,11 +674,14 @@ def _update_field(brain, deps, ctx, request_id: str, field: str, value: Any, rol
     return deps.write(ctx, {"request_id": request_id, "field": field}, mutation)
 
 
-def _ai_suggest_draft(brain, deps, ctx, request_id: str, role: str) -> dict[str, Any]:
-    """对草稿空字段生成 AI 建议（标 ai_suggested·待确认）。永不自动提交——人核对/修订后手动提交=担责。
+def _ai_suggest_draft(brain, deps, ctx, request_id: str, role: str, *, use_inference: bool = False) -> dict[str, Any]:
+    """对草稿空字段生成补全建议（标 ai_suggested·待确认）。永不自动提交——人核对/修订后手动提交=担责。
 
-    复用 application.draft.suggest 助手产出建议，经 orchestrate_fill 只填**空且非 human/derived**的
-    可建议字段；人已填/派生字段一律不动（承方案口径）。
+    复用 application.draft.suggest 的规则草拟产出建议，经 orchestrate_fill 只填**空且非 human/derived**
+    的可建议字段；人已填/派生字段一律不动（承方案口径）。
+
+    这里默认走本地规则而非推理平台：申请详情里的按钮是表单内即时补全，客户验收时应秒级完成；
+    需要推理增强的独立能力仍保留在 application.draft.suggest。
     """
     from zw_brain.command.handlers.j1 import application_assistants
 
@@ -697,6 +700,7 @@ def _ai_suggest_draft(brain, deps, ctx, request_id: str, role: str) -> dict[str,
                 "resource_name": request.get("resourceName") or "",
                 "applicant_org": request.get("applicantDept") or request.get("applicant") or "",
                 "use_case": request.get("purpose") or "",
+                "enabled": use_inference,
                 "request_id": request_id,
             },
         )
@@ -818,7 +822,14 @@ def handler_request_field_update(deps: HandlerDeps, ctx: SkillContext, payload: 
 
 def handler_request_draft_ai_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None
-    return _ai_suggest_draft(brain, deps, ctx, str(payload["request_id"]), str(payload.get("role", ctx.role)))
+    return _ai_suggest_draft(
+        brain,
+        deps,
+        ctx,
+        str(payload["request_id"]),
+        str(payload.get("role", ctx.role)),
+        use_inference=bool(payload.get("use_inference")),
+    )
 
 
 def handler_reference_organ_options(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
@@ -831,4 +842,3 @@ def handler_reference_region_options(deps: HandlerDeps, ctx: SkillContext, paylo
 
 def handler_reference_dict_options(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     return _reference_options(deps, "dict", payload)
-

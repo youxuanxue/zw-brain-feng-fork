@@ -1,7 +1,7 @@
 {
   "slug": "assistant.investigation_summary",
   "title": "调查摘要助手",
-  "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。",
+  "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后生成本地规则调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id/request_id 等敏感字段 hash 化，zw-brain 主进程不持有推理平台 SDK/env。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",

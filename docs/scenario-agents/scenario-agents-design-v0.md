@@ -30,7 +30,7 @@ zw-brain 已把它重构为三条黄金旅程（J1 找数→用数、J2 挂数�
 | **能力来源** | 只能调用 Capability Registry 已注册的 185+ 能力（`data.search`/`catalog.entry.create`/`approval.review_decide`/…） | 发散时每个设想必须能映射到现有能力簇；映射不上的标记为"需新增能力"另立项。 |
 | **§8.5 禁区** | 智能体**禁止**：租户策略评估、权限裁决（改 ROLE_*）、写审计、改 canonical 状态机（Application/Approval/Delivery）、直连模型入口 | **铁律：场景智能体只做"起草 / 分诊 / 校验 / 推荐 / 问答"，最终落库的状态变更永远由对应角色的人拍板。** 这条直接决定了下面每个智能体的"安全形态"。 |
 | **运维员生命周期** | 运维员（ROLE_SYSTEM）在 B1.2 管理面：trust_level 升降、`tenant.capability.{enable,disable}`、版本回滚、5 消费面暴露配置；**不改**注册者的指令/工具 | 构建/配置/启用/停用全在运维员权限内 —— 与本任务约束一致。每个智能体声明 `trust_level: platform`、`exposes_chat/exposes_a2a`。 |
-| **模型** | `default_model_provider: openai_compatible`，模型由 `${env:ZW_BRAIN_INFERENCE_MODEL}` 注入（集团推理平台，trusted_gateway，不允许 LLM 外联） | 所有智能体共用集团推理，温度/最大 token/工具调用上限按场景调；现有 agent 用 `max_tool_calls: 10` 防循环。 |
+| **模型** | D68 后模型出口只在独立 AgentRuntime 服务侧：`default_model_provider: openai_compatible`，默认模型由 `${env:AGENT_RUNTIME_DEFAULT_MODEL}` 注入，网关由 AR 服务读取 `OPENAI_COMPATIBLE_*`（集团推理平台，trusted_gateway，不允许 LLM 外联） | 所有智能体共用集团推理，温度/最大 token/工具调用上限按场景调；现有 agent 用 `max_tool_calls: 10` 防循环。 |
 
 **由此推出贯穿全局的乔布斯式原则：**
 

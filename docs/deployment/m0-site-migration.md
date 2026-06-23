@@ -8,7 +8,7 @@
 
 - **schema 全新创建**（D58，反转 D23）：M0 在空 canonical 上跑——schema 由 **alembic baseline → upgrade head** 建（迁移批 `--reset-db` 路径会显式 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 走破坏性 `drop_all + alembic upgrade`；不带 `--reset-db` 则走 `ensure_runtime_schema()` 的 alembic 向前迁移，**存量库不 DROP**）。如客户现场上一轮迁移留有持久化目录，需经客户授权清空后再启 M0 迁移（清空属显式破坏性重置，绝不在自动路径里发生）。
 - **单租户**：所有 record 注入 `tenant_id="sd-default"`（基线 §8.2）。
-- **模型调用边界**：M0 不调用 LLM；若 mapper 后续启用 schema 描述补全等 AI 能力，必须走 `shared/inference/client` 经集团推理平台（基线 §3.4 / preflight 段 10）。
+- **模型调用边界**：M0 不调用 LLM；若 mapper 后续启用 schema 描述补全等 AI 能力，必须放到独立 AgentRuntime 服务侧经集团推理平台，zw-brain 主进程不持有推理 SDK/env。
 - **外部依赖**：IAF IAM（认证）/ 集团数据治理中心 / 集团数据安全中心 / 集团运维监控 / 区块链 adapter 均为外部依赖；M0 不复造（基线 §3.4）。
 - **产品形态**：M0 不打包大屏 / 指挥中心 / 演示页面入口（基线 §1.3）。
 - **实施界面 = CLI（by design）**：M0 现场实施走命令行（`scripts/import_legacy_dumps.py import <schema>` / `verify` 等）；**不建独立浏览器实施面**。用户 2026-05-25 确认「M0 不需要 web 页面」，故 M0「12 步主旅程浏览器可视化」（原 e6-platform-m0 AC3）**非缺口**，不再作为待办跟踪。
@@ -93,7 +93,7 @@
 - **投影生成失败**：业务事实不回滚，记录 projection 失败摘要并交给 `ROLE_SECURITY_AUDIT` 督查断链。
 - **客户现场执行器失败**：保留批次号、失败阶段和回执，允许重跑；禁止半手工导入绕过审计。
 - **验收后发现漏迁**：用新批次补迁并回指旧对象，不重新打开运行时兼容入口。
-- **推理网关不可达**：若 mapper 启用 AI 辅助能力（schema 描述补全等），调用走 `shared/inference/client` 失败时降级为只迁结构、不补语义，记录"未补 AI 字段"摘要进验收报告；不直连第三方 LLM 绕过基线 §3.4。
+- **AgentRuntime 模型网关不可达**：若后续启用 AI 辅助能力（schema 描述补全等），由独立 AR 服务失败关闭或降级为只迁结构、不补语义，记录"未补 AI 字段"摘要进验收报告；zw-brain 不直连第三方 LLM。
 - **区块链 anchor 异步失败**：进 `anchor_outbox` 重试队列，**不阻塞迁移**（基线 §3.4 / D4 区块链 adapter 异步执行 + 外链 down 不阻塞业务）。
 
 ## 成功判据

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Diagnose zw-brain embedded Agent readiness (AGENT.yaml + capabilities.json)."""
+"""Diagnose zw-brain Agent readiness (AGENT.yaml + capabilities.json)."""
 from __future__ import annotations
 
 import argparse

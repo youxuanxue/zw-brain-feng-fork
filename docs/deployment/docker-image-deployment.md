@@ -3,7 +3,7 @@
 > **权威源对齐**（基线 `docs/approved/zw-brain-architecture.md`）：
 > - 单租户：`tenant_id=sd-default`（不启用 multi-tenant；基线 §8.2 + MEMORY sd-default）
 > - schema：**alembic baseline stamp → upgrade head**（D58，反转 D23）。容器首次启动 `ensure_runtime_schema()`：空库 → 建全部表；存量库（无版本表、schema 与模型一致）→ baseline-stamp（零 DDL、**不 DROP**）后向前迁移；真实漂移无迁移可上 → 拒启（绝不清库）。破坏性重置仅 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 显式开关下可走
-> - 模型调用：必须经集团推理平台，禁止直连第三方 LLM（基线 §3.4 / preflight 段 10）
+> - 模型调用：由独立 AgentRuntime 服务经集团推理平台承载；zw-brain REST 不持有推理 SDK/env
 > - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
 > - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；本镜像不构建大屏 / 指挥中心 / 演示页面（基线 §1.3）
 
@@ -11,7 +11,7 @@
 
 ## 1. 构建镜像
 
-**D68 单一模型**：zw-brain 镜像**不再内置 agent-runtime**（embedded 退役，进程内零 SDK），只含 `agents/`（供能力列出）。AgentRuntime 是**独立服务**——单独构建 `Dockerfile.agent-runtime`（来自 `vendor/agent-runtime/release/v1.1.3/` 离线包）或用 `docker-compose` 的 `agent-runtime` 服务；zw-brain 运行时设 `ZW_BRAIN_AGENT_RUNTIME_MODE=http` + `ZW_BRAIN_AGENT_RUNTIME_URL` 指向它。zw-brain 镜像在仓库根构建即可：
+**D68 单一模型**：zw-brain 镜像**不再内置 agent-runtime**（embedded 退役，进程内零 SDK），只含 `agents/`（供能力列出）。AgentRuntime 是**独立服务**——单独构建 `Dockerfile.agent-runtime`（来自 `vendor/agent-runtime/release/v1.1.3/` 离线包）或用 `docker-compose` 的 `agent-runtime` 服务；zw-brain 运行时设 `ZW_BRAIN_AGENT_RUNTIME_ENABLED=1` + `ZW_BRAIN_AGENT_RUNTIME_URL` 指向它。`ZW_BRAIN_AGENT_RUNTIME_MODE=http` 只保留为 `start-local.sh` 本地兼容启动开关，不是生产运行形态选择。zw-brain 镜像在仓库根构建即可：
 
 ```bash
 cd /path/to/zw-brain
@@ -117,8 +117,10 @@ docker run -d \
 ```
 
 > `.env` 里至少填：`ZW_BRAIN_DATABASE_URL`（指向托管 PG，须容器内可达） +
-> `ZW_BRAIN_INFERENCE_GATEWAY_URL` / `ZW_BRAIN_INFERENCE_API_KEY`(或 `_REF`) /
-> `ZW_BRAIN_INFERENCE_MODEL` + IAF 一组 + 生产的 `ZW_BRAIN_SESSION_REDIS_URL`；清单见 `.env.example`。
+> IAF 一组 + 生产的 `ZW_BRAIN_SESSION_REDIS_URL` + AgentRuntime 指向
+> `ZW_BRAIN_AGENT_RUNTIME_URL`。模型网关变量只给独立 `agent-runtime` 服务：
+> `OPENAI_COMPATIBLE_BASE_URL` / `OPENAI_COMPATIBLE_API_KEY` / `AGENT_RUNTIME_DEFAULT_MODEL`。
+> 清单见 `.env.example`。
 > 单条覆盖可继续追加 `-e KEY=VALUE`（`-e` 优先于 `--env-file`）。后端 PG-only，容器无本地数据卷。
 
 个别变量临时覆盖示例（在 `--env-file` 基础上追加）：
@@ -189,8 +191,6 @@ location /zw-brain/ {
 | `ZW_BRAIN_REST_PORT` | REST 监听端口 | `8800` |
 | `ZW_BRAIN_REST_BASE_URL` | REST 对外基础 URL，用于契约投影等场景 | `http://127.0.0.1:<REST端口>` |
 | `ZW_BRAIN_TENANT_ID` | 默认租户标识；Phase 1 固定 `sd-default`（单租户单省山东；基线 §8.2） | `sd-default` |
-| `ZW_BRAIN_INFERENCE_GATEWAY_URL` | 集团推理平台 gateway URL；所有 LLM / Embedding / ASR / Rerank / OCR 调用必须经此入口（基线 §3.4 + preflight 段 10） | 必填（生产环境） |
-| `ZW_BRAIN_INFERENCE_API_KEY_REF` | 集团推理平台 API key 引用（密钥引用，非明文）；密钥材料不进入镜像；部署层解析后注入字面 `ZW_BRAIN_INFERENCE_API_KEY` 供运行时读取 | 必填（生产环境） |
 | `ZW_BRAIN_IAF_CA_FILE` | IAF HTTPS 自定义 CA 证书文件路径（容器内路径），用于挂载内部 CA bundle | 未设置（使用系统默认信任链） |
 | `ZW_BRAIN_IAF_VERIFY_SSL` | 设为 `false` 时跳过 IAF 端点 SSL 验证（仅限测试/内网无证书环境）；须与 `ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK=development-only` 联用才生效。**`ZW_BRAIN_DEPLOY_MODE=prod` 下二者联用会 fail-closed 拒绝启动（M5：关闭 IAM TLS 校验=MITM 面）** | `true` |
 | `ZW_BRAIN_IAF_INSECURE_TLS_DEV_ACK` | 关闭 IAF TLS 校验的双因子确认字；仅 `development-only` 与 `ZW_BRAIN_IAF_VERIFY_SSL=false` 联用；prod 部署不得设置 | 未设置 |
@@ -202,20 +202,23 @@ location /zw-brain/ {
 | `ZW_BRAIN_AGENT_RUNTIME_ENABLED` | 启用 `/api/agent-runtime/*` 任务接口（zw-brain → 独立 AR） | 未设置（关闭） |
 | `ZW_BRAIN_AGENT_RUNTIME_URL` | **独立 AgentRuntime 服务地址**，zw-brain 经 HTTP 驱动它；compose 内 = `http://agent-runtime:8001` | 启用时必填（单一模型） |
 | `ZW_BRAIN_AGENTS_DIR` | Agent 清单目录（**单一源**：zw-brain 用它「列」、AR 用它「跑」） | 镜像内 `/app/agents` |
+| `OPENAI_COMPATIBLE_BASE_URL` | **AgentRuntime 服务侧** OpenAI 兼容网关 base URL；zw-brain REST 不读取 | AR 启用模型时必填 |
+| `OPENAI_COMPATIBLE_API_KEY` | **AgentRuntime 服务侧**网关 Bearer key；密钥只注入 AR 服务 | AR 启用模型时必填 |
+| `AGENT_RUNTIME_DEFAULT_MODEL` | **AgentRuntime 服务侧**默认模型名 | AR 启用模型时必填 |
 
 > D68 单一模型：`ZW_BRAIN_AGENT_RUNTIME_PROFILE` / `_CONFIG` / `_SCHEMA` 等 **embedded（进程内 SDK）配置已退役**（zw-brain 进程不再读）。
-> Agent 的**推理凭据**（`ZW_BRAIN_INFERENCE_*` → 桥接 `OPENAI_COMPATIBLE_*`）配在**独立 AR 服务**（`agent-runtime` 容器 / `Dockerfile.agent-runtime`），不在 zw-brain 容器；平台指南 Agent 的文档根 `ZW_BRAIN_PLATFORM_DOCS_ROOTS` 同样配在 AR 服务侧（compose 已注入）。
+> Agent 的**模型凭据**配在**独立 AR 服务**（`agent-runtime` 容器 / `Dockerfile.agent-runtime`），不在 zw-brain 容器；平台指南 Agent 的文档根 `ZW_BRAIN_PLATFORM_DOCS_ROOTS` 同样配在 AR 服务侧（compose 已注入）。
 
-如需接入 IAF/OIDC、外部数据库或集团推理平台，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
+如需接入 IAF/OIDC、外部数据库或 AgentRuntime 模型网关，应通过环境变量注入对应配置，不要把密钥、连接串或证书写入镜像。内网部署若 IAF 使用自签名证书，优先挂载 CA bundle（`ZW_BRAIN_IAF_CA_FILE`）；仅在无法提供证书时才使用 `ZW_BRAIN_IAF_VERIFY_SSL=false`。
 
 启用 AgentRuntime（D68 单一模型，独立 AR 服务）示例——zw-brain 容器只需指向独立 AR：
 
 ```bash
-# (a) 先起独立 AgentRuntime 服务（:8001）；推理凭据配在 AR 侧（桥接 OPENAI_COMPATIBLE_*）
+# (a) 先起独立 AgentRuntime 服务（:8001）；模型凭据配在 AR 侧
 docker run -d --name zw-brain-agent-runtime -p 8001:8001 \
   -e OPENAI_COMPATIBLE_BASE_URL=https://<集团推理网关>/api/v3 \
   -e OPENAI_COMPATIBLE_API_KEY=<网关密钥或 unused> \
-  -e ZW_BRAIN_INFERENCE_MODEL=<模型名> \
+  -e AGENT_RUNTIME_DEFAULT_MODEL=<模型名> \
   -e ZW_BRAIN_REST_BASE_URL=http://<zw-brain 容器可达地址>:8800 \
   zw-brain-agent-runtime:1.1.3
   # 注意：docker -e 用 VAR=value，不要写 VAR=='value'（会把引号传入容器）

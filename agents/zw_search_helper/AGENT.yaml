@@ -17,7 +17,7 @@ metadata:
     surface: copilot          # 副驾：嵌在【找数】页工作流里，不进【数据应用】列表
 model:
   provider: openai_compatible
-  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
   temperature: 0.2
   max_tokens: 4000
 instructions: |

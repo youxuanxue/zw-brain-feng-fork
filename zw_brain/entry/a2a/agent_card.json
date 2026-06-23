@@ -1151,8 +1151,7 @@
       ],
       "sideEffects": [
         "audit",
-        "db_write",
-        "external_inference"
+        "db_write"
       ]
     },
     {
@@ -1833,8 +1832,7 @@
       ],
       "sideEffects": [
         "audit",
-        "db_write",
-        "external_inference"
+        "db_write"
       ]
     },
     {

@@ -23,7 +23,6 @@ _LINKED_PYTEST = (
     "tests/integration/test_approval_flow_nl_draft.py",
     "tests/integration/test_wave2_three_engines_acceptance.py",
     "tests/test_contract_projection.py",
-    "tests/integration/test_inference_client.py",
     "tests/test_wave3_protocol_tenant.py",
 )
 

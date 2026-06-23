@@ -1,0 +1,72 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 法人信用画像只读能力
+  description: >-
+    法人信用画像核验 Agent 在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain
+    已发布的目录检索能力声明为 kind:api 工具。服务地址 = 下方 servers 字面量；非默认端口或
+    生产部署须 deploy-time 重生成本 spec。
+  version: "1.0.0"
+servers:
+  - url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/data.search:
+    post:
+      operationId: data_search
+      summary: 按关键词检索已编目共享数据资源，返回命中清单与结构化摘要（只读）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query]
+              properties:
+                query: { type: string, minLength: 1, description: 检索词 }
+                page: { type: integer, minimum: 1, default: 1 }
+      responses:
+        "200":
+          description: 命中清单
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /api/skills/catalog.entry.query:
+    post:
+      operationId: catalog_entry_query
+      summary: 查询已编目目录条目（企业登记 / 法人画像类目录条目），只读。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query: { type: string }
+                catalog_code: { type: string }
+                lifecycle_status: { type: string }
+                limit: { type: integer, minimum: 1 }
+                offset: { type: integer, minimum: 0 }
+      responses:
+        "200":
+          description: 目录条目详情/列表
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }
+  /api/skills/metadata.catalog_item.query:
+    post:
+      operationId: catalog_item_query
+      summary: 查询目录项字段映射（失信 / 黑名单 / 经营异常 / 纳税信用等级 / 参保数 / 注册资本等只读标签），只读。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource_code: { type: string }
+                catalog_code: { type: string }
+      responses:
+        "200":
+          description: 目录项字段映射
+          content:
+            application/json:
+              schema: { type: object, additionalProperties: true }

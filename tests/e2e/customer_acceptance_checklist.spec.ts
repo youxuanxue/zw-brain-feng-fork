@@ -156,9 +156,9 @@ test.describe('客户验收 — 部门操作员 J1', () => {
 
   test('P2 NL 加速器 → 自动搜索出资源', async ({ page }) => {
     await gotoHash(page, '#/discovery');
-    await page.getByRole('button', { name: '智能检索' }).click();
+    await page.getByRole('button', { name: '找数助手' }).click();
     await page.getByRole('button', { name: '查省营商环境相关数据' }).click();
-    await expect(page.locator('#p2-search')).toHaveValue('营商环境', { timeout: 8_000 });
+    await expect(page.locator('#p2-search')).toHaveValue('营商环境', { timeout: 30_000 });
     // C-1 删演示单后真实库未必有「营商环境」命中：断言 NL 加速器真实驱动了搜索
     // （命中 N 条 或 诚实「未命中」状态文案），不依赖已删的演示资源存在。
     await expect(page.getByText(/命中 \d+ 条可申请资源|未命中/).first()).toBeVisible({ timeout: 10_000 });

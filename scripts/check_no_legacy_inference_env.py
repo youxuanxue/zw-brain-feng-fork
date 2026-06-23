@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-"""check_no_legacy_inference_env.py — preflight 段 56（D36 retrofit 硬化）
+"""check_no_legacy_inference_env.py — preflight 段 56（D36/D68 retrofit 硬化）
 
-D36 (2026-05-29) 决策：推理网关连接变量统一为 ``ZW_BRAIN_INFERENCE_*``，删除一切
-``INSPUR_INFERENCE_*`` / ``AUTH_TOKEN`` / 裸 ``BASE_URL``/``MODEL`` 兜底（见 CLAUDE.md D36）。
-此前守卫只在 client 层有负向测试（D36.c），**没有仓库级机械防线**阻止已退役的
+D36 (2026-05-29) 决策：推理网关连接变量曾删除一切 ``INSPUR_INFERENCE_*`` /
+``AUTH_TOKEN`` / 裸 ``BASE_URL``/``MODEL`` 兜底（见 CLAUDE.md D36）。
+D68 后 zw-brain 进程内推理 client/env 整体退役，模型连接变量只属于独立
+AgentRuntime 服务侧。此前守卫只在 client 层有负向测试（D36.c），**没有仓库级机械防线**阻止已退役的
 ``INSPUR_INFERENCE_*`` env 前缀在文档 / 配置里回潮——PR #160 即活案例
 （差点把失效契约钉进证据源 + 运维债务文档，preflight 全绿却放过）。
 
 本守卫：扫全仓 tracked 文件，禁止已退役 env 前缀字面量 ``INSPUR_INFERENCE_``。
 
 allowlist（合法保留，按文件）：
-  - ``CLAUDE.md``：D36 决策记录本身，必须命名旧前缀以记录 "renamed from"。
-  - ``tests/integration/test_inference_client.py``：D36 负向守卫，故意 set 旧名证明被忽略。
+  - ``CLAUDE.md``：D36/D68 速查本身，必须命名旧前缀以记录禁用项。
+  - 本守卫自身：记录 D36 历史与旧前缀。
 
 不误伤承重的网关 host 标识 —— ``INSPUR_GATEWAY_MARKERS`` / ``inspur-inference-gateway``
 不含子串 ``INSPUR_INFERENCE_``，天然不匹配（D36.c：env 变量前缀 vs 网关 host 身份是两个维度）。
@@ -29,9 +30,8 @@ REPO = Path(__file__).resolve().parent.parent
 NEEDLE = "INSPUR_INFERENCE_"
 ALLOWLIST: frozenset[str] = frozenset(
     {
-        "CLAUDE.md",  # D36 决策记录速查：记录 "INSPUR_INFERENCE_* → ZW_BRAIN_INFERENCE_*" 改名
+        "CLAUDE.md",  # D36/D68 速查：记录已退役 INSPUR 前缀
         "docs/decisions/decision-log.md",  # D64 — D36 全量条目（原 CLAUDE.md 内）随 D-索引移出，仍记旧前缀改名史
-        "tests/integration/test_inference_client.py",  # D36 负向守卫：set 旧名证明被忽略
         "scripts/check_no_legacy_inference_env.py",  # 本守卫自身：needle 定义 + docstring 必含该字面量
     }
 )
@@ -64,13 +64,13 @@ def main() -> int:
     if hits:
         print(
             f"[no-legacy-inference-env] FAIL: 检出 {len(hits)} 处已退役 "
-            f"`{NEEDLE}*` env 前缀回潮（D36 已收敛为 ZW_BRAIN_INFERENCE_*）："
+            f"`{NEEDLE}*` env 前缀回潮："
         )
         for h in hits:
             print(f"  {h}")
         print(
-            "  修复：连接变量改用 ZW_BRAIN_INFERENCE_GATEWAY_URL / "
-            "ZW_BRAIN_INFERENCE_API_KEY / ZW_BRAIN_INFERENCE_MODEL；"
+            "  修复：AgentRuntime 服务侧模型连接变量改用 OPENAI_COMPATIBLE_BASE_URL / "
+            "OPENAI_COMPATIBLE_API_KEY / AGENT_RUNTIME_DEFAULT_MODEL；"
         )
         print(
             f"  若确属 D36 决策记录 / 负向守卫的合法引用，"

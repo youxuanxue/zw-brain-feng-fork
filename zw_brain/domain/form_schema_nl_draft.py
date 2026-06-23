@@ -1,26 +1,19 @@
 """E3 Wave-2 三引擎 F5 — 表单 schema NL 草稿生成。
 
-3-tier 策略（与 [[approval-flow-nl-draft]] 同形）：
-- Tier 1 deterministic：识别 "N 字段 / N 个字段" 模板 + 常见字段名 patterns
+策略（与 [[approval-flow-nl-draft]] 同形）：
+- deterministic：识别 "N 字段 / N 个字段" 模板 + 常见字段名 patterns
   （姓名 / 身份证号 / 联系电话 / 单位 / 申请事由 / 申请日期 / 附件 / 备注 ...），
   生成 1 个 section（默认"基本信息"）+ N 个 FormField + 自动绑定 validator。
-- Tier 2 LLM：经 zw_brain.shared.inference.client.chat，约束 strict JSON；
-  含「四川 7 字段」few-shot。
-- Tier 3 fallback：InferenceError / JSON 解析失败 / payload 校验失败 → deterministic 兜底。
 - 输出二次过 FormSchemaRepo 的 _validate_payload。
 """
 
 from __future__ import annotations
 
-import json
 import re
-import uuid
 from typing import Any
 
 from zw_brain.domain.form_schema import FormSchemaRepo, _validate_payload
 from zw_brain.domain.models import FormSchemaRecord
-from zw_brain.shared.inference.client import ChatMessage, InferenceError
-from zw_brain.shared.inference.client import chat as _inference_chat
 
 _CN_DIGIT_MAP = {
     "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9, "十": 10,
@@ -159,41 +152,6 @@ _FIELD_TEMPLATES: list[dict[str, Any]] = [
 ]
 
 
-FORM_SCHEMA_PROMPT = """你是政务大脑表单 schema 配置助手。
-
-任务：根据用户一句话需求，生成严格 JSON 的表单模板 payload。
-
-输出必须是单个 JSON 对象，字段：
-- sections: list, 每项 {section_code, title, order_index?, collapsible?}
-  - 至少 1 个 section
-- fields: list, 每项 {field_code, section_code, field_name, field_type, required?, order_index?, placeholder?, default_value_json?, layout_hints_json?}
-  - field_type ∈ {text, textarea, number, date, datetime, select, multiselect, checkbox, file, user_picker, org_picker}
-  - section_code 必须存在于 sections
-- validators: list, 每项 {validator_code, applies_to_field_code, validator_kind, validator_payload_json, error_message_template?}
-  - validator_kind ∈ {regex, range, length, enum, file_size, file_type, custom_expression}
-
-输出示例（四川 7 字段表单：姓名/身份证/联系电话/单位/事由/日期/附件）：
-{
-  "sections": [{"section_code": "basic", "title": "基本信息", "order_index": 0}],
-  "fields": [
-    {"field_code": "applicant_name", "section_code": "basic", "field_name": "申请人姓名", "field_type": "text", "required": true, "order_index": 0},
-    {"field_code": "id_card", "section_code": "basic", "field_name": "身份证号", "field_type": "text", "required": true, "order_index": 1},
-    {"field_code": "phone", "section_code": "basic", "field_name": "联系电话", "field_type": "text", "required": true, "order_index": 2},
-    {"field_code": "applicant_org", "section_code": "basic", "field_name": "申请单位", "field_type": "text", "required": true, "order_index": 3},
-    {"field_code": "apply_reason", "section_code": "basic", "field_name": "申请事由", "field_type": "textarea", "required": true, "order_index": 4},
-    {"field_code": "apply_date", "section_code": "basic", "field_name": "申请日期", "field_type": "date", "required": true, "order_index": 5},
-    {"field_code": "attachment", "section_code": "basic", "field_name": "附件", "field_type": "file", "required": false, "order_index": 6}
-  ],
-  "validators": [
-    {"validator_code": "id_card_pattern", "applies_to_field_code": "id_card", "validator_kind": "regex", "validator_payload_json": {"pattern": "^\\\\d{17}[\\\\dXx]$"}},
-    {"validator_code": "phone_len", "applies_to_field_code": "phone", "validator_kind": "length", "validator_payload_json": {"minLength": 7, "maxLength": 20}},
-    {"validator_code": "attachment_size", "applies_to_field_code": "attachment", "validator_kind": "file_size", "validator_payload_json": {"maxBytes": 20971520}}
-  ]
-}
-
-只输出 JSON，不要 markdown 代码块、不要解释。"""
-
-
 class FormSchemaDraftError(ValueError):
     pass
 
@@ -304,40 +262,6 @@ def _deterministic_payload(intent_text: str) -> tuple[dict[str, Any], dict[str, 
     }
 
 
-def _try_llm_payload(intent_text: str, *, request_id: str) -> tuple[dict[str, Any] | None, dict[str, Any]]:
-    try:
-        result = _inference_chat(
-            [
-                ChatMessage(role="system", content=FORM_SCHEMA_PROMPT),
-                ChatMessage(role="user", content=intent_text),
-            ],
-            model="claude-sonnet-4-7",
-            temperature=0.0,
-            max_tokens=1500,
-            request_id=request_id,
-        )
-    except InferenceError as exc:
-        return None, {"tier": "llm-fallback", "fallback_reason": f"InferenceError: {exc}"}
-    text = (result.text or "").strip()
-    if not text:
-        return None, {"tier": "llm-fallback", "fallback_reason": "empty_llm_response"}
-    cleaned = text
-    if cleaned.startswith("```"):
-        cleaned = re.sub(r"^```[a-zA-Z]*", "", cleaned).strip()
-        cleaned = cleaned.rstrip("`").strip()
-    try:
-        payload = json.loads(cleaned)
-    except (json.JSONDecodeError, TypeError) as exc:
-        return None, {"tier": "llm-fallback", "fallback_reason": f"json_decode_error: {exc}"}
-    if not isinstance(payload, dict):
-        return None, {"tier": "llm-fallback", "fallback_reason": "llm_response_not_object"}
-    try:
-        _validate_payload(payload)
-    except Exception as exc:  # noqa: BLE001
-        return None, {"tier": "llm-fallback", "fallback_reason": f"payload_validation: {exc}"}
-    return payload, {"tier": "llm", "model": result.model}
-
-
 def generate_draft_payload(
     intent_text: str,
     *,
@@ -351,14 +275,7 @@ def generate_draft_payload(
     deterministic_payload, deterministic_meta = _deterministic_payload(intent_text)
     _validate_payload(deterministic_payload)
 
-    if deterministic_only:
-        return deterministic_payload, deterministic_meta
-
-    rid = request_id or f"FORM-NL-{uuid.uuid4()}"
-    payload, meta = _try_llm_payload(intent_text, request_id=rid)
-    if payload is None:
-        return deterministic_payload, {**deterministic_meta, **meta}
-    return payload, {**meta, "deterministic_baseline": deterministic_meta}
+    return deterministic_payload, deterministic_meta
 
 
 def generate_draft(

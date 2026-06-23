@@ -7,44 +7,22 @@ F7 减摩组件（plan e1-j1-journey F7 + §5.4.4 反约束）:
 - approval.evidence.summarize：审批依据助手。基于待审申请 + 历史同源审批，归纳依据
   + 反事实分析 + 推荐 decision，但绝不调用 approval.decide / request.approve / reject。
 
-两 cap 均走 zw_brain.shared.inference.client.chat（D6 硬约束），三层降级：
-推理失败 / JSON 解析失败 / enabled=false 三种情况都回落本地规则。
+两 cap 在 zw-brain 主进程内只做本地确定性建议；需要模型推理时由独立
+AgentRuntime 服务承载，不在本进程持有推理平台 SDK / env。
 """
 
 from __future__ import annotations
 
-import json as _json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.shared.inference.client import (
-    ChatMessage,
-    InferenceError,
-)
-from zw_brain.shared.inference.client import (
-    chat as _inference_chat,
-)
 
 # ──────────────────────────────────────────────────────────────────────
 # Common helpers
 # ──────────────────────────────────────────────────────────────────────
-
-
-def _try_parse_json(raw: str) -> dict[str, Any] | None:
-    raw = (raw or "").strip()
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-    try:
-        parsed = _json.loads(raw)
-    except Exception:
-        return None
-    return parsed if isinstance(parsed, dict) else None
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -66,6 +44,7 @@ def _draft_fallback(resource_name: str, applicant_org: str, use_case: str) -> di
     suggested = {
         "purpose": (use_case or f"{applicant_org} 业务办理需要").strip(),
         "use_reason": "行政依据",
+        "scope": "仅限本次申请事项所需字段和授权期限内使用",
         "use_item": "1",
         "service_times": 1000,
         "service_times_unit": "次/日",
@@ -89,49 +68,6 @@ def _draft_fallback(resource_name: str, applicant_org: str, use_case: str) -> di
             f"实际提交前请补充具体用途与字段子集。"
         ),
         "source": "fallback_rule",
-    }
-
-
-def _draft_inference(
-    resource_name: str, applicant_org: str, use_case: str, *, historical_examples: list[dict], request_id: str
-) -> dict[str, Any] | None:
-    examples_snippet = _json.dumps(historical_examples[:3], ensure_ascii=False)
-    prompt = (
-        "你是政务数据共享平台 P3 申请草拟助手。基于资源名称、申请方、使用场景与历史相似申请，"
-        "输出严格 JSON：{\"suggested_fields\":{\"purpose\":\"\",\"use_reason\":\"\","
-        "\"use_item\":\"\",\"service_times\":0,\"service_times_unit\":\"\",\"use_region\":\"\"},"
-        "\"risk_score\":0,\"risk_band\":\"low|medium|high\",\"risk_factors\":[],\"missing_fields\":[],"
-        "\"recommended_use_reasons\":[],\"reasoning\":\"\"}。仅给建议不替人提交。"
-    )
-    user = (
-        f"资源：{resource_name}\n申请方：{applicant_org}\n使用场景：{use_case or '未填'}\n"
-        f"历史相似申请样例：{examples_snippet}"
-    )
-    result = _inference_chat(
-        [ChatMessage(role="system", content=prompt), ChatMessage(role="user", content=user)],
-        model="", request_id=request_id, temperature=0.0,
-    )
-    parsed = _try_parse_json(result.text)
-    if parsed is None:
-        return None
-    suggested = parsed.get("suggested_fields") or {}
-    if not isinstance(suggested, dict):
-        suggested = {}
-    risk_score = parsed.get("risk_score")
-    if not isinstance(risk_score, (int, float)):
-        risk_score = 0
-    return {
-        "suggested_fields": {k: suggested.get(k) for k in (
-            "purpose", "use_reason", "use_item", "service_times",
-            "service_times_unit", "use_region",
-        )},
-        "risk_score": int(risk_score),
-        "risk_band": str(parsed.get("risk_band") or "medium"),
-        "risk_factors": [str(x) for x in (parsed.get("risk_factors") or []) if x][:6],
-        "missing_fields": [str(x) for x in (parsed.get("missing_fields") or []) if x][:6],
-        "recommended_use_reasons": [str(x) for x in (parsed.get("recommended_use_reasons") or []) if x][:6],
-        "reasoning": str(parsed.get("reasoning") or ""),
-        "source": "inference",
     }
 
 
@@ -173,30 +109,13 @@ def _do_draft_suggest(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
     actor = ctx.actor or "system"
     audit_target = f"{resource_name[:40]}|{applicant_org[:20]}"
 
-    if not enabled:
-        result = _draft_fallback(resource_name, applicant_org, use_case)
-        deps.append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
-        result["enabled"] = False
-        return result
-
     examples = _load_historical_examples(brain, deps, ctx, resource_name)
-    inf: dict[str, Any] | None = None
-    try:
-        inf = _draft_inference(resource_name, applicant_org, use_case, historical_examples=examples, request_id=request_id)
-    except InferenceError:
-        inf = None
-    if inf is not None:
-        deps.append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
-        inf["enabled"] = True
-        inf["historical_examples_count"] = len(examples)
-        return inf
 
-    fallback = _draft_fallback(resource_name, applicant_org, use_case)
-    deps.append_audit_feed("application.draft.suggest", audit_target, "warning", actor)
-    fallback["enabled"] = True
-    fallback["degraded"] = True
-    fallback["historical_examples_count"] = len(examples)
-    return fallback
+    result = _draft_fallback(resource_name, applicant_org, use_case)
+    deps.append_audit_feed("application.draft.suggest", audit_target, "ok", actor)
+    result["enabled"] = enabled
+    result["historical_examples_count"] = len(examples)
+    return result
 
 
 def handler_application_draft_suggest(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
@@ -251,39 +170,6 @@ def _evidence_fallback(application: dict[str, Any], historical: list[dict[str, A
         ),
         "historical_summary": history_summary,
         "source": "fallback_rule",
-    }
-
-
-def _evidence_inference(
-    application: dict[str, Any], historical: list[dict[str, Any]], *, request_id: str
-) -> dict[str, Any] | None:
-    prompt = (
-        "你是政务数据共享平台 P3 审批依据助手。基于待审申请字段与历史同源申请，输出严格 JSON："
-        "{\"bases\":[],\"counter_factuals\":[],\"recommendation\":\"approve|return_for_fix|reject\","
-        "\"recommended_decision_reason\":\"\",\"historical_summary\":\"\"}。"
-        "仅给归纳与建议，绝不替人点决策。"
-    )
-    user = (
-        f"待审申请：{_json.dumps(application, ensure_ascii=False)}\n"
-        f"历史同源 (最多 5 条)：{_json.dumps(historical[:5], ensure_ascii=False)}"
-    )
-    result = _inference_chat(
-        [ChatMessage(role="system", content=prompt), ChatMessage(role="user", content=user)],
-        model="", request_id=request_id, temperature=0.0,
-    )
-    parsed = _try_parse_json(result.text)
-    if parsed is None:
-        return None
-    recommendation = str(parsed.get("recommendation") or "")
-    if recommendation not in _RECOMMEND_VALUES:
-        recommendation = "return_for_fix"
-    return {
-        "bases": [str(x) for x in (parsed.get("bases") or []) if x][:6],
-        "counter_factuals": [str(x) for x in (parsed.get("counter_factuals") or []) if x][:6],
-        "recommendation": recommendation,
-        "recommended_decision_reason": str(parsed.get("recommended_decision_reason") or ""),
-        "historical_summary": str(parsed.get("historical_summary") or ""),
-        "source": "inference",
     }
 
 
@@ -348,33 +234,12 @@ def _do_evidence_summarize(brain, deps, ctx, payload: dict[str, Any]) -> dict[st
         }
     historical = _load_historical_for_review(brain, deps, ctx, str(application.get("resource_name") or ""), exclude_id=application_id)
 
-    if not enabled:
-        result = _evidence_fallback(application, historical)
-        deps.append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
-        result["application_id"] = application_id
-        result["application_status"] = application["status"]
-        result["enabled"] = False
-        return result
-
-    inf: dict[str, Any] | None = None
-    try:
-        inf = _evidence_inference(application, historical, request_id=request_id)
-    except InferenceError:
-        inf = None
-    if inf is not None:
-        deps.append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
-        inf["application_id"] = application_id
-        inf["application_status"] = application["status"]
-        inf["enabled"] = True
-        return inf
-
-    fallback = _evidence_fallback(application, historical)
-    deps.append_audit_feed("approval.evidence.summarize", application_id, "warning", actor)
-    fallback["application_id"] = application_id
-    fallback["application_status"] = application["status"]
-    fallback["enabled"] = True
-    fallback["degraded"] = True
-    return fallback
+    result = _evidence_fallback(application, historical)
+    deps.append_audit_feed("approval.evidence.summarize", application_id, "ok", actor)
+    result["application_id"] = application_id
+    result["application_status"] = application["status"]
+    result["enabled"] = enabled
+    return result
 
 
 def handler_approval_evidence_summarize(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:

@@ -6,7 +6,7 @@
 # Trace:
 #   zw_brain/command/handlers/j1/delivery_explain.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
-"""F8: P4 交付状态解释助手 — 5 真实 sd-default 交付任务 + 推理降级 + §5.4.4 反约束守卫.
+"""F8: P4 交付状态解释助手 — 5 真实 sd-default 交付任务 + §5.4.4 反约束守卫.
 
 数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
 模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
@@ -140,66 +140,23 @@ def test_explain_requires_at_least_one_id(brain):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# inference path + 降级
+# enabled=true — 仍走本地确定性解释
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_explain_inference_path_returns_structured(brain, monkeypatch, real_tasks):
-    from zw_brain.command.handlers.j1 import delivery_explain as de
-    from zw_brain.shared.inference.client import ChatResult
-
-    mocked = (
-        '{"phase":"pending","phase_label":"待处理",'
-        '"phase_description":"提供方部门正在准备数据。",'
-        '"exception_reasons":["该任务已 pending 超 3 天"],'
-        '"impact_scope":["申请方业务延期"],'
-        '"responsible_role":"提供方部门数据负责人",'
-        '"evidence_sources":["delivery_task.state=pending","payload.kind=apply_pending_delivery"]}'
-    )
-    monkeypatch.setattr(de, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text=mocked, model="demo"))
+def test_explain_enabled_true_uses_local_rule(brain, real_tasks):
     sample = real_tasks[0]
     out = _invoke(brain, {
         "delivery_code": sample["delivery_code"],
         "role": "ROLE_ORGAN_OPERATER",
         "enabled": True,
     })
-    assert out["source"] == "inference"
-    assert out["phase_label"] == "待处理"
-    assert "数据负责人" in out["responsible_role"]
+    assert out["source"] == "fallback_rule"
+    assert out["enabled"] is True
+    assert "degraded" not in out
+    assert out["phase"] == sample["state"]
+    assert out["phase_label"]
     assert out["evidence_sources"]
-
-
-def test_explain_inference_error_degrades(brain, monkeypatch, real_tasks):
-    from zw_brain.command.handlers.j1 import delivery_explain as de
-    from zw_brain.shared.inference.client import InferenceError
-
-    def _raise(*a, **kw):
-        raise InferenceError("base_url required")
-
-    monkeypatch.setattr(de, "_inference_chat", _raise)
-    sample = real_tasks[1]
-    out = _invoke(brain, {
-        "delivery_code": sample["delivery_code"],
-        "role": "ROLE_ORGAN_OPERATER",
-    })
-    assert out["source"] == "fallback_rule"
-    assert out["degraded"] is True
-
-
-def test_explain_inference_invalid_json_degrades(brain, monkeypatch, real_tasks):
-    from zw_brain.command.handlers.j1 import delivery_explain as de
-    from zw_brain.shared.inference.client import ChatResult
-
-    monkeypatch.setattr(de, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text="不是 JSON 的话", model="demo"))
-    sample = real_tasks[2]
-    out = _invoke(brain, {
-        "delivery_code": sample["delivery_code"],
-        "role": "ROLE_ORGAN_OPERATER",
-    })
-    assert out["source"] == "fallback_rule"
-    assert out["degraded"] is True
 
 
 # ──────────────────────────────────────────────────────────────────────

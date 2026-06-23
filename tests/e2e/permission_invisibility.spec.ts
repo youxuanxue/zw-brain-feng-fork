@@ -8,6 +8,11 @@ import {
   E2E_BASE_URL,
 } from './helpers';
 
+async function expectCredentialPage(page: import('@playwright/test').Page, reqId: string): Promise<void> {
+  await expect(page.getByRole('heading', { name: /凭据/ })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(new RegExp(`编号\\s+.*${reqId.slice(-6)}`))).toBeVisible();
+}
+
 /**
  * 经 API 链**自铸**一条 need-fix（已退回补正）申请，返回 request_id（或 null 让用例 skip）。
  *   request.create(草稿, OPERATER) → request.submit(→ pending, OPERATER)
@@ -91,7 +96,7 @@ test.describe('权限不可见 共性回归', () => {
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: new RegExp(`${reqId}.*凭据`) })).toBeVisible();
+    await expectCredentialPage(page, reqId);
     await expect(page.getByRole('button', { name: '重新签发' })).toHaveCount(0);
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
@@ -124,16 +129,16 @@ test.describe('权限不可见 共性回归', () => {
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
-    await expect(page.getByRole('button', { name: '申请资源' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '发起申请' })).toBeVisible();
 
     // D57④ 双面验证正向半：管理员补回发起入口（后端 hierarchy 本就 200，收口前后端劈叉）。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/discovery/resource/${resId}`);
-    await expect(page.getByRole('button', { name: '申请资源' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '发起申请' })).toBeVisible();
 
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, `#/discovery/resource/${resId}`);
-    await expect(page.getByRole('button', { name: '申请资源' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '发起申请' })).toHaveCount(0);
   });
 
   test('P3RequestDetail 补件/重新提交：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page, playwright }) => {

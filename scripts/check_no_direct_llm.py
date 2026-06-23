@@ -3,17 +3,14 @@
 check_no_direct_llm.py — preflight 段 10
 
 强约束（设计基线 §十四 D6）：
-    所有模型服务调用（LLM / Embedding / ASR / Rerank / OCR 等）必须走集团推理平台
-    提供的统一 SDK / API；禁止任何模块直连 OpenAI / Anthropic / 百川 / 智谱 /
-    通义等第三方 LLM API。
+    zw-brain 主进程禁止直连 OpenAI / Anthropic / 百川 / 智谱 / 通义等第三方
+    LLM API。模型调用由独立 AgentRuntime 服务承载，AR 服务侧再通过
+    openai_compatible 网关配置接入集团推理平台。
 
 本脚本检查范围：
     1. 扫描项目内所有 .py 文件（除白名单目录外）
     2. 检查 import 黑名单 SDK
     3. 检查源码中黑名单 API host 字符串
-
-唯一允许的 LLM 出口：
-    zw_brain.shared.inference.client（D14 Phase 0 mock 实现，文档到位后只换内部）
 
 退出码：0 = 全部通过；1 = 至少一处违反
 
@@ -77,9 +74,6 @@ WHITELIST_DIRS = {
     "scripts",  # 本检查脚本自身就含黑名单字面量；豁免 scripts/check_*.py（按文件名进一步过滤）
 }
 
-# ── 白名单：唯一合法的 LLM 出口模块（D14 → D6 内部实现）────────────────
-ALLOWED_LLM_GATEWAY = "zw_brain.shared.inference.client"
-
 # ── 守卫面注册（供元守卫 check_guard_scan_surface 对账）─────────────────
 # D6 守卫扫主源码 + 前端 + scripts/tests/.testing（R-003 后含 zw-brain-web/src）。
 # 声明的 extensions 是「会承载第三方 LLM SDK import / host 的源码扩展名」全集。
@@ -91,7 +85,7 @@ try:
         "no-direct-llm",
         roots=("zw_brain", "scripts", "tests", ".testing", "zw-brain-web/src"),
         extensions=_D6_TARGET_EXTENSIONS,
-        note="D6 模型调用收口集团推理平台",
+        note="D6/D68 zw-brain 禁直连模型；模型调用归独立 AgentRuntime",
     )
 except ImportError:
     pass
@@ -242,12 +236,12 @@ def main() -> int:
     print()
     if total_violations == 0:
         print(f"[no-direct-llm] OK: scanned {total_files} files, no third-party LLM SDK / host detected")
-        print(f"  (allowed gateway: {ALLOWED_LLM_GATEWAY})")
+        print("  (model egress belongs to standalone AgentRuntime service side)")
         return 0
     else:
         print(f"[no-direct-llm] FAIL: {total_violations} violation(s) across {files_with_violations} file(s)")
-        print(f"  policy (D6): all model calls MUST go through {ALLOWED_LLM_GATEWAY}")
-        print("  fix: replace direct SDK / API host usage with the unified inference client")
+        print("  policy (D6/D68): zw-brain must not directly call model SDKs or provider hosts")
+        print("  fix: move model egress to standalone AgentRuntime service configuration")
         return 1
 
 

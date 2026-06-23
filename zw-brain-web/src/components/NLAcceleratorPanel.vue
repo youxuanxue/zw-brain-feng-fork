@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 import { useNLAccelerator, type StructuredAction } from '@/composables/useNLAccelerator';
 
 // F7 通用 NL 加速器面板：嵌到 P2/P3/B1.1/B1.2 主页面 hero 右侧。
@@ -16,6 +16,38 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: 'action', action: StructuredAction): void;
 }>();
+
+const DEFAULT_COPY = {
+  label: '检索助手',
+  hint: '输入一句话，解析后会自动生成可执行动作。',
+  placeholder: '例如：查省营商环境相关数据',
+};
+
+const COPY_BY_ANCHOR: Record<string, typeof DEFAULT_COPY> = {
+  P2: {
+    label: '找数助手',
+    hint: '输入一句找数诉求，解析后会自动填入搜索并展示结果。',
+    placeholder: '例如：查省营商环境相关数据',
+  },
+  P3: {
+    label: '申请助手',
+    hint: '输入一句申请或审批诉求，生成可执行建议。',
+    placeholder: '例如：帮我草拟停车场数据申请',
+  },
+  'B1.1': {
+    label: '审计助手',
+    hint: '输入一句审计诉求，定位异常、统计或回放证据链。',
+    placeholder: '例如：查本周异常审批热点',
+  },
+  'B1.2': {
+    label: '接入助手',
+    hint: '输入一句接入诉求，定位外部 Agent 注册与安全检查动作。',
+    placeholder: '例如：检查外部 Agent 注册材料',
+  },
+};
+
+const panelCopy = computed(() => COPY_BY_ANCHOR[props.pageAnchor] ?? DEFAULT_COPY);
+const panelTitle = computed(() => panelCopy.value.label);
 
 const open = ref(false);
 const query = ref('');
@@ -63,17 +95,17 @@ function triggerAction(action: StructuredAction) {
     <button
       type="button"
       class="nl-trigger"
-      :title="open ? '收起智能检索' : '展开智能检索'"
+      :title="open ? `收起${panelTitle}` : `展开${panelTitle}`"
       @click="toggle"
     >
       <span aria-hidden="true">{{ open ? '×' : '⌘' }}</span>
-      <span class="nl-trigger-text">智能检索</span>
+      <span class="nl-trigger-text">{{ panelTitle }}</span>
     </button>
 
-    <aside v-if="open" class="nl-drawer" role="complementary" aria-label="智能检索">
+    <aside v-if="open" class="nl-drawer" role="complementary" :aria-label="panelTitle">
       <header class="nl-head">
-        <strong>智能检索</strong>
-        <p class="nl-hint">输入一句话，解析后会自动填入下方搜索并展示结果。</p>
+        <strong>{{ panelTitle }}</strong>
+        <p class="nl-hint">{{ panelCopy.hint }}</p>
       </header>
 
       <form class="nl-form" @submit.prevent="submit">
@@ -83,7 +115,7 @@ function triggerAction(action: StructuredAction) {
           v-model="query"
           type="text"
           class="nl-input"
-          placeholder="例如：查省营商环境相关数据"
+          :placeholder="panelCopy.placeholder"
           autocomplete="off"
         />
         <button type="submit" class="nl-submit" :disabled="loading">{{ loading ? '解析中…' : '解析' }}</button>

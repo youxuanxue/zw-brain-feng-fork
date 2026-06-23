@@ -6,7 +6,7 @@
 # Trace:
 #   zw_brain/command/handlers/j1/application_assistants.py
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
-"""F7: P3 申请双助手 — 草拟 + 审批依据 + 推理降级 + 不替人提交/决策守卫.
+"""F7: P3 申请双助手 — 草拟 + 审批依据 + 不替人提交/决策守卫.
 
 数据隔离：realistic_pg_module 克隆 zw_realistic_tmpl（含真实旧平台数据），
 模板缺位时整模块 skip（承接旧 require_real_seed 数据量门槛语义），writes 落克隆库、
@@ -125,19 +125,7 @@ def test_draft_suggest_high_risk_keyword_lifts_score(brain):
     assert any("敏感" in f or "公安" in f for f in out["risk_factors"])
 
 
-def test_draft_suggest_inference_path_returns_structured(brain, monkeypatch):
-    from zw_brain.command.handlers.j1 import application_assistants as aa
-    from zw_brain.shared.inference.client import ChatResult
-
-    mocked = (
-        '{"suggested_fields":{"purpose":"信用核查","use_reason":"信用核查","use_item":"信用查询",'
-        '"service_times":500,"service_times_unit":"次/日","use_region":"济南"},'
-        '"risk_score":55,"risk_band":"medium","risk_factors":["涉及个人信用数据"],'
-        '"missing_fields":["数据脱敏方案"],"recommended_use_reasons":["信用核查","行政依据"],'
-        '"reasoning":"基于历史相似申请，建议中等风险评估。"}'
-    )
-    monkeypatch.setattr(aa, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text=mocked, model="demo"))
+def test_draft_suggest_enabled_true_uses_local_rule(brain):
     out = _invoke(brain, "application.draft.suggest", {
         "resource_name": "信用信息库",
         "applicant_org": "市场监管局",
@@ -145,25 +133,10 @@ def test_draft_suggest_inference_path_returns_structured(brain, monkeypatch):
         "role": "ROLE_ORGAN_OPERATER",
         "enabled": True,
     })
-    assert out["source"] == "inference"
-    assert out["risk_band"] == "medium"
-    assert out["suggested_fields"]["use_reason"] == "信用核查"
-
-
-def test_draft_suggest_inference_error_degrades(brain, monkeypatch):
-    from zw_brain.command.handlers.j1 import application_assistants as aa
-    from zw_brain.shared.inference.client import InferenceError
-
-    def _raise(*a, **kw):
-        raise InferenceError("base_url required")
-    monkeypatch.setattr(aa, "_inference_chat", _raise)
-    out = _invoke(brain, "application.draft.suggest", {
-        "resource_name": "测试资源",
-        "applicant_org": "测试部门",
-        "role": "ROLE_ORGAN_OPERATER",
-    })
     assert out["source"] == "fallback_rule"
-    assert out["degraded"] is True
+    assert out["enabled"] is True
+    assert "degraded" not in out
+    assert out["suggested_fields"]["purpose"] == "信用核查"
 
 
 def test_draft_suggest_never_calls_application_create(brain, monkeypatch):
@@ -216,44 +189,18 @@ def test_evidence_summarize_not_found_returns_hint(brain):
     assert "不存在" in out["hint"]
 
 
-def test_evidence_summarize_inference_path(brain, monkeypatch, real_apply_samples):
-    from zw_brain.command.handlers.j1 import application_assistants as aa
-    from zw_brain.shared.inference.client import ChatResult
-
-    mocked = (
-        '{"bases":["use_reason=行政依据 合规","历史相似申请 70% 已 approved"],'
-        '"counter_factuals":["未声明字段子集，建议补 fields 列表"],'
-        '"recommendation":"approve",'
-        '"recommended_decision_reason":"基于历史模式与依据完整度，建议批准。",'
-        '"historical_summary":"历史 4 条同源，3 条 approved，1 条 rejected。"}'
-    )
-    monkeypatch.setattr(aa, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text=mocked, model="demo"))
+def test_evidence_summarize_enabled_true_uses_local_rule(brain, real_apply_samples):
     sample = real_apply_samples[0]
     out = _invoke(brain, "approval.evidence.summarize", {
         "application_id": sample["application_code"],
         "role": "ROLE_ORGAN_MANAGER",
         "enabled": True,
     })
-    assert out["source"] == "inference"
-    assert out["recommendation"] == "approve"
+    assert out["source"] == "fallback_rule"
+    assert out["enabled"] is True
+    assert "degraded" not in out
+    assert out["recommendation"] in ("approve", "return_for_fix", "reject")
     assert out["historical_summary"]
-
-
-def test_evidence_summarize_inference_invalid_recommendation_normalized(brain, monkeypatch, real_apply_samples):
-    """推理返回非法 recommendation 字符串 → 兜底到 return_for_fix."""
-    from zw_brain.command.handlers.j1 import application_assistants as aa
-    from zw_brain.shared.inference.client import ChatResult
-
-    mocked = '{"bases":["x"],"counter_factuals":["y"],"recommendation":"维持原判","recommended_decision_reason":"r","historical_summary":"h"}'
-    monkeypatch.setattr(aa, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text=mocked, model="demo"))
-    sample = real_apply_samples[1]
-    out = _invoke(brain, "approval.evidence.summarize", {
-        "application_id": sample["application_code"],
-        "role": "ROLE_ORGAN_MANAGER",
-    })
-    assert out["recommendation"] == "return_for_fix"
 
 
 def test_evidence_summarize_never_calls_decision_cap(brain, monkeypatch, real_apply_samples):

@@ -35,14 +35,13 @@ cd <zw-brain 仓库根>
 # (3) 前端（首次需构建一次；start-local.sh 会自动构建，但需先装 npm 依赖）
 cd zw-brain-web && npm install && npm run build && cd ..
 
-# (4) 推理网关：cp .env.example .env，填好集团推理网关（决定智能体是否“真的会思考”）
+# (4) AgentRuntime 模型网关：cp .env.example .env，填好 AR 服务侧模型配置
 cp .env.example .env
 #   .env 里至少填：
-#   ZW_BRAIN_INFERENCE_MODE=platform
-#   ZW_BRAIN_INFERENCE_GATEWAY_URL=https://<OpenAI兼容网关>/...      # 如 Volcengine Ark /api/v3
-#   ZW_BRAIN_INFERENCE_MODEL=<chat模型>                              # 如 glm-4-7-...
-#   ZW_BRAIN_INFERENCE_API_KEY=<网关密钥>
-#   不填 → 默认 mock 推理（返回 canned 文本、不会真检索推荐）。
+#   OPENAI_COMPATIBLE_BASE_URL=https://<OpenAI兼容网关>/...      # 如 Volcengine Ark /api/v3
+#   AGENT_RUNTIME_DEFAULT_MODEL=<chat模型>                       # 如 glm-4-7-...
+#   OPENAI_COMPATIBLE_API_KEY=<网关密钥>
+#   不填 → start-local 在启用 AR 时 fail-closed，不会到对话时才失败。
 ```
 
 ---
@@ -51,21 +50,22 @@ cp .env.example .env
 
 ```bash
 cd <zw-brain 仓库根>
-# D68 单一模型：MODE=http → start-local 起独立 agent-runtime serve（:8001）+ REST（:8800），REST 经 HTTP 驱动 AR。
+# D68 单一模型：AgentRuntime 只作为独立服务运行。
+# 这里的 ZW_BRAIN_AGENT_RUNTIME_MODE=http 只是 start-local 本地兼容启动开关，含义是同起独立 agent-runtime serve（:8001）+ REST（:8800）。
 ZW_BRAIN_AGENT_RUNTIME_MODE=http \
 ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
 ZW_BRAIN_PYTHON_BIN=$PWD/.venv-py312/bin/python \
 bash scripts/start-local.sh
 # 等到日志出现：[start-local] ok: AgentRuntime healthy at http://127.0.0.1:8001/runtime/health
 #               [start-local] ok: REST healthy at http://127.0.0.1:8800/health
-# 并确认：[start-local] inference: ZW_BRAIN_INFERENCE_MODE=platform   ← 这行是 platform 才是真 LLM
+# 并确认：[start-local] AR model: OPENAI_COMPATIBLE_BASE_URL=..., AGENT_RUNTIME_DEFAULT_MODEL=...
 ```
 
 - REST + WebUI 监听 `http://127.0.0.1:8800`。
 - dev 模式自动免登录（IAM bypass），默认会话机构 = 省大数据局。
 - 若本机设了 http(s)_proxy 导致 curl 返回 502：`export NO_PROXY=127.0.0.1,localhost`。
 
-> **更省事（容器一把起三件套）**：装好 docker 后，`cp .env.example .env`（填推理网关）→ `docker compose up -d`
+> **更省事（容器一把起三件套）**：装好 docker 后，`cp .env.example .env`（填 AR 模型网关）→ `docker compose up -d`
 > 即同起 `postgres` + 独立 `agent-runtime`（:8001）+ `zw-brain`（:8800），免手装 py312 venv / 离线 SDK。
 > `agents/` 以只读卷挂进两服务（**单一源**：AR 跑 + zw-brain 列），加 Agent 两边即时同步。详见
 > `docs/deployment/docker-image-deployment.md` §1.1。⚠️ Docker **build** 需 registry 可达的环境。
@@ -147,7 +147,7 @@ curl -s -X POST "$B/api/agent-runtime/tasks" -H 'Content-Type: application/json'
 ```
 
 常见点：
-- 智能体回的是套话/不检索 → `.env` 没填 `ZW_BRAIN_INFERENCE_MODE=platform` + 网关，走了 mock。
+- 智能体起不来或模型报错 → `.env` 没填 AR 服务侧 `OPENAI_COMPATIBLE_BASE_URL` / `AGENT_RUNTIME_DEFAULT_MODEL` / `OPENAI_COMPATIBLE_API_KEY`。
 - POST 报 503 `agent_runtime_disabled` → 启动时漏了 `ZW_BRAIN_AGENT_RUNTIME_ENABLED=1`。
 - POST 报 404 `agent_not_found` → agent_id 拼错（用 `/api/agent-runtime/agents` 里的准确 id）。
 - POST 报 403 `no_product_role_for_identity` → 带上 `"role"`（A① 用 `ROLE_ORGAN_OPERATER`，B 试点用 `ROLE_ORGAN_MANAGER`）。

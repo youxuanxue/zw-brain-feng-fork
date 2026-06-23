@@ -23,6 +23,15 @@ from zw_brain.shared.agent_runtime.errors import (  # noqa: F401  (re-export)
     AgentRuntimeNotFoundError,
 )
 
+_TASK_METADATA_FIELDS = frozenset(
+    {
+        "request_id",
+        "tenant_id",
+        "org_code",
+        "current_org_code",
+    }
+)
+
 
 def runtime_status() -> dict[str, Any]:
     # 仅暴露 enable bit；Agent topology（agent_id / capability_skills）属敏感信息，
@@ -98,12 +107,26 @@ def _resolve_task_metadata(
     request_id: str | None = None,
     metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """统一构建传递给 AgentRuntime 的 task_metadata。"""
-    task_metadata = dict(metadata or {})
+    """统一构建传递给 AgentRuntime 的 task_metadata。
+
+    Browser BFF calls pass through ``build_trusted_skill_payload`` and therefore
+    carry process-local trust markers plus actor snapshots. Those are meaningful
+    only inside zw-brain and must not cross the standalone AR HTTP JSON boundary.
+    """
+    raw = metadata or {}
+    task_metadata = {
+        key: value
+        for key in _TASK_METADATA_FIELDS
+        if _metadata_scalar(value := raw.get(key))
+    }
     if request_id:
         task_metadata["request_id"] = request_id
     task_metadata["caller_role"] = role
     return task_metadata
+
+
+def _metadata_scalar(value: Any) -> bool:
+    return value is not None and isinstance(value, str | int | float | bool)
 
 
 def _verify_agent_and_policy(

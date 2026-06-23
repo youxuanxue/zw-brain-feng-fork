@@ -48,7 +48,7 @@
 | --- | --- | --- | --- | --- |
 | 9 | `ZW_BRAIN_DB_PATH` 已设 | `echo $ZW_BRAIN_DB_PATH` | 绝对路径，非默认 | 误用默认路径 → 服务重启数据丢失，没人能签收 |
 | 10 | IAF/OIDC 端点可达 | `curl -s "$ZW_BRAIN_IAF_AUTH_SERVER_URL/.well-known/openid-configuration" \| jq .issuer` | 返回 issuer URL | IAM 不通 → 客户业务用户无法登录，整套大脑只有 dev-bypass 可用（生产禁用） |
-| 11 | 推理网关密钥引用配置 | `echo $ZW_BRAIN_INFERENCE_API_KEY_REF` | 非空，且不是明文（应以 `arn:` 或 `vault:` 开头） | 推理密钥缺/明文 → LLM 类 skill 全部失败 或 密钥泄露被合规警告 |
+| 11 | AgentRuntime 模型密钥只注入 AR 服务 | `echo ${OPENAI_COMPATIBLE_API_KEY_REF:-${OPENAI_COMPATIBLE_API_KEY:+set}}` | AR 服务侧非空；zw-brain 服务环境中不出现模型密钥 | 模型密钥缺 → Agent 对话失败；密钥进 zw-brain → 服务边界和合规责任混乱 |
 | 12 | Blockchain anchor 端点配置（可选） | `echo $ZW_BRAIN_BLOCKCHAIN_ENDPOINT` | 非空 或 显式留 mock-chain | 未显式 mock-chain → audit 异步锚定无目标，安全审计员 督查证据链断 |
 | 13 | 无明文密钥泄露到代码库 | `grep -rE '(password\|api_key)=.{8,}' --include="*.py" --include="*.json" /opt/zw-brain` | 仅命中 `*_REF` 引用、不出现真实值 | 明文密钥 → 立即合规高危事件，必须 rotation + 强制下架，签收作废 |
 

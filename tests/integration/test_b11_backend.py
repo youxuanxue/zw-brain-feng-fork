@@ -5,23 +5,19 @@
   (a) statistics 时间桶聚合（hour / day / week / month 四档）
   (b) anomaly Top-N 异常事件含跨租户读 + 高频失败 + repeated-denied 三类规则
   (c) accountability 按 actor 拉 denied 链 + 敏感字段 hash 化
-  (d) investigation_summary 走 shared/inference/client mock 返回脱敏摘要
-      （摘要 input 不含原始 actor/skill_id 字面值）
+  (d) investigation_summary 走本地脱敏规则摘要（摘要 input digest 不含原始 actor/skill_id 字面值）
   (e) tenant_scope 越权 statistics/anomaly/accountability/summary 全部拦下
   (f) sd-default 真实 fixture e2e：statistics + anomaly + accountability +
       summary 端到端串一遍
 
 不覆盖（F5 / E5 / E6 范围）：
   - B1.1 UI panel 截图
-  - 真实集团推理平台 chat()（用 monkeypatch mock 拦截）
 """
 from __future__ import annotations
 
 import json
-import re
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 
 import pytest
 
@@ -32,7 +28,6 @@ from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.audit import store as audit_store_mod
 from zw_brain.shared.audit.store import AuditStore, StoredAuditEvent
-from zw_brain.shared.inference.client import InferenceError
 
 REPO_ROOT = Path(__file__).resolve().parent.parent.parent
 ROLE_MAPPING_FIXTURE = REPO_ROOT / "tests/fixtures/m0-sd-default/role-mapping-manifest.json"
@@ -267,26 +262,11 @@ def test_accountability_returns_denied_chains_sanitized(store: AuditStore) -> No
 
 
 # ---------------------------------------------------------------------------
-# (d) investigation_summary 走 inference mock，输出脱敏
+# (d) investigation_summary 走本地规则摘要，输出脱敏
 # ---------------------------------------------------------------------------
 
 
-def test_investigation_summary_uses_inference_client_and_sanitizes(monkeypatch, store: AuditStore) -> None:
-    captured_messages: list[Any] = []
-
-    def _mock_chat(messages, *, model, request_id, **kwargs):
-        captured_messages.extend(messages)
-        from zw_brain.shared.inference.client import ChatResult
-
-        return ChatResult(
-            text="安全审计员摘要：本窗口共观察到 1 项 high-severity 异常",
-            model="claude-sonnet-4-7-mock",
-            usage={"prompt_tokens": 64, "completion_tokens": 32, "total_tokens": 96},
-            finish_reason="stop",
-        )
-
-    monkeypatch.setattr(inv_handlers.inference_client, "chat", _mock_chat)
-
+def test_investigation_summary_uses_local_rule_and_sanitizes(store: AuditStore) -> None:
     panel_payload = {
         "anomalies": [
             {
@@ -310,30 +290,20 @@ def test_investigation_summary_uses_inference_client_and_sanitizes(monkeypatch, 
             "tenant_id": TENANT,
         },
     )
-    assert "high-severity" in out["summary"]
-    assert out["model"] == "claude-sonnet-4-7-mock"
-    assert re.fullmatch(r"[0-9a-f]{40}", out["sanitized_input_digest"])
-
-    # 推送给推理平台的 user message 不能含原始敏感字面值
-    user_msg = next(m for m in captured_messages if m.role == "user")
-    assert "bad_user" not in user_msg.content
-    assert "application.grant.approve" not in user_msg.content
-    assert "REQ-1" not in user_msg.content
-    assert "sha1:" in user_msg.content, "脱敏后应保留 sha1: 占位符"
+    assert out["model"] == "rule-fallback"
+    assert out["sanitized_input_digest"]
+    assert len(out["sanitized_input_digest"]) == 40
+    assert "bad_user" not in out["summary"]
+    assert "application.grant.approve" not in out["summary"]
+    assert "REQ-1" not in out["summary"]
 
 
-def test_investigation_summary_falls_back_when_inference_fails(monkeypatch, store: AuditStore) -> None:
-    audit_bus.configure_sink(_store_sink(store))
-
-    def _boom(*args, **kwargs):
-        raise InferenceError("inference unavailable")
-
-    monkeypatch.setattr(inv_handlers.inference_client, "chat", _boom)
+def test_investigation_summary_statistics_rule_summary(store: AuditStore) -> None:
     out = call_handler(inv_handlers.handler_assistant_investigation_summary,
         brain=None,  # type: ignore[arg-type]
         skill_id="assistant.investigation_summary",
         payload={
-            "request_id": "REQ-INV-FALLBACK",
+            "request_id": "REQ-INV-RULE",
             "panel": "statistics",
             "panel_payload": {"scanned": 42, "totals": {"read-sensitive": 40, "write-critical": 2}},
             "tenant_id": TENANT,
@@ -341,7 +311,7 @@ def test_investigation_summary_falls_back_when_inference_fails(monkeypatch, stor
     )
     assert out["model"] == "rule-fallback"
     assert "42" in out["summary"]
-    assert out["sanitized_input_digest"]
+    assert out["usage"]["total_tokens"] == 0
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +342,7 @@ def test_cross_tenant_access_is_denied_across_all_b11_handlers(store: AuditStore
     not ROLE_MAPPING_FIXTURE.exists(),
     reason="sd-default role-mapping fixture not present",
 )
-def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> None:
+def test_sd_default_e2e_b11_full_panel_chain(store: AuditStore) -> None:
     manifest = json.loads(ROLE_MAPPING_FIXTURE.read_text(encoding="utf-8"))
     rows = manifest["rows"][:6]
     assert manifest["tenant_id"] == TENANT
@@ -424,17 +394,6 @@ def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> 
     assert account["total"] >= 1
     assert all(c["request_id"].startswith("REQ-SD-E2E-") for c in account["denied_chains"])
 
-    # summary: mock inference, 验证 panel 输入脱敏 + 摘要回流
-    def _mock_chat(messages, *, model, request_id, **kwargs):
-        from zw_brain.shared.inference.client import ChatResult
-
-        return ChatResult(
-            text="sd-default 窗口摘要：发现一类 high-failure-rate 异常 + 多条 denied 链",
-            model="claude-sonnet-4-7-mock",
-            usage={"prompt_tokens": 80, "completion_tokens": 40, "total_tokens": 120},
-        )
-
-    monkeypatch.setattr(inv_handlers.inference_client, "chat", _mock_chat)
     summary = call_handler(inv_handlers.handler_assistant_investigation_summary,
         brain=None,  # type: ignore[arg-type]
         skill_id="assistant.investigation_summary",
@@ -445,7 +404,8 @@ def test_sd_default_e2e_b11_full_panel_chain(monkeypatch, store: AuditStore) -> 
             "tenant_id": TENANT,
         },
     )
-    assert "sd-default" in summary["summary"]
+    assert summary["model"] == "rule-fallback"
+    assert summary["sanitized_input_digest"]
 
     # 验证 4 个 handler 都写了 meta-audit
     meta_skills = {

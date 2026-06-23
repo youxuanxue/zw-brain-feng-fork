@@ -4,25 +4,17 @@
 - 仅解释当前阶段 / 异常原因 / 影响范围 / 责任归属，不替代 P4 时间线组件 / 回执界面
 - 不返回 events 列表 / 不评价进度 / 不打分 / 不调任何写 cap
 - audit_class=read；audit_required=true
-- 推理走 shared/inference/client；三层降级 (推理失败 / JSON 解析失败 / enabled=false)
+- zw-brain 主进程不持有推理平台 SDK / env；状态解释在本进程内走确定性规则。
 """
 
 from __future__ import annotations
 
-import json as _json
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     pass
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.shared.inference.client import (
-    ChatMessage,
-    InferenceError,
-)
-from zw_brain.shared.inference.client import (
-    chat as _inference_chat,
-)
 
 # 真实 sd-default delivery_task.state 分布：draft / pending / granted / stopped
 _PHASE_DESCRIPTIONS: dict[str, str] = {
@@ -104,45 +96,6 @@ def _do_explain_fallback(task: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _do_explain_inference(task: dict[str, Any], *, request_id: str) -> dict[str, Any] | None:
-    prompt = (
-        "你是政务数据共享平台 P4 交付任务状态解释助手。基于交付任务字段，输出严格 JSON："
-        "{\"phase\":\"\",\"phase_label\":\"\",\"phase_description\":\"\","
-        "\"exception_reasons\":[],\"impact_scope\":[],\"responsible_role\":\"\","
-        "\"evidence_sources\":[]}。"
-        "仅解释，不评价进度，不返时间线，不调写接口。证据必须基于输入字段。"
-    )
-    user = f"交付任务字段：{_json.dumps(task, ensure_ascii=False)}"
-    result = _inference_chat(
-        [ChatMessage(role="system", content=prompt), ChatMessage(role="user", content=user)],
-        model="", request_id=request_id, temperature=0.0,
-    )
-    raw = (result.text or "").strip()
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-    try:
-        parsed = _json.loads(raw)
-    except Exception:
-        return None
-    if not isinstance(parsed, dict):
-        return None
-    return {
-        "delivery_code": task.get("delivery_code"),
-        "application_code": task.get("application_code"),
-        "phase": str(parsed.get("phase") or task.get("state") or ""),
-        "phase_label": str(parsed.get("phase_label") or _PHASE_LABELS.get(str(task.get("state") or ""), "")),
-        "phase_description": str(parsed.get("phase_description") or ""),
-        "exception_reasons": [str(x) for x in (parsed.get("exception_reasons") or []) if x][:6],
-        "impact_scope": [str(x) for x in (parsed.get("impact_scope") or []) if x][:6],
-        "responsible_role": str(parsed.get("responsible_role") or ""),
-        "evidence_sources": [str(x) for x in (parsed.get("evidence_sources") or []) if x][:6],
-        "source": "inference",
-    }
-
-
 def _load_delivery_task(brain, deps, ctx, *, delivery_code: str | None, application_code: str | None) -> dict[str, Any] | None:
     """从 DeliveryRepository 取真实 sd-default 交付任务."""
     from sqlalchemy import select
@@ -183,7 +136,6 @@ def _do_explain(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     if not delivery_code and not application_code:
         raise ValueError("delivery_code or application_code is required")
     enabled = bool(payload.get("enabled", True))
-    request_id = str(payload.get("request_id") or f"delivery-explain-{abs(hash(delivery_code or application_code)) & 0xFFFFFFFF:08x}")
     actor = ctx.actor or "system"
 
     task = _load_delivery_task(brain, deps, ctx, delivery_code=delivery_code, application_code=application_code)
@@ -197,27 +149,10 @@ def _do_explain(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
             "enabled": enabled,
         }
 
-    if not enabled:
-        result = _do_explain_fallback(task)
-        deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
-        result["enabled"] = False
-        return result
-
-    inf: dict[str, Any] | None = None
-    try:
-        inf = _do_explain_inference(task, request_id=request_id)
-    except InferenceError:
-        inf = None
-    if inf is not None:
-        deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
-        inf["enabled"] = True
-        return inf
-
-    fallback = _do_explain_fallback(task)
-    deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "warning", actor)
-    fallback["enabled"] = True
-    fallback["degraded"] = True
-    return fallback
+    result = _do_explain_fallback(task)
+    deps.append_audit_feed("delivery.status.explain", task["delivery_code"] or "", "ok", actor)
+    result["enabled"] = enabled
+    return result
 
 
 def handler_delivery_status_explain(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:

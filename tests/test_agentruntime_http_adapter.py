@@ -1,4 +1,4 @@
-"""Unit tests for the standalone-AgentRuntime HTTP adapter (D68 单一模型 · http 形态).
+"""Unit tests for the standalone-AgentRuntime HTTP adapter (D68 单一模型 · 独立服务).
 
 CI-safe：mock AgentRuntimeClient，不依赖 live AR（确定性，承 D66 CI 不装 AR wheel）。
 覆盖：阻塞模式轮询至终态 + 状态归一（waiting_input→waiting）+ 非阻塞 start +
@@ -7,6 +7,8 @@ poll + 404→AgentRuntimeNotFoundError + 纯 HTTP 路径零 SDK 依赖（import 
 """
 
 from __future__ import annotations
+
+import json
 
 import pytest
 
@@ -92,7 +94,7 @@ def test_poll_maps_and_404_raises(monkeypatch):
 
 
 def test_http_client_has_no_sdk_dependency():
-    """http 形态零 SDK 依赖：本模块即便 agent_runtime SDK 未安装也可 import（解耦的体现）。"""
+    """HTTP adapter 零 SDK 依赖：本模块即便 agent_runtime SDK 未安装也可 import（解耦的体现）。"""
     import inspect
 
     src = inspect.getsource(http_client)
@@ -112,3 +114,46 @@ def test_service_dispatches_to_http(monkeypatch):
     )
     out = service.run_agent_task_sync(agent_id="zw-search-helper", user_input="hi", metadata={})
     assert out["status"] == "completed" and called["agent_id"] == "zw-search-helper"
+
+
+def test_bridge_task_metadata_does_not_leak_trusted_session_objects():
+    from zw_brain.command import agent_runtime_bridge as bridge
+    from zw_brain.shared.session_context import (
+        TRUSTED_SESSION_CONTEXT_KEY,
+        build_trusted_skill_payload,
+    )
+
+    trusted = build_trusted_skill_payload(
+        {
+            "request_id": "UI-AGENT-test",
+            "tenant_id": "sd-default",
+            "extra_object": object(),
+        },
+        actor_snapshot={
+            "status": "active",
+            "tenant_id": "sd-default",
+            "org_code": "ORG-A",
+            "current_org_code": "ORG-A",
+            "current_role": "ROLE_ORGAN_MANAGER",
+            "available_contexts": [
+                {"org_code": "ORG-A", "role_code": "ROLE_ORGAN_MANAGER", "actor_tags": {}}
+            ],
+            "actor_tags": {},
+        },
+    )
+    metadata = bridge._resolve_task_metadata(  # noqa: SLF001 - regression guard for HTTP boundary
+        role="ROLE_ORGAN_MANAGER",
+        request_id=str(trusted["request_id"]),
+        metadata={k: v for k, v in trusted.items() if k not in {"agent_id", "input", "role"}},
+    )
+
+    json.dumps(metadata)
+    assert TRUSTED_SESSION_CONTEXT_KEY not in metadata
+    assert "actor_snapshot" not in metadata
+    assert "extra_object" not in metadata
+    assert metadata == {
+        "request_id": "UI-AGENT-test",
+        "tenant_id": "sd-default",
+        "org_code": "ORG-A",
+        "caller_role": "ROLE_ORGAN_MANAGER",
+    }

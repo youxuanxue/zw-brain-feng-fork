@@ -1,12 +1,8 @@
 # Wave: 2
 # Engine: 表单 schema NL 草稿 + 三步流程（E3 三引擎 F5）
-# Covers: AC2（四川 7 字段一句话→入库 e2e + 3-tier 降级链路）
+# Covers: AC2（四川 7 字段一句话→入库 e2e + deterministic NL 草稿链路）
 # Not covered: UI（F7）/ J1/J2 表单页消费集成
-"""F5 — NL 草稿 3-tier + draft/preview/revert/commit 三步流程 e2e。
-
-LLM 调用必须经 zw_brain.shared.inference.client；本测试用 monkeypatch 拦截
-_inference_chat 证明走的是 shared client 不直连第三方。
-"""
+"""F5 — NL 草稿 deterministic + draft/preview/revert/commit 三步流程 e2e。"""
 from __future__ import annotations
 
 import pytest
@@ -71,71 +67,22 @@ def test_generate_draft_payload_recognizes_common_field_names():
 
 
 # ──────────────────────────────────────────────────────────────────────────
-# Tier 2 / 3 LLM mock + fallback
+# deterministic-only：zw-brain 不持有推理 SDK/env
 # ──────────────────────────────────────────────────────────────────────────
 
-def test_generate_draft_payload_falls_back_when_inference_unavailable(monkeypatch):
+def test_generate_draft_payload_uses_deterministic_without_inference(monkeypatch):
     import zw_brain.domain.form_schema_nl_draft as nl
-    from zw_brain.shared.inference.client import InferenceError
 
-    monkeypatch.setattr(nl, "_inference_chat", lambda *a, **k: (_ for _ in ()).throw(InferenceError("test")))
+    assert not hasattr(nl, "_inference_chat")
 
     payload, meta = nl.generate_draft_payload(
         "申请表：姓名、联系电话",
         tenant_id="sd-default",
     )
-    assert meta["tier"] == "llm-fallback"
-    assert "fallback_reason" in meta
-    # 兜底必须 valid
+    assert meta["tier"] == "deterministic"
+    assert meta["field_count"] == 2
     from zw_brain.domain.form_schema import _validate_payload
     _validate_payload(payload)
-
-
-def test_generate_draft_payload_uses_llm_when_available(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
-    from zw_brain.shared.inference.client import ChatResult
-
-    valid_json = (
-        '{"sections": [{"section_code": "basic", "title": "基本信息"}],'
-        '"fields": ['
-        '{"field_code": "applicant_name", "section_code": "basic", "field_name": "姓名", "field_type": "text", "required": true}'
-        '], "validators": []}'
-    )
-    captured: dict = {}
-
-    def _fake_chat(messages, **kwargs):
-        captured["messages"] = messages
-        captured["kwargs"] = kwargs
-        return ChatResult(text=valid_json, model="claude-sonnet-4-7", usage={}, finish_reason="stop")
-
-    monkeypatch.setattr(nl, "_inference_chat", _fake_chat)
-    payload, meta = nl.generate_draft_payload(
-        "只要姓名",
-        tenant_id="sd-default",
-    )
-    assert meta["tier"] == "llm"
-    assert len(payload["fields"]) == 1
-    assert captured["kwargs"]["model"] == "claude-sonnet-4-7"
-    assert captured["kwargs"]["request_id"]
-
-
-def test_generate_draft_payload_rejects_invalid_llm_json(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
-    from zw_brain.shared.inference.client import ChatResult
-
-    monkeypatch.setattr(
-        nl,
-        "_inference_chat",
-        lambda *a, **k: ChatResult(text="not json at all", model="claude-sonnet-4-7", usage={}, finish_reason="stop"),
-    )
-    payload, meta = nl.generate_draft_payload(
-        "申请表：姓名、身份证号、联系电话、单位、事由、申请日期、附件",
-        tenant_id="sd-default",
-    )
-    assert meta["tier"] == "llm-fallback"
-    assert "json_decode_error" in meta["fallback_reason"]
-    # deterministic 兜底应识别到 7 字段
-    assert len(payload["fields"]) == 7
 
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -178,12 +125,7 @@ def _new_brain():
     return BrainService(state_store=ss), audit_bus, ds
 
 
-def test_nl_draft_skill_e2e(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
-    from zw_brain.shared.inference.client import InferenceError
-
-    monkeypatch.setattr(nl, "_inference_chat", lambda *a, **k: (_ for _ in ()).throw(InferenceError("test")))
-
+def test_nl_draft_skill_e2e():
     brain, audit_bus, _ = _new_brain()
     try:
         result = invoke_trusted(
@@ -207,12 +149,7 @@ def test_nl_draft_skill_e2e(monkeypatch):
     assert result["result"]["payload_summary"]["field_count"] == 2
 
 
-def test_promote_to_preview_skill_e2e(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
-    from zw_brain.shared.inference.client import InferenceError
-
-    monkeypatch.setattr(nl, "_inference_chat", lambda *a, **k: (_ for _ in ()).throw(InferenceError("test")))
-
+def test_promote_to_preview_skill_e2e():
     brain, audit_bus, _ = _new_brain()
     try:
         draft = invoke_trusted(
@@ -244,12 +181,7 @@ def test_promote_to_preview_skill_e2e(monkeypatch):
     assert promoted["result"]["status"] == "preview"
 
 
-def test_revert_to_draft_skill_e2e(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
-    from zw_brain.shared.inference.client import InferenceError
-
-    monkeypatch.setattr(nl, "_inference_chat", lambda *a, **k: (_ for _ in ()).throw(InferenceError("test")))
-
+def test_revert_to_draft_skill_e2e():
     brain, audit_bus, _ = _new_brain()
     try:
         draft = invoke_trusted(
@@ -283,12 +215,8 @@ def test_revert_to_draft_skill_e2e(monkeypatch):
     assert reverted["result"]["status"] == "draft"
 
 
-def test_promote_skill_rejects_already_preview(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
+def test_promote_skill_rejects_already_preview():
     from zw_brain.domain.form_schema import FormSchemaTransitionError
-    from zw_brain.shared.inference.client import InferenceError
-
-    monkeypatch.setattr(nl, "_inference_chat", lambda *a, **k: (_ for _ in ()).throw(InferenceError("test")))
 
     brain, audit_bus, _ = _new_brain()
     try:
@@ -326,13 +254,9 @@ def test_promote_skill_rejects_already_preview(monkeypatch):
 # 四川 7 字段 e2e — AC2 关键证据
 # ──────────────────────────────────────────────────────────────────────────
 
-def test_sichuan_7_field_e2e_one_sentence_to_live(monkeypatch):
+def test_sichuan_7_field_e2e_one_sentence_to_live():
     """一句话 → nl_draft → promote → commit → live；7 字段 + 关键 validator + JSON Schema。"""
-    import zw_brain.domain.form_schema_nl_draft as nl
     from zw_brain.domain.form_schema import FormSchemaRepo
-    from zw_brain.shared.inference.client import InferenceError
-
-    monkeypatch.setattr(nl, "_inference_chat", lambda *a, **k: (_ for _ in ()).throw(InferenceError("sichuan e2e mock")))
 
     brain, audit_bus, _ = _new_brain()
     intent = "四川申请表单：姓名、身份证号、联系电话、单位、申请事由、申请日期、附件"

@@ -49,7 +49,7 @@ const prefilled = computed(() => {
   );
 });
 
-// 表单填报（form-autofill）：草稿/待补正态可原地编辑的字段（含确定性带出 + AI建议 + 锁定）。
+// 表单填报（form-autofill）：草稿/待补正态可原地编辑的字段（含确定性带出 + 补全建议 + 锁定）。
 const formFields = computed<FormField[]>(() => {
   const arr = req.value?.formFields;
   return Array.isArray(arr) ? (arr as unknown as FormField[]) : [];

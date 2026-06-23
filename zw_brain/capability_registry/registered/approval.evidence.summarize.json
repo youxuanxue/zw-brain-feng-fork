@@ -1,7 +1,7 @@
 {
   "slug": "approval.evidence.summarize",
   "title": "P3 审批依据助手（归纳依据 + 反事实 + 推荐结论）",
-  "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+  "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -61,7 +61,8 @@
         "type": "boolean"
       },
       "degraded": {
-        "type": "boolean"
+        "type": "boolean",
+        "description": "兼容旧客户端的可选字段；当前 zw-brain 本地规则路径不设置。"
       },
       "status": {
         "type": "string",

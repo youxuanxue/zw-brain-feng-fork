@@ -67,7 +67,7 @@
     {
       "skill_id": "assistant.investigation_summary",
       "title": "调查摘要助手",
-      "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。",
+      "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后生成本地规则调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id/request_id 等敏感字段 hash 化，zw-brain 主进程不持有推理平台 SDK/env。",
       "mode": "read",
       "human_confirmation_required": false,
       "audit_required": false,
@@ -1784,7 +1784,7 @@
     {
       "skill_id": "application.draft.suggest",
       "title": "P3 申请草拟助手（预填字段 + 风险预估）",
-      "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+      "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
       "mode": "write",
       "human_confirmation_required": false,
       "audit_required": true,
@@ -2159,7 +2159,7 @@
     {
       "skill_id": "approval.evidence.summarize",
       "title": "P3 审批依据助手（归纳依据 + 反事实 + 推荐结论）",
-      "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+      "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
       "mode": "write",
       "human_confirmation_required": false,
       "audit_required": true,
@@ -2219,7 +2219,7 @@
     {
       "skill_id": "approval_flow.nl_draft",
       "title": "用一句话生成审批流草稿",
-      "description": "管理员一句话描述审批流程意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+      "description": "管理员一句话描述审批流程意向 → 通过本地确定性规则生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
       "mode": "write",
       "human_confirmation_required": false,
       "audit_required": true,
@@ -3579,7 +3579,7 @@
     {
       "skill_id": "delivery.status.explain",
       "title": "P4 交付状态解释助手（阶段 / 异常原因 / 影响范围）",
-      "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+      "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
       "mode": "write",
       "human_confirmation_required": false,
       "audit_required": true,
@@ -3799,7 +3799,7 @@
     {
       "skill_id": "form_schema.nl_draft",
       "title": "用一句话生成表单 schema 草稿",
-      "description": "管理员一句话描述表单字段意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+      "description": "管理员一句话描述表单字段意向 → 通过本地确定性规则生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
       "mode": "write",
       "human_confirmation_required": false,
       "audit_required": true,
@@ -6619,7 +6619,7 @@
     {
       "skill_id": "search.intent.parse",
       "title": "P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由）",
-      "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。推理走集团推理平台统一通道；推理失败时回落本地规则解析（degraded=true）。可由调用方传 enabled=false 关闭。",
+      "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。可由调用方传 enabled=false 标记关闭。",
       "mode": "write",
       "human_confirmation_required": false,
       "audit_required": true,

@@ -1,11 +1,11 @@
 """B1 investigation assistant handler — assistant.investigation_summary (F3-backend).
 
-把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台
-（zw_brain/shared/inference/client）生成调查摘要。约束（架构 D6 + D14）：
+把 B1.1 statistics / anomaly / accountability panel 输出脱敏后生成调查摘要。
+约束（架构 D68 + D14）：
 
-- 唯一 LLM 出口走 shared/inference/client.chat()；preflight 段 10 守门。
-- panel_payload 在送推理前做强脱敏：actor / skill_id / tenant_id 等定向字段 hash 化；
-  request_id 透传给 chat（D4 审计 trail）；其他字段保留聚合特征但不外泄业务原文。
+- zw-brain 主进程不持有推理平台 SDK / env；复杂模型能力由独立 AgentRuntime 服务承载。
+- panel_payload 在摘要前做强脱敏：actor / skill_id / tenant_id 等定向字段 hash 化；
+  其他字段保留聚合特征但不外泄业务原文。
 - 输出 summary 不包含原始 actor/skill_id 字面值；handler 自身写一条 read-sensitive
   meta-audit（与 audit.event.* 同 pattern）。
 """
@@ -21,8 +21,6 @@ if TYPE_CHECKING:
 import zw_brain.shared.audit as audit_bus
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.handlers.b1._meta import enforce_tenant_scope
-from zw_brain.shared.inference import client as inference_client
-from zw_brain.shared.inference.client import ChatMessage, InferenceError
 
 _SENSITIVE_KEYS = (
     "actor",
@@ -38,13 +36,6 @@ _SENSITIVE_KEYS = (
     "legacy_role_ref",
     "target_role_code",
 )
-
-_SUMMARY_PROMPT_HEADER = (
-    "你是政务大脑安全审计助手。基于下面已脱敏的 panel 聚合数据，给一份不超过 6 行的"
-    "中文调查摘要：覆盖关键趋势、风险点、需要复盘的样本。"
-    "不要还原任何 hash 字段（sha1:...）；不要编造未在数据中出现的事实。"
-)
-
 
 def _sanitize_value(value: Any) -> Any:
     """递归脱敏：dict 内匹配 _SENSITIVE_KEYS 的字段统一 hash 化；list 递归。"""
@@ -134,10 +125,9 @@ def _fallback_investigation_summary(panel: str, sanitized: dict[str, Any], diges
 def handler_assistant_investigation_summary(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
-    """F3 assistant.investigation_summary —— 脱敏 panel + chat() + meta-audit。
+    """F3 assistant.investigation_summary —— 脱敏 panel + 本地摘要 + meta-audit。
 
     成功路径：返回 {summary, model, sanitized_input_digest, usage}。
-    推理失败：回落规则摘要（仍走脱敏输入，不直连第三方 LLM 以外路径）。
     """
     tenant_id = enforce_tenant_scope(payload, capability="assistant.investigation_summary")
     panel = str(payload["panel"]).strip()
@@ -149,40 +139,19 @@ def handler_assistant_investigation_summary(deps: HandlerDeps, ctx: SkillContext
     request_id = str(payload["request_id"]).strip()
     if not request_id:
         raise ValueError("assistant.investigation_summary requires non-empty request_id")
-    max_tokens = int(payload.get("max_tokens") or 800)
 
     sanitized = _sanitize_value(panel_payload)
     sanitized_text = json.dumps(sanitized, ensure_ascii=False, sort_keys=True, default=str)
     sanitized_digest = hashlib.sha1(sanitized_text.encode("utf-8")).hexdigest()
 
-    messages = [
-        ChatMessage(role="system", content=_SUMMARY_PROMPT_HEADER),
-        ChatMessage(
-            role="user",
-            content=f"panel: {panel}\ntenant: {tenant_id}\nsanitized_payload:\n{sanitized_text}",
-        ),
-    ]
-
-    try:
-        result = inference_client.chat(
-            messages,
-            model="claude-sonnet-4-7",
-            max_tokens=max_tokens,
-            temperature=0.0,
-            request_id=request_id,
-        )
-        summary_text = result.text
-        model_name = result.model
-        usage = dict(result.usage)
-    except InferenceError:
-        fallback = _fallback_investigation_summary(panel, sanitized, sanitized_digest)
-        summary_text = fallback["summary"]
-        model_name = fallback["model"]
-        usage = fallback["usage"]
+    fallback = _fallback_investigation_summary(panel, sanitized, sanitized_digest)
+    summary_text = fallback["summary"]
+    model_name = fallback["model"]
+    usage = fallback["usage"]
 
     fingerprint = hashlib.sha1(
         json.dumps(
-            {"panel": panel, "tenant_id": tenant_id, "digest": sanitized_digest, "max_tokens": max_tokens},
+            {"panel": panel, "tenant_id": tenant_id, "digest": sanitized_digest},
             sort_keys=True,
             default=str,
         ).encode("utf-8")

@@ -19,8 +19,8 @@
 > **权威源对齐**（基线 `docs/approved/zw-brain-architecture.md`）：
 > - 单租户：`tenant_id=sd-default`（不启用 multi-tenant；基线 §8.2）
 > - schema：**alembic baseline stamp → upgrade head**（D58，反转 D23）；存量库不 DROP，破坏性重置仅 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 显式开关
-> - 模型调用：必须经集团推理平台；mock client 仅限研发态，不可用于客户验收（基线 §3.4 + preflight 段 10）
-> - 外部依赖：IAF IAM / 集团推理平台 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
+> - 模型调用：由独立 AgentRuntime 服务经集团推理平台承载；zw-brain REST 不持有推理 SDK/env
+> - 外部依赖：IAF IAM / 独立 AgentRuntime 模型网关 / 区块链 adapter / 集团数据治理中心 / 集团数据安全中心 / 集团运维监控（基线 §3.4）
 > - WebUI 页面：P1-P5/P7 + B1.1/B1.2 共 8 页面（基线 §5.2 硬上限 ≤8）；B1.1 合规与运营的 literal 路由为 `#/compliance-ops`
 > - 本 runbook 不打包大屏 / 指挥中心 / 演示页面入口（基线 §1.3）
 
@@ -51,7 +51,7 @@
 | --- | --- | --- |
 | 客户旧库 (`dsp_*` schemas) | 一键导出 17 张旧表 | 客户 DBA 提供只读账号 |
 | IAM/OIDC 端点 | 统一身份登录（IAF 集成） | 客户 IT 部门 / IAF |
-| 推理网关密钥引用 | LLM 调用走 `zw_brain.shared.inference.client` | 集团推理平台 |
+| AgentRuntime 模型网关 | LLM 调用在独立 AR 服务侧走 `OPENAI_COMPATIBLE_*` / `AGENT_RUNTIME_DEFAULT_MODEL` | 集团推理平台 |
 | Blockchain anchor 端点（可选） | 审计回执上链；异步 adapter，外链 down 不阻塞业务（基线 §3.4 / D4） | mock-chain 默认本地；客户现场需提供 |
 
 > **外部依赖边界说明**（**非访问需求**，仅供运维理解责任划分；本平台不直连这些系统）：
@@ -140,9 +140,14 @@ ZW_BRAIN_IAF_ISSUER=https://iam.sd.gov.cn/realms/zw
 ZW_BRAIN_IAF_AUDIENCE=zw-brain-prod
 ZW_BRAIN_IAF_CLIENT_SECRET_REF=arn:secrets:iaf-zw-prod  # 走密钥引用，不明文
 
-# 推理网关（集团统一）
-ZW_BRAIN_INFERENCE_GATEWAY_URL=https://inference.inspur.com/v1
-ZW_BRAIN_INFERENCE_API_KEY_REF=arn:secrets:inspur-inference-zw
+# 独立 AgentRuntime（zw-brain 只通过 HTTP 驱动 AR，不读取模型密钥）
+ZW_BRAIN_AGENT_RUNTIME_ENABLED=1
+ZW_BRAIN_AGENT_RUNTIME_URL=http://agent-runtime:8001
+
+# AgentRuntime 服务侧模型网关（集团统一；只注入 AR 服务）
+OPENAI_COMPATIBLE_BASE_URL=https://inference.inspur.com/v1
+AGENT_RUNTIME_DEFAULT_MODEL=<chat-model>
+OPENAI_COMPATIBLE_API_KEY_REF=arn:secrets:inspur-inference-zw
 
 # Blockchain anchor (可选；mock-chain 是默认)
 ZW_BRAIN_BLOCKCHAIN_ENDPOINT=https://chain.sd.gov.cn/anchor
@@ -156,14 +161,14 @@ ZW_BRAIN_MASK_ROLE=external
 ```bash
 source /etc/zw-brain/zw-brain.env
 .venv/bin/python -c "
-from zw_brain.shared.inference.client import get_client
-client = get_client()
-print('inference client:', client.__class__.__name__)
+import os
+assert os.environ.get('ZW_BRAIN_AGENT_RUNTIME_URL')
+print('agent-runtime url:', os.environ['ZW_BRAIN_AGENT_RUNTIME_URL'])
 "
 ```
 
 **失败排查**：
-- `inference client gateway not reachable` → 推理网关网络问题；**研发态**可用 mock client 跑通后切换，**生产环境必须走集团推理平台**（基线 §3.4 + preflight 段 10），mock 不可用于客户验收
+- `agent_runtime_disabled` / AR health 不通 → 先确认 `ZW_BRAIN_AGENT_RUNTIME_ENABLED=1`、`ZW_BRAIN_AGENT_RUNTIME_URL` 可达，再检查 AR 服务侧 `OPENAI_COMPATIBLE_BASE_URL` / `AGENT_RUNTIME_DEFAULT_MODEL` / `OPENAI_COMPATIBLE_API_KEY`
 - IAF 配置错误 → WebUI 登录页会显示"统一身份未配置"，可临时用 `ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH=1` 走训练态
 
 ---
@@ -348,7 +353,7 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 | 登录卡 IAF 重定向 | `ZW_BRAIN_IAF_ISSUER` / `_AUDIENCE` 不匹配 | 找 IT 部门核 OIDC 配置 |
 | 一些 skill 返回 403 / AccessDeniedError | 角色未在 `policy.PERMISSION_ROLES` 中授权 | 确认账号在 IAM 角色映射；或临时用 webui_role_switch |
 | 审计写入失败 → 整个写 skill 抛 AuditWriteError | DB 锁 / 网络问题 | 不要 swallow（D4 元规则）；检查 DB |
-| 推理网关调用超时 | 网关 down / 密钥过期 | 走 `zw_brain.shared.inference.client` 的 fallback；不调第三方 LLM SDK（D6） |
+| AgentRuntime 模型调用超时 | AR 服务到网关不通 / 密钥过期 | 检查 AR 服务侧 `OPENAI_COMPATIBLE_*` 与 `AGENT_RUNTIME_DEFAULT_MODEL`；zw-brain REST 不配置模型密钥 |
 
 ## 附录 B：组件清单（按 `pyproject.toml`）
 

@@ -134,6 +134,7 @@ def validate_agent_bundle(agent_yaml: Path) -> tuple[bool, list[str], dict[str, 
         skill_id = str(item.get("skill_id") or "")
         if skill_id and skill_id not in manifests:
             violations.append(f"capability_tools references unknown skill_id {skill_id!r}")
+    _validate_declared_api_tools(agent_yaml, tools, capability_tools, violations)
 
     if (agent_yaml.parent / "server.py").exists() or (agent_yaml.parent / "main.py").exists():
         violations.append("embedded agent directory must not ship standalone HTTP entrypoints")
@@ -155,10 +156,95 @@ def _model_provider_allowed(model: dict[str, Any]) -> bool:
             env_val = os.environ.get(env_name, "")
             if _url_is_inspur_gateway(env_val):
                 return True
-            if env_name == "ZW_BRAIN_INFERENCE_GATEWAY_URL" and env_val:
+            if env_name == "OPENAI_COMPATIBLE_BASE_URL" and env_val:
                 return True
-    gateway = os.environ.get("ZW_BRAIN_INFERENCE_GATEWAY_URL") or ""
+    gateway = os.environ.get("OPENAI_COMPATIBLE_BASE_URL") or ""
     return bool(gateway and _url_is_inspur_gateway(gateway))
+
+
+def _validate_declared_api_tools(
+    agent_yaml: Path,
+    tools: list[Any],
+    capability_tools: Any,
+    violations: list[str],
+) -> None:
+    """Keep builtin sidecar capabilities executable in standalone AR.
+
+    capabilities.json is zw-brain metadata only. In the #321 single-mode runtime,
+    AgentRuntime can execute a tool only when AGENT.yaml declares a matching
+    kind:api entry backed by an OpenAPI operationId.
+    """
+
+    expected = {
+        str(item.get("name") or "").strip()
+        for item in (capability_tools or [])
+        if isinstance(item, dict) and str(item.get("name") or "").strip()
+    }
+    if not expected:
+        return
+
+    declared: dict[str, dict[str, Any]] = {}
+    for tool in tools:
+        if not isinstance(tool, dict):
+            continue
+        name = str(tool.get("name") or "").strip()
+        if str(tool.get("kind") or "").lower() == "api" and name:
+            declared[name] = tool
+
+    missing = sorted(expected - set(declared))
+    extra = sorted(set(declared) - expected)
+    if missing:
+        violations.append(
+            "capability_tools must be declared as AGENT.yaml kind:api tools; "
+            f"missing={missing!r}"
+        )
+    if extra:
+        violations.append(
+            "AGENT.yaml kind:api tools must match capability_tools sidecar declarations; "
+            f"extra={extra!r}"
+        )
+
+    for name in sorted(expected & set(declared)):
+        tool = declared[name]
+        spec_url = str(tool.get("spec_url") or "").strip()
+        if not spec_url:
+            violations.append(f"kind:api tool {name!r} must declare spec_url")
+            continue
+        spec_path = (agent_yaml.parent / spec_url).resolve()
+        try:
+            spec_path.relative_to(agent_yaml.parent.resolve())
+        except ValueError:
+            violations.append(f"kind:api tool {name!r} spec_url must stay inside the agent directory")
+            continue
+        if not spec_path.is_file():
+            violations.append(f"kind:api tool {name!r} spec_url not found: {spec_url}")
+            continue
+        try:
+            operation_ids = _openapi_operation_ids(spec_path)
+        except (OSError, yaml.YAMLError, ValueError) as exc:
+            violations.append(f"kind:api tool {name!r} spec_url invalid: {exc}")
+            continue
+        if name not in operation_ids:
+            violations.append(
+                f"kind:api tool {name!r} spec_url {spec_url!r} has no matching operationId"
+            )
+
+
+def _openapi_operation_ids(spec_path: Path) -> set[str]:
+    loaded = yaml.safe_load(spec_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(loaded, dict):
+        raise ValueError("OpenAPI root must be a mapping")
+    paths = loaded.get("paths")
+    if not isinstance(paths, dict):
+        raise ValueError("OpenAPI paths must be a mapping")
+    operation_ids: set[str] = set()
+    for path_item in paths.values():
+        if not isinstance(path_item, dict):
+            continue
+        for op in path_item.values():
+            if isinstance(op, dict) and op.get("operationId"):
+                operation_ids.add(str(op["operationId"]))
+    return operation_ids
 
 
 def _url_is_inspur_gateway(url: str) -> bool:
@@ -190,7 +276,7 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
     elif trust == "untrusted":
         diagnoses.append(("HINT", "trust_level", "trust_level=untrusted; B1.2 can promote to verified"))
 
-    gateway = os.environ.get("ZW_BRAIN_INFERENCE_GATEWAY_URL")
+    gateway = os.environ.get("OPENAI_COMPATIBLE_BASE_URL")
     if gateway:
         diagnoses.append(("OK", "inference", f"gateway env configured ({gateway})"))
     else:
@@ -198,16 +284,12 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
             (
                 "WARN" if not production else "FAIL",
                 "inference",
-                "ZW_BRAIN_INFERENCE_GATEWAY_URL not set; model calls need group inference gateway (D6)",
+                "OPENAI_COMPATIBLE_BASE_URL not set; standalone AgentRuntime model calls need gateway config",
             )
         )
 
-    api_key = (
-        os.environ.get("ZW_BRAIN_INFERENCE_API_KEY")
-        or os.environ.get("OPENAI_COMPATIBLE_API_KEY")
-        or os.environ.get("OPENAI_API_KEY")
-    )
-    optional_key = (os.environ.get("ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL") or "").strip().lower() in {
+    api_key = os.environ.get("OPENAI_COMPATIBLE_API_KEY")
+    optional_key = (os.environ.get("OPENAI_COMPATIBLE_API_KEY_OPTIONAL") or "").strip().lower() in {
         "1",
         "true",
         "yes",
@@ -216,13 +298,13 @@ def diagnose_agent_bundle(agent_yaml: Path, *, production: bool = False) -> list
     if api_key:
         diagnoses.append(("OK", "inference", "inference API key configured"))
     elif optional_key:
-        diagnoses.append(("OK", "inference", "ZW_BRAIN_INFERENCE_API_KEY_OPTIONAL=1 (placeholder key at runtime)"))
+        diagnoses.append(("OK", "inference", "OPENAI_COMPATIBLE_API_KEY_OPTIONAL=1 (placeholder key at runtime)"))
     else:
         diagnoses.append(
             (
                 "WARN" if not production else "FAIL",
                 "inference",
-                "ZW_BRAIN_INFERENCE_API_KEY not set; openai_compatible models need a gateway key",
+                "OPENAI_COMPATIBLE_API_KEY not set; openai_compatible models need a gateway key",
             )
         )
 

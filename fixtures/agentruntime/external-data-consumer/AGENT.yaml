@@ -10,9 +10,9 @@ metadata:
   version: "1.0.0"
   trust_level: untrusted          # AR 协议字段（来源信任）；Registry 侧映射为 agent_trust_level
 model:
-  provider: openai_compatible      # 必须指向集团推理平台 gateway（D6）
-  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
-  base_url_env: ZW_BRAIN_INFERENCE_GATEWAY_URL
+  provider: openai_compatible      # 独立 AgentRuntime 服务侧指向集团推理平台 gateway（D6/D68）
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
+  base_url_env: OPENAI_COMPATIBLE_BASE_URL
 auth:
   mode: trusted_gateway            # 禁 none
 tools:

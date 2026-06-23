@@ -7,12 +7,11 @@
 #   zw_brain/command/handlers/j1/search_assistant.py
 #   zw_brain/capability_registry/registered/search.intent.parse.json
 #   docs/approved/zw-brain-architecture.md §5.4.4 (减摩组件反约束)
-"""F6: P2 搜索上下文助手 — 意图解析 + 缺口追问 + 推荐理由 + 推理失败降级.
+"""F6: P2 搜索上下文助手 — 意图解析 + 缺口追问 + 推荐理由.
 
 测试覆盖：
 - 5 种典型一句话查询的 fallback_rule 路径（不依赖推理平台）
-- inference 路径（monkeypatch chat 返回 JSON）
-- 推理失败降级路径（monkeypatch chat 抛 InferenceError）
+- enabled=true 同样走本地规则（zw-brain 不持有推理 SDK/env）
 - enabled=false 关闭路径
 - audit chain：search.intent.parse 写入 audit feed
 
@@ -107,85 +106,18 @@ def test_fallback_rule_region_detection(brain):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# inference 路径 — monkeypatch chat 返回结构化 JSON
+# enabled=true — 仍走本地确定性规则
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_inference_path_returns_structured_fields(brain, monkeypatch):
-    from zw_brain.command.handlers.j1 import search_assistant as sa
-    from zw_brain.shared.inference.client import ChatResult
-
-    mocked_payload = (
-        '{"intent":"discover_resource","keywords":["医保码","跨省"],'
-        '"dimension":{"keyword":["医保码"],"target_resource_hint":"医保码信息","region":"跨省"},'
-        '"missing_fields":["数据更新频率"],'
-        '"recommendation_reason":"基于关键词医保码+跨省，推断为资源发现。",'
-        '"follow_up_questions":["需要原始库表还是接口？","限定哪些省份？"]}'
-    )
-    calls: list[dict] = []
-
-    def _mock_chat(messages, *, model, request_id, temperature=0.0, **kwargs):
-        calls.append({"model": model, "request_id": request_id, "messages": [(m.role, m.content) for m in messages]})
-        return ChatResult(text=mocked_payload, model=model or "demo", usage={"total_tokens": 64})
-
-    monkeypatch.setattr(sa, "_inference_chat", _mock_chat)
+def test_enabled_true_uses_local_rule_fields(brain):
     out = _invoke(brain, {"query": "跨省医保码相关", "role": "ROLE_ORGAN_OPERATER", "enabled": True})
-    assert out["source"] == "inference"
+    assert out["source"] == "fallback_rule"
     assert out["intent"] == "discover_resource"
     assert "医保码" in out["keywords"]
     assert out["dimension"]["region"] == "跨省"
-    assert out["dimension"]["target_resource_hint"] == "医保码信息"
+    assert out["dimension"]["target_resource_hint"]
     assert out["follow_up_questions"]
-    assert calls, "inference chat must be called"
-    assert calls[0]["request_id"].startswith("search-intent-")
-
-
-def test_inference_path_strips_markdown_fence(brain, monkeypatch):
-    """推理返回带 ```json``` 围栏的 JSON 时仍可解析."""
-    from zw_brain.command.handlers.j1 import search_assistant as sa
-    from zw_brain.shared.inference.client import ChatResult
-
-    fenced = (
-        "```json\n"
-        '{"intent":"discover_resource","keywords":["户籍"],'
-        '"dimension":{"keyword":["户籍"],"target_resource_hint":null,"region":null},'
-        '"missing_fields":[],"recommendation_reason":"测试","follow_up_questions":[]}'
-        "\n```"
-    )
-    monkeypatch.setattr(sa, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text=fenced, model="demo"))
-    out = _invoke(brain, {"query": "户籍数据", "role": "ROLE_ORGAN_OPERATER", "enabled": True})
-    assert out["source"] == "inference"
-    assert out["keywords"] == ["户籍"]
-
-
-def test_inference_invalid_json_degrades_to_fallback(brain, monkeypatch):
-    """推理返回不可解析的非 JSON 字符串 → 降级到本地规则."""
-    from zw_brain.command.handlers.j1 import search_assistant as sa
-    from zw_brain.shared.inference.client import ChatResult
-
-    monkeypatch.setattr(sa, "_inference_chat",
-                        lambda *a, **kw: ChatResult(text="抱歉我没听懂", model="demo"))
-    out = _invoke(brain, {"query": "找不到工业能耗数据", "role": "ROLE_ORGAN_OPERATER"})
-    assert out["source"] == "fallback_rule"
-    assert out["degraded"] is True
-    # fallback 仍能识别 register_demand intent
-    assert out["intent"] == "register_demand"
-
-
-def test_inference_error_degrades_to_fallback(brain, monkeypatch):
-    """推理平台 InferenceError → 降级到本地规则，不抛错给调用方."""
-    from zw_brain.command.handlers.j1 import search_assistant as sa
-    from zw_brain.shared.inference.client import InferenceError
-
-    def _raise(*a, **kw):
-        raise InferenceError("inference base_url is required")
-
-    monkeypatch.setattr(sa, "_inference_chat", _raise)
-    out = _invoke(brain, {"query": "查房地产数据", "role": "ROLE_ORGAN_OPERATER"})
-    assert out["source"] == "fallback_rule"
-    assert out["degraded"] is True
-    assert out["intent"] == "discover_resource"
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -193,13 +125,7 @@ def test_inference_error_degrades_to_fallback(brain, monkeypatch):
 # ──────────────────────────────────────────────────────────────────────
 
 
-def test_disabled_skips_inference_no_call(brain, monkeypatch):
-    from zw_brain.command.handlers.j1 import search_assistant as sa
-
-    def _should_not_be_called(*a, **kw):
-        raise AssertionError("inference must NOT be called when enabled=false")
-
-    monkeypatch.setattr(sa, "_inference_chat", _should_not_be_called)
+def test_disabled_marks_enabled_false(brain):
     out = _invoke(brain, {"query": "户籍数据", "role": "ROLE_ORGAN_OPERATER", "enabled": False})
     assert out["enabled"] is False
     assert out["source"] == "fallback_rule"

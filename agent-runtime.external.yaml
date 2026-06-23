@@ -14,6 +14,6 @@ schema_path: schemas/agent.schema.json
 workspace_root: .data/agent-runtime/external-workspaces   # 与内部实例隔离的 workspace
 log_dir: .data/agent-runtime/external-logs
 default_model_provider: openai_compatible
-default_model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+default_model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
 # 注：本期外部 Agent 只消费数据、无 code-exec → 不配 Daytona 沙箱后端（决策起步）。
 # 若将来外部 Agent 需跑沙箱代码，再按 runtime policy 配 daytona 执行后端（触发式）。

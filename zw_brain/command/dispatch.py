@@ -118,7 +118,7 @@ _PASSTHROUGH_CAPS = (
 DISPATCH_TABLE: dict[str, Handler] = {
     # turn 2
     "data.search": data_search.handler,
-    # F6: J1 P2 搜索上下文助手（减摩组件，走 shared/inference/client）
+    # F6: J1 P2 搜索上下文助手（减摩组件，本地确定性规则）
     "search.intent.parse": search_assistant.handler_search_intent_parse,
     "topic.package.create": topic_package_create.handler,
     "ops.exchange.statistics.query": exchange_statistics_query.handler,
@@ -251,7 +251,7 @@ DISPATCH_TABLE: dict[str, Handler] = {
     # j1-approval-conditional: 有条件共享两步审批（dept.approve → platform.approve / reject + resubmit）
     "application.dept_approve": approval.handler_application_dept_approve,
     "application.platform_approve": approval.handler_application_platform_approve,
-    # F7: J1 P3 双助手 (减摩组件，走 shared/inference/client + 三层降级)
+    # F7: J1 P3 双助手 (减摩组件，本地确定性规则)
     "application.draft.suggest": application_assistants.handler_application_draft_suggest,
     "approval.evidence.summarize": application_assistants.handler_approval_evidence_summarize,
     # turn 6: J1 — catalog_entry (12 cap)
@@ -297,7 +297,7 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "delivery.view": delivery.handler_delivery_view,
     "delivery.access.grant": delivery.handler_delivery_access_grant,
     "delivery.list": delivery.handler_delivery_list,
-    # F8: J1 P4 状态解释助手（减摩组件，走 shared/inference/client + 三层降级）
+    # F8: J1 P4 状态解释助手（减摩组件，本地确定性规则）
     "delivery.status.explain": delivery_explain.handler_delivery_status_explain,
     # C6 (D50): J1 — 国家直达转报（1 cap，计算态不污染 J1 主状态枚举）
     "application.escalate_national": escalate.handler_application_escalate_national,

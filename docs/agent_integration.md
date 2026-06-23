@@ -222,7 +222,7 @@
 | --------- | ---- | ------------------ | ----------- | ---------------- | ------ |
 | `adapter.external.mapping.query` | read | False | 查询国家平台或级联系统外部对象与本地聚合的映射。 | True | `zw_brain/entry/mcp/tools/adapter.external.mapping.query.json` |
 | `approval.view` | read | False | 查看审批建议、风险、影响和异常项。 | True | `zw_brain/entry/mcp/tools/approval.view.json` |
-| `assistant.investigation_summary` | read | False | 把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。 | True | `zw_brain/entry/mcp/tools/assistant.investigation_summary.json` |
+| `assistant.investigation_summary` | read | False | 把 B1.1 statistics / anomaly / accountability panel 输出脱敏后生成本地规则调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id/request_id 等敏感字段 hash 化，zw-brain 主进程不持有推理平台 SDK/env。 | True | `zw_brain/entry/mcp/tools/assistant.investigation_summary.json` |
 | `audit.event.accountability` | read | False | 按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段 hash 化）；不返回原始 payload 全文。 | True | `zw_brain/entry/mcp/tools/audit.event.accountability.json` |
 | `audit.event.anomaly` | read | False | Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。 | True | `zw_brain/entry/mcp/tools/audit.event.anomaly.json` |
 | `audit.event.query` | read | False | 按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。 | True | `zw_brain/entry/mcp/tools/audit.event.query.json` |
@@ -316,7 +316,7 @@
 | `approval.evidence.summarize` | P3 审批依据助手（归纳依据 + 反事实 + 推荐结论） | 1.0.0 | audit | `zw_brain/capability_registry/registered/approval.evidence.summarize.json` |
 | `approval.review_decide` | 审批并裁决申请 | 1.0.0 | audit, db_write, state_machine_transition, task_dispatch, blockchain_anchor | `zw_brain/capability_registry/registered/approval.review_decide.json` |
 | `approval.view` | 查看审批详情 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/approval.view.json` |
-| `approval_flow.nl_draft` | 用一句话生成审批流草稿 | 1.0.0 | audit, db_write, external_inference | `zw_brain/capability_registry/registered/approval_flow.nl_draft.json` |
+| `approval_flow.nl_draft` | 用一句话生成审批流草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/approval_flow.nl_draft.json` |
 | `approval_flow.schema.commit` | 提交审批流模板入库 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/approval_flow.schema.commit.json` |
 | `approval_flow.schema.promote_to_preview` | 审批流模板：草稿提级到预览 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/approval_flow.schema.promote_to_preview.json` |
 | `approval_flow.schema.revert_to_draft` | 审批流模板：预览回退到草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/approval_flow.schema.revert_to_draft.json` |
@@ -382,7 +382,7 @@
 | `demand.phase.advance` | 推进供需需求阶段 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/demand.phase.advance.json` |
 | `demand.register` | 登记供需需求 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/demand.register.json` |
 | `form_schema.commit` | 提交表单模板入库 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.commit.json` |
-| `form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | 1.0.0 | audit, db_write, external_inference | `zw_brain/capability_registry/registered/form_schema.nl_draft.json` |
+| `form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.nl_draft.json` |
 | `form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.promote_to_preview.json` |
 | `form_schema.revert_to_draft` | 表单模板：预览回退到草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.revert_to_draft.json` |
 | `governance.access_matrix` | 谁能访问什么（角色能力矩阵） | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/governance.access_matrix.json` |

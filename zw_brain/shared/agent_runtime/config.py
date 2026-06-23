@@ -4,7 +4,7 @@ embedded（in-process SDK）退役后，本模块只留：①是否启用 AR 接
 ③agents 目录解析（供 command 层列出/校验 agent 清单）；④仓库根。
 **不再**含 in-process 运行时的 env 桥接 / schema 解析 / profile / ProductRuntimeConfig 路径
 等 embedded-only 配置（已随 embedded 移除）。AR 独立进程自读其 ``agent-runtime*.yaml``
-并由启动脚本桥接 ``OPENAI_COMPATIBLE_*``。
+里的模型配置。
 """
 
 from __future__ import annotations

@@ -2,6 +2,12 @@
 
 > 关联设计：`scenario-agents-design-v1.md`（§4 A① / §5.1 B 试点）。
 > 本记录是**乔布斯军团并发方案**（侦察波→建造波→验收波）执行后的验收证据，可被 review 复核。
+>
+> **D68 更新（2026-06-23）**：本页是 Wave 1 当时的历史验收记录，文中的 embedded / SDK lifecycle / `ZW_BRAIN_INFERENCE_*`
+> 口径已由 #321/#322 取代。当前权威形态：AgentRuntime 只作为独立服务运行，zw-brain REST 仅经 HTTP
+> 驱动它；内置 Agent 的可执行工具必须在 `AGENT.yaml` 声明为 `kind:api` 并引用本地 OpenAPI spec；
+> 模型网关变量只在 AR 服务侧读取 `OPENAI_COMPATIBLE_*` / `AGENT_RUNTIME_DEFAULT_MODEL`。当前验收证据见
+> `docs/audits/builtin-ai-disposition-2026-06-23.md` 与 `.testing/status/measurement/*`。
 
 ## 1. 本期建造（聚焦：1 条 A 链 + 1 条 B 试点）
 
@@ -41,7 +47,7 @@
 
 ## 3.5 tier-4 live LLM 演示 + 抓到并修复的真实生产 bug
 
-用主仓 `.env` 的真实推理凭据（`ZW_BRAIN_INFERENCE_MODE=platform`，网关 = **公网 Volcengine Ark** `https://ark.cn-beijing.volces.com/api/v3`，模型 `glm-4-7-251222`），以 `embedded_single_tenant` profile（真实 LLM 核，非 fake）对两 agent 跑真实 Task：
+用主仓 `.env` 的真实推理凭据（网关 = **公网 Volcengine Ark** `https://ark.cn-beijing.volces.com/api/v3`，模型 `glm-4-7-251222`），以 `embedded_single_tenant` profile（真实 LLM 核，非 fake）对两 agent 跑真实 Task。D68 后该模型出口已收敛到独立 AgentRuntime 服务侧，zw-brain REST 不再持有推理 SDK/env：
 
 - **A① `zw-search-helper`** → `completed`。真实 GLM-4 **自主编排** `search_intent_parse → data_search ×3 → catalog_browse ×2 → catalog_entry_query ×3`，合成出**真实 TOP-N 推荐**（列出"企业年报信息""山东省企业登记基本信息"含目录编码）+ **术语对齐提示**（"企业纳税"暂无对应条目，建议替代）+ **追问建议**——正是 §4 设计承诺的页内嵌副驾体验。
 - **B 试点 `legal-person-credit-profiler`** → `completed`。LLM 调 13 个工具（失信/经营异常/纳税信用/黑名单/参保/注册资本/行政处罚…），检索未命中相关条目时**诚实拒绝幻觉**："我只能引用检索/查询工具真实返回的字段，不编造未编目的标签或评分"——§8.5 + honesty 文化的活体现，agent **不造假信用分**。

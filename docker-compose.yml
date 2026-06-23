@@ -56,7 +56,7 @@ networks:
 
   # D68 单一模型：独立 AgentRuntime 服务（zw-brain REST 经 HTTP 驱动）。
   #   docker compose up -d agent-runtime   # 起独立 AR；zw-brain 设 ZW_BRAIN_AGENT_RUNTIME_URL=http://localhost:8001
-  # openai_compatible 适配器经 OPENAI_COMPATIBLE_*（从 ZW_BRAIN_INFERENCE_* 桥接，下方 env 注入）。
+  # openai_compatible 适配器只读 AR 服务侧 OPENAI_COMPATIBLE_* / AGENT_RUNTIME_DEFAULT_MODEL。
   # 本地 dev 也可直接 bash scripts/start-local.sh（co-located 起 AR，无需 docker）。
   agent-runtime:
     build:
@@ -65,9 +65,9 @@ networks:
     image: zw-brain-agent-runtime:1.1.3
     container_name: zw-brain-agent-runtime
     environment:
-      OPENAI_COMPATIBLE_BASE_URL: ${ZW_BRAIN_INFERENCE_GATEWAY_URL:-}
-      OPENAI_COMPATIBLE_API_KEY: ${ZW_BRAIN_INFERENCE_API_KEY:-}
-      ZW_BRAIN_INFERENCE_MODEL: ${ZW_BRAIN_INFERENCE_MODEL:-}
+      OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-}
+      OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
+      AGENT_RUNTIME_DEFAULT_MODEL: ${AGENT_RUNTIME_DEFAULT_MODEL:-}
       # AR 内 agent 经 kind:api 回调 zw-brain（compose 内服务名）；entrypoint 渲染进 *.openapi.yaml servers
       ZW_BRAIN_REST_BASE_URL: http://zw-brain:8800
     volumes:
@@ -109,10 +109,6 @@ networks:
       ZW_BRAIN_DEV_IAM_BYPASS: "1"
       ZW_BRAIN_DEV_IAM_BYPASS_ACK: development-only
       ZW_BRAIN_WEBUI_ALLOW_ROLE_SWITCH: "1"
-      ZW_BRAIN_INFERENCE_MODE: ${ZW_BRAIN_INFERENCE_MODE:-platform}
-      ZW_BRAIN_INFERENCE_GATEWAY_URL: ${ZW_BRAIN_INFERENCE_GATEWAY_URL:-}
-      ZW_BRAIN_INFERENCE_API_KEY: ${ZW_BRAIN_INFERENCE_API_KEY:-}
-      ZW_BRAIN_INFERENCE_MODEL: ${ZW_BRAIN_INFERENCE_MODEL:-}
     volumes:
       - ./agents:/app/agents:ro          # agents 单一源：zw-brain「列」+ AR「跑」同一 git 目录（live）
     ports:

@@ -758,17 +758,11 @@ trigger 关闭即可删除字段。
   当前模型时**干净 skip + 打印重建命令**（替代此前 copy-paste `_seed_ready()` 只查行数、stale seed 抛
   61 个 `no such column` cryptic ERROR 的回潮路径）。
 
-## 2026-05-25 — 推理客户端等真实网关验证（E6 AC2，卡集团 SDK 凭据）
+## 2026-05-25 — 推理客户端真实网关验证（已由 D68 关闭）
 
-- **Where**: `zw_brain/shared/inference/client.py`（239 LOC）**platform 模式 chat/embed 真实 HTTP 路径已实装**
-  （`client.py:146-209`，POST `/v1/chat/completions` + `/v1/embeddings`），默认 strict platform，env 显式切 mock；
-  非 mock-only。**代码层生产化已完成**，缺的是真实网关凭据下的连通验证。
-- **Implication**: 基线 D6/D14 硬约束「所有模型推理调用走集团推理平台统一 SDK，禁止直连第三方 LLM」在产品形态
-  + 代码路径均已就位；但真实推理质量/延迟/配额/鉴权未经真网关链路验证。E6 AC2 停止条件「真实模式 + mock 模式
-  双跑通」中 platform 真链路一段未验——属外部依赖阻塞（缺凭据/endpoint），非工程内可推进项。
-- **Why deferred**: 集团推理平台网关凭据 / endpoint 尚未同步到位（D14 已记此前提）；mock 模式保留给本机/演示。
-- **Trigger to re-evaluate**: 集团推理平台网关凭据 / endpoint 到位日 → 跑 platform 真连通 e2e
-  （`tests/integration/test_inference_client.py` 已有 platform case 骨架）+ preflight 段 10（禁直连第三方）回归确认。
+- **Status**: D68 后 zw-brain 进程内推理客户端已退役，模型调用不再属于 zw-brain REST 运行时。
+- **Current boundary**: 模型网关凭据与默认模型只在独立 AgentRuntime 服务侧配置；zw-brain 仅经 HTTP 驱动 AR 并消费任务结果。
+- **Trigger to re-evaluate**: 需要验证真实模型质量 / 延迟 / 配额时，在独立 AgentRuntime 服务侧跑真实网关链路验收；preflight 段 10/78 继续守住 zw-brain 禁直连模型与禁持有推理 env。
 
 ## 2026-05-25 — 客户机房部署 + 监控对接未落地（E6 AC7）
 

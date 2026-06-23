@@ -20,7 +20,7 @@
 # 不做：
 #   * 不动 .venv（py3.13 主 venv 保持原样，pytest / preflight 走它）
 #   * 不写 shell profile（用户自己决定怎么持久化 ZW_BRAIN_PYTHON_BIN）
-#   * 不装集团推理网关 secrets（见 .env.example 的 ZW_BRAIN_INFERENCE_* 段）
+#   * 不装模型网关 secrets（见 .env.example 的 AgentRuntime OPENAI_COMPATIBLE_* 段）
 
 set -euo pipefail
 
@@ -247,7 +247,7 @@ cat <<EOF
   下一步（启动 REST + WebUI + 独立 AgentRuntime 全链路）：
     export ZW_BRAIN_PYTHON_BIN="$REPO_ROOT/$VENV_DIR/bin/python"
     export ZW_BRAIN_AGENT_RUNTIME_MODE=http ZW_BRAIN_AGENT_RUNTIME_ENABLED=1
-    # 集团推理网关 secrets 见 .env.example 的 ZW_BRAIN_INFERENCE_* 段
+    # 模型网关 secrets 见 .env.example 的 AgentRuntime OPENAI_COMPATIBLE_* 段
     bash scripts/start-local.sh
 
   日常 pytest / preflight 继续走主 .venv（py3.13），无需切换。

@@ -1,4 +1,4 @@
-"""Standalone AgentRuntime HTTP client (D68 单一模型 · http 形态).
+"""Standalone AgentRuntime HTTP client (D68 单一模型 · 独立服务).
 
 zw-brain 作为调用方，通过 AR 原生 REST 驱动一个**独立进程**的 AgentRuntime
 服务（``agent-runtime serve``）。本模块**不 import AgentRuntime SDK** —— 这正是
@@ -24,12 +24,12 @@ from zw_brain.shared.agent_runtime.errors import AgentRuntimeNotFoundError
 
 _LOGGER = logging.getLogger(__name__)
 
-# 与 embedded 形态 service.py 的阻塞超时一致（HTTP 客户端可容忍 ~25s 等待）。
+# 与历史 in-process service.py 的阻塞超时一致（HTTP 客户端可容忍 ~25s 等待）。
 _TASK_BLOCK_TIMEOUT_SECONDS = 25.0
 _POLL_INTERVAL_SECONDS = 1.0
 _HTTP_TIMEOUT_SECONDS = 30.0
 
-# AR TaskRecord.status → zw-brain 既有 facade 状态串（与 embedded drain 语义对齐）。
+# AR TaskRecord.status → zw-brain 既有 facade 状态串（与历史 drain 语义对齐）。
 _TERMINAL_STATUSES = {"completed", "failed", "cancelled", "waiting_input"}
 
 
@@ -103,7 +103,7 @@ def get_client() -> AgentRuntimeClient:
     base = agent_runtime_base_url()
     if not base:
         raise RuntimeError(
-            "未设 ZW_BRAIN_AGENT_RUNTIME_URL（独立 AR 服务地址；http 形态须指向 agent-runtime serve）"
+            "未设 ZW_BRAIN_AGENT_RUNTIME_URL（独立 AgentRuntime 服务地址；须指向 agent-runtime serve）"
         )
     _client = AgentRuntimeClient(base)
     return _client
@@ -129,7 +129,7 @@ def run_agent_task_http(
     user_input: str,
     session_title: str | None = None,
     metadata: dict[str, Any] | None = None,
-    brain: Any | None = None,  # noqa: ARG001 — facade 形参对齐；http 形态不需 in-process brain
+    brain: Any | None = None,  # noqa: ARG001 — facade 形参对齐；独立服务不需 in-process brain
 ) -> dict[str, Any]:
     """阻塞模式：起 session+task，轮询至终态（最长 ~25s），返回 facade dict。"""
     client = get_client()

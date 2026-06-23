@@ -125,8 +125,7 @@ def test_field_update_locks_against_reautofill(brain) -> None:
 
 
 def test_ai_suggest_fills_empty_as_pending(brain, monkeypatch) -> None:
-    """AI 建议填充：空可建议字段标 ai_suggested·待确认；人已填字段不被覆盖。"""
-    monkeypatch.setenv("ZW_BRAIN_INFERENCE_MODE", "mock")
+    """补全建议：空可建议字段标 ai_suggested·待确认；人已填字段不被覆盖。"""
     req = _create_draft(brain)
     rid = req["id"]
     # 先人填 use_reason（应被 AI 保护）
@@ -138,6 +137,15 @@ def test_ai_suggest_fills_empty_as_pending(brain, monkeypatch) -> None:
     assert ai_fields, f"应有 AI 建议字段，实得 {[(k, f['source']) for k, f in by_key.items()]}"
     # 人填的 use_reason 不被 AI 覆盖
     assert by_key["use_reason"]["source"] == "human"
+
+
+def test_request_draft_ai_suggest_uses_fast_local_fallback(brain) -> None:
+    """表单内补全按钮须秒级稳定：默认不等待外部推理平台。"""
+    req = _create_draft(brain)
+    out = _unwrap(invoke_trusted(brain, "request.draft.ai_suggest", {"request_id": req["id"]}, role=_OPERATER))
+    by_key = {f["key"]: f for f in out["formFields"]}
+    ai_fields = [k for k, f in by_key.items() if f["source"] == "ai_suggested"]
+    assert ai_fields
 
 
 def test_ai_suggest_rejected_for_non_applicant(brain) -> None:

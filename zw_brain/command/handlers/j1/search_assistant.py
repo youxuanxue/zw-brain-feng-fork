@@ -3,15 +3,14 @@
 设计取舍（plan e1-j1-journey F6 + §5.4.4 反约束）:
 - 这是减摩组件：输出结构化辅助字段 (intent / keywords / missing_fields / 推荐理由 /
   追问列表)，**不替代** P2 目录树 / 筛选器 / 资源详情页。
-- 推理走 shared/inference/client.chat（唯一 LLM 出口，D6 硬约束 + preflight 段 10）。
-- 可降级：推理失败 (InferenceError) 时回落 generic 规则解析，source 标 fallback_rule。
-- 可关闭：调用方传 enabled=false → 直接返回 fallback_rule，绕过推理。
+- zw-brain 主进程不持有推理平台 SDK / env；复杂模型能力由独立 AgentRuntime 服务承载。
+- 当前 cap 固化为本地确定性规则解析，source 标 fallback_rule。
+- 可关闭：调用方传 enabled=false → 直接返回 fallback_rule。
 - 不存储输出（每次按需渲染，避免缓存导致的语义漂移）。
 """
 
 from __future__ import annotations
 
-import json as _json
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -19,13 +18,6 @@ if TYPE_CHECKING:
     pass
 
 from zw_brain.command.deps import HandlerDeps, SkillContext
-from zw_brain.shared.inference.client import (
-    ChatMessage,
-    InferenceError,
-)
-from zw_brain.shared.inference.client import (
-    chat as _inference_chat,
-)
 
 # 业务意图枚举（与 P2/P3 旅程对齐）
 INTENT_DISCOVER_RESOURCE = "discover_resource"
@@ -208,58 +200,6 @@ def _rule_based_parse(query: str) -> dict[str, Any]:
     }
 
 
-def _inference_based_parse(query: str, request_id: str) -> dict[str, Any] | None:
-    """走 shared/inference/client.chat；推理返回 JSON 解析失败时回 None 让 caller 走 fallback."""
-    prompt = (
-        "你是政务数据平台 P2 资源发现页的搜索助手。请把用户的一句话搜索拆成结构化字段，"
-        "输出严格 JSON：{"
-        "\"intent\":\"discover_resource|register_demand|query_application|unknown\","
-        "\"keywords\":[],\"dimension\":{\"keyword\":[],\"target_resource_hint\":null,\"region\":null},"
-        "\"missing_fields\":[],\"recommendation_reason\":\"\",\"follow_up_questions\":[]}"
-        "。不要输出其他文字。"
-    )
-    messages = [
-        ChatMessage(role="system", content=prompt),
-        ChatMessage(role="user", content=query),
-    ]
-    result = _inference_chat(messages, model="", request_id=request_id, temperature=0.0)
-    raw = (result.text or "").strip()
-    # 尝试剥掉 markdown 围栏
-    if raw.startswith("```"):
-        raw = raw.strip("`")
-        if raw.lower().startswith("json"):
-            raw = raw[4:]
-        raw = raw.strip()
-    try:
-        parsed = _json.loads(raw)
-    except Exception:
-        return None
-    if not isinstance(parsed, dict):
-        return None
-    intent = str(parsed.get("intent", INTENT_UNKNOWN))
-    if intent not in ALL_INTENTS:
-        intent = INTENT_UNKNOWN
-    keywords = parsed.get("keywords") or []
-    if not isinstance(keywords, list):
-        keywords = []
-    dim_raw = parsed.get("dimension") or {}
-    if not isinstance(dim_raw, dict):
-        dim_raw = {}
-    return {
-        "intent": intent,
-        "keywords": [str(k) for k in keywords if k][:8],
-        "dimension": {
-            "keyword": [str(k) for k in (dim_raw.get("keyword") or []) if k][:5],
-            "target_resource_hint": str(dim_raw["target_resource_hint"]) if dim_raw.get("target_resource_hint") else None,
-            "region": str(dim_raw["region"]) if dim_raw.get("region") else None,
-        },
-        "missing_fields": [str(m) for m in (parsed.get("missing_fields") or []) if m][:6],
-        "recommendation_reason": str(parsed.get("recommendation_reason") or ""),
-        "follow_up_questions": [str(q) for q in (parsed.get("follow_up_questions") or []) if q][:6],
-        "source": "inference",
-    }
-
-
 def _parse_search_intent(brain, deps, ctx, query: str, role: str, *, enabled: bool, request_id: str) -> dict[str, Any]:
     actor = ctx.actor or "system"
     audit_target = query[:80] if query else "<empty>"
@@ -270,30 +210,17 @@ def _parse_search_intent(brain, deps, ctx, query: str, role: str, *, enabled: bo
         result["enabled"] = False
         return result
 
-    inference_result: dict[str, Any] | None = None
-    try:
-        inference_result = _inference_based_parse(query, request_id=request_id)
-    except InferenceError:
-        inference_result = None
-
-    if inference_result is not None:
-        deps.append_audit_feed("search.intent.parse", audit_target, "ok", actor)
-        inference_result["enabled"] = True
-        inference_result["keywords"] = _normalize_keywords(query, inference_result.get("keywords") or [])
-        dim = inference_result.get("dimension") or {}
-        if isinstance(dim, dict):
-            dim["keyword"] = inference_result["keywords"][:5]
-            if inference_result["keywords"] and not dim.get("target_resource_hint"):
-                dim["target_resource_hint"] = inference_result["keywords"][0]
-            inference_result["dimension"] = dim
-        return inference_result
-
-    # 推理失败 / JSON 解析失败 → 降级
-    fallback = _rule_based_parse(query)
-    deps.append_audit_feed("search.intent.parse", audit_target, "warning", actor)
-    fallback["enabled"] = True
-    fallback["degraded"] = True
-    return fallback
+    result = _rule_based_parse(query)
+    deps.append_audit_feed("search.intent.parse", audit_target, "ok", actor)
+    result["enabled"] = True
+    result["keywords"] = _normalize_keywords(query, result.get("keywords") or [])
+    dim = result.get("dimension") or {}
+    if isinstance(dim, dict):
+        dim["keyword"] = result["keywords"][:5]
+        if result["keywords"] and not dim.get("target_resource_hint"):
+            dim["target_resource_hint"] = result["keywords"][0]
+        result["dimension"] = dim
+    return result
 
 
 def handler_search_intent_parse(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:

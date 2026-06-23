@@ -11,6 +11,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 from pathlib import Path
 
 import pytest
@@ -37,6 +38,68 @@ from zw_brain.shared.agent_runtime.manifest_checks import (  # noqa: E402
 def test_validate_accepts_clean_agents(agent_yaml: Path) -> None:
     valid, violations, _ = validate_agent_bundle(agent_yaml)
     assert valid, f"{agent_yaml.parent.name} 应通过 validate，违规：{violations}"
+
+
+@pytest.mark.parametrize(
+    "agent_yaml",
+    [
+        REPO / "agents" / "zw_search_helper" / "AGENT.yaml",
+        REPO / "agents" / "zw_platform_guide" / "AGENT.yaml",
+        REPO / "agents" / "legal_person_credit_profiler" / "AGENT.yaml",
+    ],
+)
+def test_builtin_agents_declare_api_tools_for_sidecar_capabilities(agent_yaml: Path) -> None:
+    """#321 后 capabilities.json 不再注入工具；AGENT.yaml 必须显式声明 kind:api。"""
+    valid, violations, _ = validate_agent_bundle(agent_yaml)
+    assert valid, f"{agent_yaml.parent.name} 应通过 sidecar/tool/OpenAPI 一致性校验：{violations}"
+
+
+def test_validate_rejects_sidecar_tools_without_declared_api_tools(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    agent_dir.mkdir()
+    (agent_dir / "AGENT.yaml").write_text(
+        """
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: bad-builtin
+  name: Bad Builtin
+  version: 1.0.0
+  trust_level: platform
+model:
+  provider: openai_compatible
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
+memory:
+  enabled: false
+tools: []
+""".strip(),
+        encoding="utf-8",
+    )
+    (agent_dir / "capabilities.json").write_text(
+        json.dumps(
+            {
+                "runtime_spec_version": "anp-agent/v1.2",
+                "trust_level": "platform",
+                "source_type": "builtin",
+                "auth_mode": "trusted_gateway",
+                "tenant_id": "sd-default",
+                "context_policy": "regulated_minimal",
+                "capability_tools": [
+                    {
+                        "skill_id": "data.search",
+                        "name": "data_search",
+                        "description": "只读检索",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    valid, violations, _ = validate_agent_bundle(agent_dir / "AGENT.yaml")
+
+    assert not valid
+    assert any("kind:api" in item and "data_search" in item for item in violations)
 
 
 def test_validate_rejects_bad_external_with_real_violations() -> None:

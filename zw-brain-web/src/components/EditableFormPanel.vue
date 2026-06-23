@@ -2,7 +2,7 @@
 /** 表单填报可编辑面板（form-autofill）：四态渲染 + 人原地修订（改即锁）+ 枚举带出。
  *
  *  - 待填(empty)        → 普通输入框，灰 pill「待填写」
- *  - AI建议(ai_suggested)→ 琥珀输入框，橙 pill「AI建议·待确认」（人手动提交=担责）
+ *  - 补全建议(ai_suggested)→ 琥珀输入框，橙 pill「建议待确认」（人手动提交=担责）
  *  - 自动带出(derived)   → 只读，蓝 pill「自动带出」（派生权威，不可手填）
  *  - 已填(human)        → 输入框，绿 pill「已填写」+ 锁标（此后 autofill/AI 不覆盖）
  *
@@ -54,6 +54,11 @@ function isMultiline(f: FormField): boolean {
   return f.kind === 'text' && MULTILINE_KEYS.has(f.key);
 }
 
+function displayStateLabel(f: FormField): string {
+  if (f.source === 'ai_suggested') return '建议待确认';
+  return f.stateLabel;
+}
+
 onMounted(async () => {
   // 枚举字段 options（pub_dict 字典带出）；机构/区划选项由 ReferencePicker 自取（搜索/下钻）。
   for (const f of fields.value) {
@@ -74,9 +79,14 @@ async function aiSuggest(): Promise<void> {
     const next = await aiSuggestDraft(props.requestId, productRole.value);
     if (next.length) fields.value = next.map((f) => ({ ...f }));
     invalidateSnapshot();
-    pushToast({ kind: 'ok', title: 'AI 已给出建议', detail: '空字段已填入「AI建议·待确认」，请逐项核对修订后再提交。' });
+    const pending = fields.value.filter((f) => f.source === 'ai_suggested').length;
+    if (pending) {
+      pushToast({ kind: 'ok', title: '已给出补全建议', detail: '空字段已填入「建议待确认」，请逐项核对修订后再提交。' });
+    } else {
+      pushToast({ kind: 'info', title: '暂无可补全字段', detail: '可补全字段已经填写或自动带出，请直接核对提交。' });
+    }
   } catch (e) {
-    pushToast({ kind: 'error', title: 'AI 建议失败', detail: String(e) });
+    pushToast({ kind: 'error', title: '补全建议失败', detail: String(e) });
   } finally {
     aiSuggesting.value = false;
   }
@@ -105,7 +115,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
       <div>
         <h2 class="detail-block-title">申请表单</h2>
         <p class="detail-block-sub">
-          字段已自动带出，逐项核对修订即可（改过即锁定）；空字段可用 AI 建议填充，确认后再提交。
+          字段已自动带出，逐项核对修订即可（改过即锁定）；空字段可用补全建议，确认后再提交。
         </p>
       </div>
       <button
@@ -115,7 +125,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
         :disabled="aiSuggesting"
         @click="aiSuggest"
       >
-        {{ aiSuggesting ? 'AI 生成中…' : '✨ AI 建议填充' }}
+        {{ aiSuggesting ? '生成中…' : '补全建议' }}
       </button>
     </header>
     <dl class="detail-list ff-list">
@@ -189,7 +199,7 @@ async function commit(field: FormField, raw: string): Promise<void> {
             />
           </template>
           <span class="ff-pill" :class="sourceTone(f.source)" :data-testid="`ff-pill-${f.key}`">
-            {{ f.stateLabel }}
+            {{ displayStateLabel(f) }}
           </span>
           <span v-if="f.locked" class="ff-lock" title="人工填写已锁定">🔒</span>
           </div>

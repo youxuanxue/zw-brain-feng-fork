@@ -1,7 +1,7 @@
 {
   "slug": "search.intent.parse",
   "title": "P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由）",
-  "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。推理走集团推理平台统一通道；推理失败时回落本地规则解析（degraded=true）。可由调用方传 enabled=false 关闭。",
+  "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。可由调用方传 enabled=false 标记关闭。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -80,7 +80,7 @@
       },
       "degraded": {
         "type": "boolean",
-        "description": "true 表示本次推理失败回落到本地规则"
+        "description": "兼容旧客户端的可选字段；当前 zw-brain 本地规则路径不设置。"
       }
     }
   },

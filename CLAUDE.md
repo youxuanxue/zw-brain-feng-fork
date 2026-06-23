@@ -83,7 +83,7 @@
 
 ### 现行硬约束速查（per-session，均已 preflight 机械化）
 
-- 所有模型服务调用（LLM/Embedding/ASR/Rerank/OCR）只走集团推理平台；连接变量只读 `ZW_BRAIN_INFERENCE_*`，禁 `INSPUR_INFERENCE_*` / `AUTH_TOKEN` / 裸 `BASE_URL`/`MODEL` 兜底（D6/D36，段 10/56）
+- 所有模型服务调用（LLM/Embedding/ASR/Rerank/OCR）只由独立 AgentRuntime 服务经集团推理平台承载；zw-brain 进程内禁推理 SDK/env，连接变量只在 AR 服务侧读取 `OPENAI_COMPATIBLE_BASE_URL` / `OPENAI_COMPATIBLE_API_KEY` / `AGENT_RUNTIME_DEFAULT_MODEL`，禁 `INSPUR_INFERENCE_*` / `AUTH_TOKEN` / 裸 `BASE_URL`/`MODEL` 兜底（D6/D36/D68，段 10/56/78）
 - `zw_brain/` 内禁新增含 `skill` 的标识符——能力本体统一叫 capability；白名单 API surface 除外（D33，段 22 + check_no_skill_identifier）
 - 写库 token（add/commit/merge/delete/裸 SQL DML）仅允许在 `zw_brain/adapters/legacy/`，其余皆禁（§9.5，段 25）
 - UI 文本禁工程术语（R12，段 24）

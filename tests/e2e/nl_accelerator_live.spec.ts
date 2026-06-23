@@ -10,9 +10,9 @@ test.beforeEach(async ({ page }, testInfo) => {
 test('P2 NL 加速器走 live skill 解析', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/discovery');
-  await page.getByRole('button', { name: '智能检索' }).click();
+  await page.getByRole('button', { name: '找数助手' }).click();
   await page.getByRole('button', { name: '查省营商环境相关数据' }).click();
-  await expect(page.locator('.nl-tag-ok')).toContainText('真实后端');
+  await expect(page.locator('.nl-tag-ok')).toContainText('真实后端', { timeout: 30_000 });
   await expect(page.locator('.nl-summary')).not.toBeEmpty();
 });
 

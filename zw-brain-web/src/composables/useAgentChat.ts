@@ -42,20 +42,34 @@ interface AgentRuntimeTaskResponse {
 
 function formatFinalOutput(raw: unknown): string {
   if (raw == null) return '（无回复内容）';
-  if (typeof raw === 'string') return raw.trim() || '（无回复内容）';
+  if (typeof raw === 'string') return sanitizeAssistantText(raw.trim() || '（无回复内容）');
   if (typeof raw === 'object') {
     const obj = raw as Record<string, unknown>;
     for (const key of ['text', 'message', 'content', 'answer', 'final_output']) {
       const val = obj[key];
-      if (typeof val === 'string' && val.trim()) return val.trim();
+      if (typeof val === 'string' && val.trim()) return sanitizeAssistantText(val.trim());
     }
     try {
-      return JSON.stringify(raw, null, 2);
+      return sanitizeAssistantText(JSON.stringify(raw, null, 2));
     } catch {
-      return String(raw);
+      return sanitizeAssistantText(String(raw));
     }
   }
-  return String(raw);
+  return sanitizeAssistantText(String(raw));
+}
+
+export function sanitizeAssistantText(text: string): string {
+  return text
+    .replace(/\bAgentRuntime\s+unreachable\b/gi, '智能问答服务暂不可用')
+    .replace(/\bagent[_-]?runtime[_-]?unreachable\b/gi, '智能问答服务暂不可用')
+    .replace(/\bagent[_-]?runtime[_-]?disabled\b/gi, '智能问答未启用')
+    .replace(/\bagent[_-]?runtime[_-]?not[_-]?found\b/gi, '智能问答助手不存在')
+    .replace(/\bAgentRuntime\b/g, '智能问答服务')
+    .replace(/\bAgent Runtime\b/g, '智能问答服务')
+    .replace(/平台指南\s*Agent/g, '平台指南')
+    .replace(/Agent\s*列表接口/g, '助手列表接口')
+    .replace(/可用的\s*Agent/g, '可用助手')
+    .replace(/等\s*Agent/g, '等助手');
 }
 
 export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
@@ -188,7 +202,7 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
       if (cancelled) return; // 组件已卸载：不要把结果写进游离的 messages ref
       handleTerminal(finalBody);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
+      const msg = sanitizeAssistantText(e instanceof Error ? e.message : String(e));
       logError(`ask() 失败: ${msg}`);
       error.value = msg;
       messages.value.push({ role: 'assistant', text: `暂时无法回答：${msg}` });

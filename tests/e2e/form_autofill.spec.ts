@@ -3,7 +3,7 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from
 
 /**
  * 表单填报（form-autofill）真 UI 守卫：草稿详情渲染可编辑申请表单，
- * 字段带 provenance 四态（待填/AI建议·待确认/自动带出只读/已填锁定），
+ * 字段带 provenance 四态（待填/建议待确认/自动带出只读/已填锁定），
  * 人原地修订后该字段转「已填写」并锁定（此后自动填充/AI 不再覆盖）。
  *
  * 端到端链路：资源详情「发起复用申请」→ 直达草稿详情 → 申请表单面板 →
@@ -96,11 +96,13 @@ test.describe('表单填报 · 自动填充 + 原地修订锁定', () => {
     await expect(page.locator('[data-testid="ff-region_code-list"] .rp-item').first()).toBeVisible({ timeout: 8_000 });
     await page.locator('.rp-backdrop').click({ position: { x: 5, y: 5 } }); // 点遮罩角落关闭 picker（中心可能被向下展开的弹层覆盖）
 
-    // AI 建议填充：点按钮 → 空可建议字段转「AI建议·待确认」；人填的 purpose 不被覆盖；草稿不自动提交。
+    // 补全建议：点按钮 → 空可建议字段转「建议待确认」；人填的 purpose 不被覆盖；草稿不自动提交。
     const aiBtn = panel.locator('[data-testid="ff-ai-suggest"]');
     await expect(aiBtn).toBeVisible();
+    await expect(aiBtn).toHaveText('补全建议');
     await aiBtn.click();
     await expect(panel.locator('.ff-pill.ff-ai').first()).toBeVisible({ timeout: 10_000 });
+    await expect(panel.locator('.ff-pill.ff-ai').first()).toHaveText(/建议待确认/);
     await expect(purposePill).toHaveText(/已填写/); // 人填字段仍锁定，未被 AI 覆盖
   });
 });

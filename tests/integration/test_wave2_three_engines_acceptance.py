@@ -44,19 +44,10 @@ def _acceptance_dir() -> None:
 
 
 def _new_brain():
-    import zw_brain.domain.approval_flow_nl_draft as af_nl
-    import zw_brain.domain.form_schema_nl_draft as fs_nl
     from zw_brain.command.brain import BrainService
     from zw_brain.shared import audit as audit_bus
     from zw_brain.shared.database_store import DatabaseStore
-    from zw_brain.shared.inference.client import InferenceError
     from zw_brain.shared.state_store import StateStore
-
-    def _raising(*a, **k):
-        raise InferenceError("F8 acceptance — LLM unavailable, use deterministic")
-
-    af_nl._inference_chat = _raising  # type: ignore
-    fs_nl._inference_chat = _raising  # type: ignore
 
     ds = DatabaseStore()
     ss = StateStore(database_store=ds)
@@ -477,8 +468,8 @@ def test_three_engines_consolidated_acceptance() -> None:
         "- **E1 J1 后续 refactor 契约**：F2 提供的 `start_approval_workflow_from_baseline` hook",
         "  需在 E1 application.submit handler 正式接管时保留调用契约（baseline 路径 vs",
         "  legacy upsert_from_request_and_approval 路径并行存在，以 #baseline 后缀避免冲突）。",
-        "- **AgentRuntime + 三引擎 NL 草稿 LLM 真路径**：本期 LLM 未配凭证，e2e 都走",
-        "  deterministic 兜底；接入集团推理平台后需在 staging 验真 LLM Tier 2 路径。",
+        "- **AgentRuntime + 三引擎 NL 草稿**：zw-brain 不持有推理 SDK/env，e2e 固化为",
+        "  deterministic 草稿链路；模型增强如需恢复，必须放到独立 AgentRuntime 服务侧。",
         "",
         "## § 5 1 周硬上限",
         "",

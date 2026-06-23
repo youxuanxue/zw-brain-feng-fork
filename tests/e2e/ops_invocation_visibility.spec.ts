@@ -29,6 +29,11 @@ import {
 
 type APIRequestContext = import('@playwright/test').APIRequestContext;
 
+async function expectCredentialPage(page: import('@playwright/test').Page, reqId: string): Promise<void> {
+  await expect(page.getByRole('heading', { name: /凭据/ })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText(new RegExp(`编号\\s+.*${reqId.slice(-6)}`))).toBeVisible();
+}
+
 /**
  * 走真实 J1 流程铸一个已签发凭据的新单，返回 request_id（失败返 null → 测试 skip 不伪绿）。
  * 必须用**无浏览器 session cookie** 的独立 APIRequestContext：带 cookie 的 page.request POST
@@ -104,8 +109,6 @@ test.describe('ops-service-invocation 调用记录段 no-permission=invisible', 
     }
     test.skip(!reqId, 'could not mint an issued credential via the real J1 flow');
 
-    const credHeading = new RegExp(`${reqId}.*凭据`);
-
     const shotDir = process.env.ZW_E2E_SHOT_DIR || '/tmp/zw-e2e-shots';
 
     // 授权岗位（部门管理员）：凭据页 + 「调用记录」段渲染。D55/P13·P18（反转 D53/F1）：领数据/凭据页
@@ -113,7 +116,7 @@ test.describe('ops-service-invocation 调用记录段 no-permission=invisible', 
     // 同时具备 ops.service.invocation.query（部门操作员后端 403）→ 唯一同时能进页 + 看「调用记录」段。
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
+    await expectCredentialPage(page, reqId);
     await expect(page.getByRole('heading', { name: '调用记录' })).toBeVisible({ timeout: 10_000 });
     await page.screenshot({ path: `${shotDir}/ops-invocations-MANAGER-visible.png`, fullPage: true });
 
@@ -121,13 +124,13 @@ test.describe('ops-service-invocation 调用记录段 no-permission=invisible', 
     // 「调用记录」段须从 DOM 消失（段级 no-permission=invisible，非「可见但内含 403」）。
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: credHeading })).toBeVisible();
+    await expectCredentialPage(page, reqId);
     await expect(page.getByRole('heading', { name: '调用记录' })).toHaveCount(0);
     await page.screenshot({ path: `${shotDir}/ops-invocations-OPERATER-section-invisible.png`, fullPage: true });
 
     // 安全审计员 SECURITY_AUDIT：D55/P18 退出领数据 → 凭据页整体路由层不可达（页级 no-permission=invisible）。
     await setRole(page, 'ROLE_SECURITY_AUDIT');
     await gotoHash(page, `#/delivery-exchange/credential/${reqId}`);
-    await expect(page.getByRole('heading', { name: credHeading })).toHaveCount(0);
+    await expect(page.getByText(new RegExp(`编号\\s+.*${reqId.slice(-6)}`))).toHaveCount(0);
   });
 });

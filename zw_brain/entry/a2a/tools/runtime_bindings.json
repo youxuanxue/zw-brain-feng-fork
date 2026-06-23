@@ -97,7 +97,7 @@
   },
   {
     "tool_name": "assistant.investigation_summary",
-    "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后送集团推理平台生成调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id 在送推理前 hash 化；payload 敏感字段一律脱敏。所有推理调用必须走 shared/inference/client（D6 + D14）。",
+    "description": "把 B1.1 statistics / anomaly / accountability panel 输出脱敏后生成本地规则调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id/request_id 等敏感字段 hash 化，zw-brain 主进程不持有推理平台 SDK/env。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/assistant.investigation_summary",
     "parameters_schema": {
@@ -3215,7 +3215,7 @@
   },
   {
     "tool_name": "application.draft.suggest",
-    "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+    "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/application.draft.suggest",
     "parameters_schema": {
@@ -3817,7 +3817,7 @@
   },
   {
     "tool_name": "approval.evidence.summarize",
-    "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+    "description": "P3 审批页减摩组件。输入待审申请 id，归纳支持依据 / 反事实因素 / 推荐审批结论 (approve|return_for_fix|reject)。仅作辅助提示，绝不调用审批决策接口。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/approval.evidence.summarize",
     "parameters_schema": {
@@ -3928,7 +3928,7 @@
   },
   {
     "tool_name": "approval_flow.nl_draft",
-    "description": "管理员一句话描述审批流程意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+    "description": "管理员一句话描述审批流程意向 → 通过本地确定性规则生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/approval_flow.nl_draft",
     "parameters_schema": {
@@ -3964,8 +3964,7 @@
       "mode": "write",
       "side_effects": [
         "audit",
-        "db_write",
-        "external_inference"
+        "db_write"
       ],
       "human_confirmation_required": false,
       "audit_required": true,
@@ -6043,7 +6042,7 @@
   },
   {
     "tool_name": "delivery.status.explain",
-    "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+    "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/delivery.status.explain",
     "parameters_schema": {
@@ -6386,7 +6385,7 @@
   },
   {
     "tool_name": "form_schema.nl_draft",
-    "description": "管理员一句话描述表单字段意向 → 经集团推理平台生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
+    "description": "管理员一句话描述表单字段意向 → 通过本地确定性规则生成 schema 草稿入 draft 态；不自动入库，须经 promote→commit 三步流程。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/form_schema.nl_draft",
     "parameters_schema": {
@@ -6422,8 +6421,7 @@
       "mode": "write",
       "side_effects": [
         "audit",
-        "db_write",
-        "external_inference"
+        "db_write"
       ],
       "human_confirmation_required": false,
       "audit_required": true,
@@ -10242,7 +10240,7 @@
   },
   {
     "tool_name": "search.intent.parse",
-    "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。推理走集团推理平台统一通道；推理失败时回落本地规则解析（degraded=true）。可由调用方传 enabled=false 关闭。",
+    "description": "P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。可由调用方传 enabled=false 标记关闭。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/search.intent.parse",
     "parameters_schema": {

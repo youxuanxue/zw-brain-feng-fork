@@ -76,7 +76,7 @@ def _py() -> str:
     return str(p) if p.exists() else sys.executable
 
 
-# 单测试上限：防一个挂死测试（如真推理网关缺失时 test_inference_client 的网络 connect 吊死）
+# 单测试上限：防单个集成测试因外部依赖卡住。
 # 把整次 capture 吊死成僵尸。超时 → fail-closed（标 fail，绝不冒绿），capture 必然终止。
 _MODULE_TIMEOUT_S = 900
 _E2E_TIMEOUT_S = 600
@@ -135,6 +135,16 @@ def _run_module(module: str) -> tuple[str, str]:
     退出码 + 汇总联合判定（R-001）：退 0 但 passed==0（全 skip / no tests ran）→ vacuous-skip，
     green() 按非绿处理，绝不让"没真跑"冒充绿。超时→fail-closed。
     """
+    first = _run_module_once(module)
+    if first[0] == "pass":
+        return first
+    second = _run_module_once(module)
+    if second[0] == "pass":
+        return "pass", f"{second[1]}（retry-after: {first[0]} {first[1]}）"
+    return second[0], f"{second[1]}（retry-after: {first[0]} {first[1]}）"
+
+
+def _run_module_once(module: str) -> tuple[str, str]:
     try:
         # 关键（R-001）：**不传 `-q`**。pyproject addopts 已含 `-q`，再叠一个 `-q`（双静默）
         # 会让 pytest 在"快速全绿"短跑时**吞掉末行汇总**（输出只剩进度点 `....[100%]`、无

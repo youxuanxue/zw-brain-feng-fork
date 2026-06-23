@@ -178,7 +178,7 @@ def test_infra_audit_event_full_field_set():
 
 
 # ======================================================================
-# infra-inference-gateway —— 模型调用收口集团推理平台（D6/D14）
+# infra-inference-boundary —— zw-brain 不持有推理 SDK/env（D68）
 # ======================================================================
 
 def test_infra_inference_no_direct_llm_check_passes():
@@ -193,36 +193,21 @@ def test_infra_inference_no_direct_llm_check_passes():
     assert proc.returncode == 0, f"检测到直连第三方 LLM:\n{proc.stdout}\n{proc.stderr}"
 
 
-def test_infra_inference_single_client_egress():
-    """模型调用唯一出口文件存在且唯一（确定性自动化运营和运维单一文件入口）."""
-    from scripts.check_no_direct_llm import BLACKLIST_HOSTS
-
-    client = REPO_ROOT / "zw_brain" / "shared" / "inference" / "client.py"
-    assert client.is_file()
-    text = client.read_text(encoding="utf-8")
-    # 出口只走可配置 base_url，不内嵌任何第三方 host 字面量（host 集合从守卫脚本派生，
-    # 避免本测试源码自身出现黑名单字面量触发 check_no_direct_llm 自扫）
-    for host in BLACKLIST_HOSTS:
-        assert host not in text, f"client.py 不应内嵌第三方 host {host}"
+def test_infra_inference_client_package_removed():
+    """旧 shared/inference client 已退役；模型出口只属于独立 AgentRuntime 服务。"""
+    assert not (REPO_ROOT / "zw_brain" / "shared" / "inference" / "client.py").exists()
+    assert not (REPO_ROOT / "zw_brain" / "shared" / "inference" / "__init__.py").exists()
 
 
-def test_infra_inference_requires_request_id_for_audit_trail():
-    """chat 必须携带 request_id（D4 审计可关联），否则 InferenceError."""
-    from zw_brain.shared.inference.client import ChatMessage, InferenceClient, InferenceError
-
-    client = InferenceClient(base_url="http://gateway.internal", api_key="t", model="qwen-7b")
-    with pytest.raises(InferenceError):
-        client.chat([ChatMessage(role="user", content="hi")], model="qwen-7b", request_id=None)
-
-
-def test_infra_inference_requires_platform_config_not_third_party(monkeypatch: pytest.MonkeyPatch):
-    """未配置 gateway base_url 时 raise，绝不回退直连第三方."""
-    from zw_brain.shared.inference.client import ChatMessage, InferenceClient, InferenceError
-
-    monkeypatch.delenv("ZW_BRAIN_INFERENCE_MODE", raising=False)
-    client = InferenceClient(base_url="", api_key="", model="qwen-7b", mode="platform")
-    with pytest.raises(InferenceError):
-        client.chat([ChatMessage(role="user", content="hi")], model="qwen-7b", request_id="REQ-1")
+def test_infra_zw_brain_inference_env_guard_passes():
+    proc = subprocess.run(
+        [sys.executable, str(REPO_ROOT / "scripts" / "check_no_zw_brain_inference_env.py")],
+        cwd=str(REPO_ROOT),
+        capture_output=True,
+        text=True,
+        timeout=120,
+    )
+    assert proc.returncode == 0, proc.stdout + proc.stderr
 
 
 @pytest.mark.skip(reason="circuit-breaker 降级（AI 减摩点 fallback）+ 提示词注入系统前缀属业务侧 AI "
@@ -356,13 +341,12 @@ def test_start_local_prints_no_proxy_tip_when_proxy_env_set():
     assert "http_proxy" in script or "HTTP_PROXY" in script
 
 
-def test_start_local_defaults_inference_mock_and_documents_mode():
-    """F2：start-local 在 REST 启动前默认 ZW_BRAIN_INFERENCE_MODE=mock 并打印说明。"""
+def test_start_local_does_not_inject_inference_env_into_rest():
+    """D68：start-local 不再给 zw-brain REST 默认注入推理环境。"""
     script = (REPO_ROOT / "scripts" / "start-local.sh").read_text(encoding="utf-8")
-    assert "ZW_BRAIN_INFERENCE_MODE=mock" in script
-    assert "ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE}" in script
-    assert "ZW_BRAIN_INFERENCE_GATEWAY_URL" in script
-    # mock 须在 start_rest 调用之前 export（函数定义行 start_rest() 不算）
-    mock_block = script.find('if [[ -z "${ZW_BRAIN_INFERENCE_MODE:-}" ]]; then')
+    assert "ZW_BRAIN_INFERENCE_MODE=mock" not in script
+    assert "ZW_BRAIN_INFERENCE_MODE=${ZW_BRAIN_INFERENCE_MODE}" not in script
+    assert "zw-brain REST does not load inference SDK/env" in script
+    service_block = script.find('if [[ "$AR_LOCAL_SWITCH" == "http" ]]; then')
     start_call = script.find("\nstart_rest\n")
-    assert mock_block != -1 and start_call != -1 and mock_block < start_call
+    assert service_block != -1 and start_call != -1 and service_block < start_call

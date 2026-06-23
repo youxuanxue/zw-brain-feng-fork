@@ -16,7 +16,7 @@ metadata:
     journey: infra
 model:
   provider: openai_compatible
-  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
   temperature: 0.1
   max_tokens: 6000
 instructions: |
@@ -44,4 +44,14 @@ memory:
 limits:
   # 单次 Task 最多调用 10 次工具，防止 LLM 在无法给出满意回答时无限循环调用工具。
   max_tool_calls: 10
-tools: []
+# D68 单一模型：内置 Agent 也只在独立 AgentRuntime 进程中运行。
+# capabilities.json 是 zw-brain 侧车声明；AR 真正可执行的工具必须在 AGENT.yaml 中显式声明为 kind:api。
+tools:
+  - kind: api
+    name: platform_docs_search
+    description: 在 zw-brain 项目文档中按关键词检索，返回路径、标题与摘要（只读）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+  - kind: api
+    name: platform_docs_read
+    description: 读取指定相对路径的 Markdown 文档正文（只读）。
+    spec_url: ./zw-brain-capabilities.openapi.yaml

@@ -40,22 +40,10 @@ def _expected_actor_prefix() -> str:
     return f"user:gov:{CONFIG_ROLE}:"
 
 
-def _disable_inference(monkeypatch, module) -> None:
-    from zw_brain.shared.inference.client import InferenceError
-
-    monkeypatch.setattr(
-        module,
-        "_inference_chat",
-        lambda *a, **k: (_ for _ in ()).throw(InferenceError("test mock")),
-    )
-
-
-def test_approval_flow_nl_draft_created_by_from_actor_not_payload(monkeypatch):
-    import zw_brain.domain.approval_flow_nl_draft as nl
+def test_approval_flow_nl_draft_created_by_from_actor_not_payload():
     from zw_brain.domain.approval_flow_schema import ApprovalFlowSchemaRepo
     from zw_brain.shared.db import create_session_factory
 
-    _disable_inference(monkeypatch, nl)
     brain, audit_bus, _ = _new_brain()
     try:
         result = invoke_trusted(
@@ -90,13 +78,11 @@ def test_approval_flow_nl_draft_created_by_from_actor_not_payload(monkeypatch):
     )
 
 
-def test_approval_flow_nl_draft_no_created_by_in_payload_ok(monkeypatch):
+def test_approval_flow_nl_draft_no_created_by_in_payload_ok():
     """payload 完全不带 created_by 也应成功——出处不再是必填客户端字段。"""
-    import zw_brain.domain.approval_flow_nl_draft as nl
     from zw_brain.domain.approval_flow_schema import ApprovalFlowSchemaRepo
     from zw_brain.shared.db import create_session_factory
 
-    _disable_inference(monkeypatch, nl)
     brain, audit_bus, _ = _new_brain()
     try:
         result = invoke_trusted(
@@ -121,12 +107,10 @@ def test_approval_flow_nl_draft_no_created_by_in_payload_ok(monkeypatch):
     assert record.created_by.startswith(_expected_actor_prefix())
 
 
-def test_form_schema_nl_draft_created_by_from_actor_not_payload(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
+def test_form_schema_nl_draft_created_by_from_actor_not_payload():
     from zw_brain.domain.form_schema import FormSchemaRepo
     from zw_brain.shared.db import create_session_factory
 
-    _disable_inference(monkeypatch, nl)
     brain, audit_bus, _ = _new_brain()
     try:
         result = invoke_trusted(
@@ -156,12 +140,10 @@ def test_form_schema_nl_draft_created_by_from_actor_not_payload(monkeypatch):
     )
 
 
-def test_form_schema_nl_draft_no_created_by_in_payload_ok(monkeypatch):
-    import zw_brain.domain.form_schema_nl_draft as nl
+def test_form_schema_nl_draft_no_created_by_in_payload_ok():
     from zw_brain.domain.form_schema import FormSchemaRepo
     from zw_brain.shared.db import create_session_factory
 
-    _disable_inference(monkeypatch, nl)
     brain, audit_bus, _ = _new_brain()
     try:
         result = invoke_trusted(

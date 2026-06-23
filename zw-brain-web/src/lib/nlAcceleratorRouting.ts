@@ -83,16 +83,16 @@ function buildP2SearchAction(searchQ: string, rawQuery: string): StructuredActio
   };
 }
 
-// 智能解析失败时的优雅降级：search.intent.parse 只是「意图增强」，搜索本身不依赖它。
+// 找数助手失败时的优雅降级：search.intent.parse 只是「意图增强」，搜索本身不依赖它。
 // 当前岗位无该 cap（403）或调用本身失败时，不再把任何错误统统报「解析未命中」，而是
 // 直接用用户原始输入产出一个可执行的关键词搜索动作（搜索面始终可用）。403 额外给出
-// 「当前岗位无智能检索增强」的诚实提示，区分「无权限」与「真的没解析出动作」。
+// 「当前岗位无找数助手增强」的诚实提示，区分「无权限」与「真的没解析出动作」。
 function degradeP2(query: string, isForbidden: boolean): NLAcceleratorParseResult {
   const raw = query.trim();
   const action = buildP2SearchAction(raw, query);
   const actions = action ? [action] : [];
   const summary = isForbidden
-    ? `当前岗位无「智能检索」增强能力；已按关键词「${raw || '（空）'}」直接搜索。`
+    ? `当前岗位无「找数助手」增强能力；已按关键词「${raw || '（空）'}」直接搜索。`
     : `智能解析暂不可用；已按关键词「${raw || '（空）'}」直接搜索。`;
   return {
     summary,
@@ -295,7 +295,7 @@ async function parseP3(query: string, role: string): Promise<NLAcceleratorParseR
   const actions: StructuredAction[] = [];
   // 去掉「预填申请草拟字段」假动作：它只有 inferResourceName 字符串猜的资源名、无 resource_id，
   // request.create 调不动；旧 consumeNLAction 只弹「已应用」却什么都没填（撒谎 toast）。真预填是
-  // 草稿表单内「✨ AI 建议填充」按钮（request.draft.ai_suggest）。此处仅留 summary（reasoning+风险带）
+  // 草稿表单内「补全建议」按钮（request.draft.ai_suggest）。此处仅留 summary（reasoning+风险带）
   // 与缺口提示，NL 面板回归诚实——只摘要、不假装已预填。
   if (draft.missing_fields?.length) {
     actions.push({

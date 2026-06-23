@@ -10,7 +10,6 @@
 """
 from __future__ import annotations
 
-import os
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
@@ -139,7 +138,6 @@ INSERT INTO `role_mapping_manifest` VALUES \
 def _bootstrap(tmp: Path) -> GovernanceProjectionRepository:
     # The autouse conftest fixture supplies a fresh, migrated per-test PG clone; the
     # temp dir below is only the on-disk staging area for the legacy dump file.
-    os.environ.setdefault("ZW_BRAIN_INFERENCE_MODE", "mock")
     ensure_runtime_schema()
     audit_bus.configure_sink(DatabaseStore().append_audit_event)
     return GovernanceProjectionRepository()

@@ -1,7 +1,7 @@
 {
   "slug": "delivery.status.explain",
   "title": "P4 交付状态解释助手（阶段 / 异常原因 / 影响范围）",
-  "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。推理走集团推理平台统一通道；推理失败时回落本地规则。",
+  "description": "P4 交付任务详情页减摩组件。输入交付任务 id（delivery_code 或 application_code），输出当前阶段语义解释、异常原因、影响范围与责任归属。证据基于交付任务字段；仅解释不评价。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -69,7 +69,8 @@
         "type": "boolean"
       },
       "degraded": {
-        "type": "boolean"
+        "type": "boolean",
+        "description": "兼容旧客户端的可选字段；当前 zw-brain 本地规则路径不设置。"
       },
       "status": {
         "type": "string",

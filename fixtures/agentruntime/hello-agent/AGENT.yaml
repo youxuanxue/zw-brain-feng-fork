@@ -9,9 +9,9 @@ metadata:
   version: "1.0.0"
   trust_level: verified
 model:
-  provider: openai_compatible        # 指向集团推理平台 gateway（D6）
-  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
-  base_url_env: ZW_BRAIN_INFERENCE_GATEWAY_URL
+  provider: openai_compatible        # 独立 AgentRuntime 服务侧指向集团推理平台 gateway（D6/D68）
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
+  base_url_env: OPENAI_COMPATIBLE_BASE_URL
   temperature: 0.2
   max_tokens: 4000
 auth:

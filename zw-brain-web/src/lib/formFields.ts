@@ -1,7 +1,7 @@
 /** 表单填报字段（form-autofill）：类型 + 能力调用 + provenance 视觉映射。
  *
  * 后端 request.create 把可编辑字段装配进 request.formFields（每字段带来源/锁定/状态），
- * 前端 EditableFormPanel 据此渲染四态：待填 / AI建议·待确认 / 自动带出(只读) / 已填(锁定)。
+ * 前端 EditableFormPanel 据此渲染四态：待填 / 建议待确认 / 自动带出(只读) / 已填(锁定)。
  * 人原地修订 → request.field.update（标 human+locked，此后 autofill/AI 不覆盖、并重跑派生）。
  * 选择器 options → reference.{organ,region,dict}.options（只读带出）。
  */
@@ -54,7 +54,7 @@ export async function updateField(requestId: string, field: string, value: strin
   return unwrap(env).formFields ?? [];
 }
 
-/** 对草稿空字段生成 AI 建议（标 ai_suggested·待确认）→ 返回最新 formFields。永不自动提交。 */
+/** 对草稿空字段生成补全建议（标 ai_suggested·待确认）→ 返回最新 formFields。永不自动提交。 */
 export async function aiSuggestDraft(requestId: string, role?: string): Promise<FormField[]> {
   const env = await postSkill<SkillEnvelope<{ formFields: FormField[] }>>('request.draft.ai_suggest', {
     request_id: requestId,

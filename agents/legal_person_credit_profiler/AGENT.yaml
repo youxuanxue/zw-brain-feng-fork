@@ -18,7 +18,7 @@ metadata:
     surface: data-app         # 数据应用：独立目的地，进【数据应用】画廊
 model:
   provider: openai_compatible
-  model: ${env:ZW_BRAIN_INFERENCE_MODEL}
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
   temperature: 0.2
   max_tokens: 4000
 instructions: |
@@ -42,6 +42,18 @@ memory:
 limits:
   # 硬上限 6 次：研判求快，防 LLM 逐条目录编码穷举导致单次 >1 分钟（实测过度编排根因）。
   max_tool_calls: 6
-# 真实工具列表来自 capabilities.json（capability_tools），由 ZwBrainCapabilityProvider
-# 在 Embedded Runtime 启动时通过 dynamic_capability_providers 注入；本字段保持为空。
-tools: []
+# D68 单一模型：内置 Agent 也只在独立 AgentRuntime 进程中运行。
+# capabilities.json 是 zw-brain 侧车声明；AR 真正可执行的工具必须在 AGENT.yaml 中显式声明为 kind:api。
+tools:
+  - kind: api
+    name: data_search
+    description: 按关键词检索已编目共享数据资源（含法人库群体画像目录、行业基准目录），只读。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+  - kind: api
+    name: catalog_entry_query
+    description: 查询已编目目录条目（企业登记 / 法人画像类目录条目），只读。
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+  - kind: api
+    name: catalog_item_query
+    description: 查询目录项字段映射（失信 / 黑名单 / 经营异常 / 纳税信用等级 / 参保数 / 注册资本等只读标签），只读。
+    spec_url: ./zw-brain-capabilities.openapi.yaml

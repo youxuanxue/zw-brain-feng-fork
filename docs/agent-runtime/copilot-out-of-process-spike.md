@@ -51,7 +51,7 @@ metadata:
   exposes_chat: false          # 逐 agent 显式
 model:
   provider: openai_compatible
-  model: ${env:ZW_BRAIN_INFERENCE_MODEL}   # 经 ZW_BRAIN_INFERENCE_* 网关（硬约束 段10）
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}   # AR 服务侧经 OPENAI_COMPATIBLE_* 网关（硬约束 段10/78）
 tools:
   - kind: api
     name: data_search

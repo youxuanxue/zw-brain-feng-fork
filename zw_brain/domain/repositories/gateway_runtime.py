@@ -12,7 +12,13 @@ from zw_brain.shared.sanitization import summary_with_source_kind
 
 
 def _now() -> datetime:
-    return datetime.now(UTC)
+    return _utc_naive(datetime.now(UTC))
+
+
+def _utc_naive(value: datetime) -> datetime:
+    if value.tzinfo is not None:
+        return value.astimezone(UTC).replace(tzinfo=None)
+    return value
 
 
 class GatewayRuntimeRepository:
@@ -44,6 +50,8 @@ class GatewayRuntimeRepository:
             reported_at = datetime.fromisoformat(reported_at.replace("Z", "+00:00"))
         if reported_at is None:
             reported_at = _now()
+        else:
+            reported_at = _utc_naive(reported_at)
         now = _now()
         summary_json = summary_with_source_kind(payload.get("summary_json"), payload.get("source_ref"))
         with SessionLocal() as session:

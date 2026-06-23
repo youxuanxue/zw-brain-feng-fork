@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// Bug3 回归：智能检索「解析未命中」根因 = P2 NL 加速器对无权限岗位（search.intent.parse
+// Bug3 回归：找数助手「解析未命中」根因 = P2 NL 加速器对无权限岗位（search.intent.parse
 // 返 403）/ 任意调用失败，把错误统统冒泡成 parse_status:'pending'（前端文案「解析未命中」）。
 // 修复后 parseP2 try/catch 优雅降级到纯关键词搜索动作（搜索本身不依赖意图增强），
-// 403 额外给「当前岗位无智能检索增强」诚实提示。本 spec 通过 mock postSkill 锁定该行为。
+// 403 额外给「当前岗位无找数助手增强」诚实提示。本 spec 通过 mock postSkill 锁定该行为。
 
 const postSkillMock = vi.fn();
 vi.mock('@/composables/useApiClient', () => ({

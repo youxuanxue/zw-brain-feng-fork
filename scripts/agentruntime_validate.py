@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Validate zw-brain embedded Agent manifest (AGENT.yaml + capabilities.json)."""
+"""Validate zw-brain Agent manifest bundle (AGENT.yaml + capabilities.json)."""
 from __future__ import annotations
 
 import argparse
