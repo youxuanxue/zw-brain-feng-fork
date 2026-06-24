@@ -258,8 +258,9 @@ WantedBy=multi-user.target
 ```bash
 curl -s http://localhost:8800/health | jq .
 # {"status":"ok","tenant":"sd-default", ...}
-curl -s http://localhost:8800/openapi.json | jq '.paths | length'
-# 180+
+# dev/演示模式可直读 OpenAPI；生产模式应要求认证 + ROLE_SYSTEM（匿名返回 401/403）
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8800/openapi.json
+# dev: 200；prod: 401/403
 ```
 
 ### 6.2 反向代理（可选）

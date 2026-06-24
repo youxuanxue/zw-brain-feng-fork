@@ -175,7 +175,49 @@ location /zw-brain/ {
 
 2. **必须转发 `X-Forwarded-Host` / `X-Forwarded-Port` / `X-Forwarded-Proto`**：后端用它们还原
    外部 origin 来做 OIDC `redirect_uri` 同源校验（精确比对 scheme+host:port）。缺失会导致登录回跳
-   被判 `redirect origin mismatch`。IAF 侧 `redirect_uri` 白名单也要登记到外部 `https://<host>:<port>/zw-brain/`。
+   被判 `redirect origin mismatch`。BFF 只接受同源且路径位于 `/zw-brain/` 下的登录/登出回跳，并在授权码流程
+   使用 PKCE S256；IAF 侧 `Valid Redirect URIs` 也必须精确登记外部 `https://<host>:<port>/zw-brain/`，
+   不允许 `*`、外部域名、`javascript:`、`file:` 或带 fragment 的回调。
+
+### 4.1 生产安全基线（0624 渗透整改）
+
+完整整改矩阵与复扫口径见 `docs/deployment/security-hardening-0623-pentest.md`；本节只列部署必须满足的基线。
+
+本仓应用层已收口以下边界：
+
+- `ZW_BRAIN_DEPLOY_MODE=prod|production` 时，`/openapi.json` 不再匿名公开；必须携带有效 BFF session cookie 或 Bearer token，且身份具备 `ROLE_SYSTEM`，否则返回 401/403。dev/演示模式保留匿名读取，供本地工具链使用。
+- `/auth/iaf/login` 与 `/auth/iaf/logout` 的 `redirect_uri` 只接受当前外部 origin + `/zw-brain/` 应用前缀，拒绝跨域、跨端口、非应用路径和 fragment。
+- BFF 发起授权码登录时带 `code_challenge_method=S256`，换票时提交对应 `code_verifier`；浏览器响应体仍不暴露 access/refresh/id token，也不暴露 client secret 环境变量名。
+
+以下项属于 IAF/Keycloak 与其前置 nginx 配置，必须由客户 IAM/网关侧同步完成；zw-brain 仓内只能提供 BFF 侧防线，不能替代授权服务器配置：
+
+- Keycloak 客户端 `zw-brain` 的 `Valid Redirect URIs` 仅保留 `https://<host>:<port>/zw-brain/`，删除 `*` 和任何外部域名通配；启用严格 redirect 校验。
+- Keycloak 客户端启用 PKCE，要求 `S256`，禁用/不接受 `plain`。
+- Keycloak/nginx CORS 只允许 `https://<host>:<port>`，不得反射任意 `Origin`，不得允许 `null` origin；若返回 `Access-Control-Allow-Credentials: true`，必须同时返回精确白名单 origin，并加 `Vary: Origin`。
+- 登录失败文案使用统一错误，不区分“用户名不存在 / 密码错误 / 账户锁定”；认证端点配置速率限制。
+- Keycloak 4.6.0 属过旧版本，生产应升级到受维护版本；升级前至少用网关/WAF 拦截异常 `redirect_uri` payload，避免授权端点 500。
+
+复扫验证口径：
+
+```bash
+# 只读 live check：OpenAPI、BFF redirect、Keycloak redirect/CORS 一次性核验
+python3 scripts/security/check_pentest_0623.py \
+  --app-base https://<host>:<port>/zw-brain \
+  --iam-base https://<iaf-host>:9443/auth \
+  --realm picp \
+  --client-id zw-brain \
+  --expected-origin https://<host>:<port>
+# 若目标是内网地址且执行环境设置了 HTTP(S)_PROXY，在内网机/跳板上加 --no-proxy。
+
+# 匿名生产 OpenAPI 应拒绝（401 或 403，不应 200）
+curl -s -o /dev/null -w "%{http_code}\n" https://<host>:<port>/zw-brain/openapi.json
+
+# IAF 授权端点恶意 redirect_uri 应在 Keycloak 侧拒绝，不应跳转到外域
+curl -I 'https://<iaf-host>:9443/auth/realms/picp/protocol/openid-connect/auth?client_id=zw-brain&redirect_uri=https%3A%2F%2Fevil.example%2Fsteal&response_type=code&scope=openid'
+
+# Keycloak CORS 不得反射恶意 Origin + credentials
+curl -sI -H 'Origin: https://evil.example' 'https://<iaf-host>:9443/auth/realms/picp' | grep -Ei 'access-control-allow-origin|access-control-allow-credentials|vary'
+```
 
 > 健康检查在反代后为 `https://<host>:<port>/zw-brain/health`；裸 `/health` 仅供容器内直连探活。
 

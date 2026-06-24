@@ -69,6 +69,7 @@ from zw_brain.shared.runtime_config import (
     get_iaf_verify_ssl,
     get_rest_host,
     get_rest_port,
+    is_prod_deploy_mode,
 )
 from zw_brain.shared.session_context import build_trusted_skill_payload
 from zw_brain.shared.surface_errors import classify_domain_error
@@ -531,7 +532,7 @@ class RestHandler(BaseHTTPRequestHandler):
             self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_get(path, claims))
             return
         if path == "/openapi.json":
-            self._serve_file(OPENAPI_PATH)
+            self._handle_openapi_json()
             return
         if path == "/favicon.ico":
             self._empty(204, "image/x-icon")
@@ -818,6 +819,17 @@ class RestHandler(BaseHTTPRequestHandler):
             body["configured"] = False
             body["detail"] = str(exc)
         self._json(200, body)
+
+    def _handle_openapi_json(self) -> None:
+        if is_prod_deploy_mode():
+            self._with_authenticated_request(lambda _claims: self._serve_openapi_for_platform_operator())
+            return
+        self._serve_file(OPENAPI_PATH)
+
+    def _serve_openapi_for_platform_operator(self) -> None:
+        if not self._require_platform_operator("ROLE_SYSTEM"):
+            return
+        self._serve_file(OPENAPI_PATH)
 
     def _handle_iaf_login(self, parsed) -> None:  # type: ignore[no-untyped-def]
         try:
@@ -1123,7 +1135,12 @@ class RestHandler(BaseHTTPRequestHandler):
             login_state = _IAF_STATE_STORE.get(state)
             redirect_uri = login_state.redirect_uri or self._request_url("/")
             client = IafOidcClient()
-            token_payload = client.exchange_authorization_code(code=code, redirect_uri=redirect_uri, transport=_IAF_TRANSPORT or _default_transport)
+            token_payload = client.exchange_authorization_code(
+                code=code,
+                redirect_uri=redirect_uri,
+                transport=_IAF_TRANSPORT or _default_transport,
+                code_verifier=login_state.code_verifier,
+            )
             # IAF success means the authz code is now burned at IAF — any later failure cannot be
             # retried with the same state/code, so discard immediately to minimize the stale-state window.
             _IAF_STATE_STORE.discard(state)
@@ -1360,17 +1377,36 @@ class RestHandler(BaseHTTPRequestHandler):
             return fallback
         current = urlparse(fallback)
         parsed = urlparse(candidate)
+        if parsed.fragment:
+            raise IafOidcStateError("redirect fragment not allowed")
         if parsed.scheme and parsed.netloc:
             # 精确比对 scheme+netloc(host:port)。nginx 反代下外部端口经 _request_url 的
             # X-Forwarded-Host/Port 还原进 current.netloc，故合法回路仍精确相等；
             # 不放宽端口——同 host 异端口可能是攻击者可控的旁路服务（开放重定向风险）。
             if parsed.scheme != current.scheme or parsed.netloc != current.netloc:
                 raise IafOidcStateError("redirect origin mismatch")
-            return candidate
-        path = parsed.path or default_path
+            path = self._normalized_redirect_path(parsed.path or default_path, default_path=default_path)
+            if not self._redirect_path_allowed(path):
+                raise IafOidcStateError("redirect path not allowed")
+            return urlunparse((parsed.scheme, parsed.netloc, path, "", parsed.query, ""))
+        path = self._normalized_redirect_path(parsed.path or default_path, default_path=default_path)
         if not path.startswith("/"):
             raise IafOidcStateError("redirect path invalid")
-        return urlunparse((current.scheme, current.netloc, path, "", parsed.query, parsed.fragment))
+        if not self._redirect_path_allowed(path):
+            raise IafOidcStateError("redirect path not allowed")
+        return urlunparse((current.scheme, current.netloc, path, "", parsed.query, ""))
+
+    @staticmethod
+    def _normalized_redirect_path(path: str, *, default_path: str) -> str:
+        # Legacy callers passed the deployment root. Keep compatibility by collapsing it
+        # to the app mount point before the URL is sent to IAM.
+        if path == "/":
+            return default_path
+        return path
+
+    @staticmethod
+    def _redirect_path_allowed(path: str) -> bool:
+        return path == APP_PATH_PREFIX or path.startswith(f"{APP_PATH_PREFIX}/")
 
     def _serve_file(self, path: Path, *, enforce_web_root: bool = False) -> None:
         try:

@@ -79,7 +79,22 @@ IAF_CONFIG_RESPONSE_SCHEMA = {
                 "role_codes": {"type": "array", "items": {"type": "string"}},
             },
         },
-        "iaf": {"type": "object"},
+        "iaf": {
+            "type": "object",
+            "description": "Public IAM endpoints and client metadata. Does not include client secret values or secret environment-variable names.",
+            "properties": {
+                "realm": {"type": "string"},
+                "auth_server_url": {"type": "string"},
+                "ssl_required": {"type": "string"},
+                "resource": {"type": "string"},
+                "issuer": {"type": "string"},
+                "authorization_endpoint": {"type": "string"},
+                "token_endpoint": {"type": "string"},
+                "logout_endpoint": {"type": "string"},
+                "jwks_uri": {"type": "string"},
+                "token_healthz_endpoint": {"type": "string"},
+            },
+        },
         "detail": {"type": "string"},
     },
     "required": ["configured", "development_iam_bypass_enabled"],
@@ -428,7 +443,8 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
         },
         "/openapi.json": {
             "get": {
-                "summary": "Get generated OpenAPI spec",
+                "summary": "Get generated OpenAPI spec (non-prod public; prod platform-operator only)",
+                "description": "Production deployments require a valid BFF session cookie or Bearer token and ROLE_SYSTEM. Non-prod keeps this endpoint public for local integration tooling.",
                 "operationId": "getOpenAPISpec",
                 "responses": {
                     "200": {
@@ -438,8 +454,11 @@ def build_rest_openapi(skills: list[dict[str, Any]]) -> dict[str, Any]:
                                 "schema": {"type": "object"}
                             }
                         },
-                    }
+                    },
+                    "401": {"description": "Production mode: missing/invalid session cookie or Bearer token"},
+                    "403": {"description": "Production mode: authenticated identity is not ROLE_SYSTEM"},
                 },
+                "security": [{"cookieAuth": []}, {"BearerAuth": []}],
             }
         },
         "/api/snapshot": {

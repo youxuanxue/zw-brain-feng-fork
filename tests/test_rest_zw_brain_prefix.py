@@ -8,15 +8,12 @@
 from __future__ import annotations
 
 from tempfile import TemporaryDirectory
+from urllib.parse import urlencode
 
 import pytest
 
-from tests._iaf_rest_http import (
-    bootstrap_iaf_runtime,
-    http_request,
-    run_server,
-    stop_server,
-)
+from tests._iaf_rest_http import http_request, run_server, stop_server
+from tests._iaf_runtime_cleanup import bootstrap_iaf_runtime_clean
 from zw_brain.entry.rest.server import _strip_app_prefix
 
 
@@ -66,7 +63,7 @@ def test_unknown_adjacent_prefix_is_not_routed() -> None:
 
 
 def test_login_accepts_same_origin_redirect() -> None:
-    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime_clean(tmp):
         server, thread, port = run_server()
         try:
             redirect = f"http://127.0.0.1:{port}/zw-brain/"
@@ -81,7 +78,7 @@ def test_login_accepts_same_origin_redirect() -> None:
 
 
 def test_login_rejects_cross_host_redirect() -> None:
-    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime_clean(tmp):
         server, thread, port = run_server()
         try:
             status, _, body = http_request(
@@ -97,7 +94,7 @@ def test_login_rejects_cross_host_redirect() -> None:
 
 def test_login_rejects_same_host_cross_port_redirect() -> None:
     # 安全边界：同 host 不同端口属不同 origin，可能是攻击者可控的旁路服务，必须拒绝。
-    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime_clean(tmp):
         server, thread, port = run_server()
         try:
             other_port = port + 1
@@ -105,6 +102,37 @@ def test_login_rejects_same_host_cross_port_redirect() -> None:
                 "GET",
                 f"http://127.0.0.1:{port}/zw-brain/auth/iaf/login"
                 f"?redirect_uri=http://127.0.0.1:{other_port}/zw-brain/&format=json",
+            )
+            assert status == 400, body
+            assert body["error"] == "iaf_state_error"  # type: ignore[index]
+        finally:
+            stop_server(server, thread)
+
+
+def test_login_rejects_same_origin_outside_app_prefix_redirect() -> None:
+    # 同源但不在 /zw-brain/ 应用挂载点内也不能作为 OAuth 回跳，避免把 BFF 注册回调扩散成整站任意路径。
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime_clean(tmp):
+        server, thread, port = run_server()
+        try:
+            redirect = f"http://127.0.0.1:{port}/not-zw-brain/"
+            status, _, body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/zw-brain/auth/iaf/login?{urlencode({'redirect_uri': redirect, 'format': 'json'})}",
+            )
+            assert status == 400, body
+            assert body["error"] == "iaf_state_error"  # type: ignore[index]
+        finally:
+            stop_server(server, thread)
+
+
+def test_login_rejects_redirect_fragment() -> None:
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime_clean(tmp):
+        server, thread, port = run_server()
+        try:
+            redirect = f"http://127.0.0.1:{port}/zw-brain/#/workbench"
+            status, _, body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/zw-brain/auth/iaf/login?{urlencode({'redirect_uri': redirect, 'format': 'json'})}",
             )
             assert status == 400, body
             assert body["error"] == "iaf_state_error"  # type: ignore[index]

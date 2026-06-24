@@ -206,7 +206,7 @@
 | GET | `/auth/iaf/session` | Return the public payload for the current BFF session (no side effects) | `getIafSession` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/auth/iaf/token` | Exchange IAF authorization code, establish BFF session cookie | `exchangeIafCodeForToken` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/health` | Health check | `healthCheck` | `zw_brain/entry/rest/openapi.json` |
-| GET | `/openapi.json` | Get generated OpenAPI spec | `getOpenAPISpec` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/openapi.json` | Get generated OpenAPI spec (non-prod public; prod platform-operator only) | `getOpenAPISpec` | `zw_brain/entry/rest/openapi.json` |
 
 ## L1.2.5 CLI
 

@@ -64,6 +64,11 @@ def _is_prod_deploy_mode() -> bool:
     return os.environ.get("ZW_BRAIN_DEPLOY_MODE", "").strip().lower() in _PROD_DEPLOY_MODES
 
 
+def is_prod_deploy_mode() -> bool:
+    """Public deployment-mode predicate for entrypoints that need prod hardening branches."""
+    return _is_prod_deploy_mode()
+
+
 class DevBypassInProductionError(RuntimeError):
     """dev-IAM-bypass env present while the deploy mode is prod/production.
 

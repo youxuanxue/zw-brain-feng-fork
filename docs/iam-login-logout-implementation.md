@@ -29,6 +29,10 @@
   ② 后端本地 RS256+JWKS 验签 access_token，校验 `iss/aud/exp`。
   因此即使 cookie 持续有效，只要 IAM 侧 token 被撤销或签名异常，本次请求即被拒。
 - IAM 仍是统一认证的唯一认证源；项目本身不保存账号口令。
+- 授权码流程启用 PKCE S256：`/auth/iaf/login` 生成 `code_challenge_method=S256`，
+  `/auth/iaf/token` 用服务端保存的 `code_verifier` 换票；浏览器不接触 verifier。
+- 登录/登出 `redirect_uri` 只允许当前外部 origin 且路径位于 `/zw-brain/` 应用前缀下，拒绝跨域、跨端口、
+  非应用路径和 URL fragment。
 - `/api/*` 同时接受两种鉴权：
   - **Cookie 路径**（浏览器主路径）：`Cookie: zw_brain_session=...` + 写操作携带 `X-CSRF-Token` header。
   - **Bearer 路径**（CLI / 测试 / 直连 API 消费者）：`Authorization: Bearer <jwt>`。
@@ -188,7 +192,7 @@ IAM 触发的首登投影是 system-origin 写入，不再被错误标记为 ROL
 ## 8. 退出登录
 
 ```http
-GET /auth/iaf/logout?redirect_uri=https://app.example/
+GET /auth/iaf/logout?redirect_uri=https://app.example/zw-brain/
 Cookie: zw_brain_session=...
 ```
 
@@ -408,7 +412,9 @@ flowchart LR
 | GET | `/auth/iaf/logout` | 删 session、清 cookie、返回 IAM logout URL |
 | POST | `/auth/iaf/dev-bypass-login` | 仅 bypass 启用时；否则 404 |
 
-静态资源、`/openapi.json` 等由 `do_GET` 其它分支处理，不走 Skill 鉴权。
+静态资源由 `do_GET` 其它分支处理，不走 Skill 鉴权。`/openapi.json` 是例外：dev/演示模式保留匿名读取，
+生产模式（`ZW_BRAIN_DEPLOY_MODE=prod|production`）必须通过 cookie/Bearer 身份校验且具备 `ROLE_SYSTEM`，
+否则返回 401/403。
 
 ## 17. 关键模块索引（重构防丢失）
 

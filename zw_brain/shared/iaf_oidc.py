@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import os
 import secrets
@@ -105,7 +107,6 @@ class IafIamConfig:
             "ssl_required": self.ssl_required,
             "resource": self.client_id,
             "confidential_port": self.confidential_port,
-            "credential_env": self.client_secret_env,
             "issuer": endpoints.issuer,
             "authorization_endpoint": endpoints.authorization_endpoint,
             "token_endpoint": endpoints.token_endpoint,
@@ -121,6 +122,16 @@ class IafOidcLoginState:
     nonce: str
     issued_at: float
     redirect_uri: str | None = None
+    code_verifier: str | None = None
+
+
+def _new_pkce_code_verifier() -> str:
+    return secrets.token_urlsafe(64)
+
+
+def pkce_s256_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 class IafOidcStateStore:
@@ -129,11 +140,13 @@ class IafOidcStateStore:
         self._states: dict[str, IafOidcLoginState] = {}
 
     def issue(self, *, redirect_uri: str | None = None) -> IafOidcLoginState:
+        code_verifier = _new_pkce_code_verifier()
         login_state = IafOidcLoginState(
             state=secrets.token_urlsafe(32),
             nonce=secrets.token_urlsafe(32),
             issued_at=time.time(),
             redirect_uri=redirect_uri,
+            code_verifier=code_verifier,
         )
         self._states[login_state.state] = login_state
         return login_state
@@ -201,13 +214,23 @@ class IafOidcClient:
             "state": login_state.state,
             "nonce": login_state.nonce,
         }
+        if login_state.code_verifier:
+            params["code_challenge"] = pkce_s256_challenge(login_state.code_verifier)
+            params["code_challenge_method"] = "S256"
         return AuthorizationRequest(
             url=f"{self.config.endpoints.authorization_endpoint}?{urlencode(params)}",
             state=login_state.state,
             nonce=login_state.nonce,
         )
 
-    def exchange_authorization_code(self, *, code: str, redirect_uri: str, transport: HttpTransport) -> dict[str, Any]:
+    def exchange_authorization_code(
+        self,
+        *,
+        code: str,
+        redirect_uri: str,
+        transport: HttpTransport,
+        code_verifier: str | None = None,
+    ) -> dict[str, Any]:
         if not code:
             raise IafOidcError("authorization code is required")
         form = {
@@ -216,6 +239,8 @@ class IafOidcClient:
             "redirect_uri": redirect_uri,
             "client_id": self.config.client_id,
         }
+        if code_verifier:
+            form["code_verifier"] = code_verifier
         return self._post_token_form(form, transport=transport, failure_label="token exchange")
 
     def refresh_access_token(self, *, refresh_token: str, transport: HttpTransport) -> dict[str, Any]:
