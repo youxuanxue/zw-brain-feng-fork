@@ -38,12 +38,11 @@ const summary = useInvestigationSummary();
 
 const replayRequestId = ref('REQ-SD-GOV-001');
 const statBucket = ref<'hour' | 'day' | 'week' | 'month'>('day');
-const accountActor = ref('user:gov:ROLE_ORGAN_OPERATER:王凯');
+const accountActor = ref('');
 
 onMounted(() => {
   void statistics.load(statBucket.value);
   void anomaly.load();
-  void accountability.load(accountActor.value);
   void replay.load(replayRequestId.value);
 });
 
@@ -56,7 +55,27 @@ async function refreshActive(): Promise<void> {
   if (activePanel.value === 'replay') await replay.load(replayRequestId.value);
   else if (activePanel.value === 'statistics') await statistics.load(statBucket.value);
   else if (activePanel.value === 'anomaly') await anomaly.load();
-  else if (activePanel.value === 'accountability') await accountability.load(accountActor.value);
+  else if (activePanel.value === 'accountability' && accountActor.value.trim()) {
+    await accountability.load(accountActor.value.trim());
+  }
+}
+
+async function traceActor(actor: string): Promise<void> {
+  const normalized = String(actor ?? '').trim();
+  if (!normalized) return;
+  accountActor.value = normalized;
+  activePanel.value = 'accountability';
+  summary.reset();
+  await accountability.load(normalized);
+}
+
+async function replayRequest(requestId: string): Promise<void> {
+  const normalized = String(requestId ?? '').trim();
+  if (!normalized) return;
+  replayRequestId.value = normalized;
+  activePanel.value = 'replay';
+  summary.reset();
+  await replay.load(normalized);
 }
 
 async function runSummary(): Promise<void> {
@@ -194,10 +213,17 @@ const accountabilityEmptyText = computed(() => {
               <p class="anom-meta">
                 关注对象：<span class="tech-id">{{ formatActorLabel(a.actor) }}</span>
                 <template v-if="a.skill_id"> · 能力 <span class="tech-id" :title="a.skill_id">{{ formatCapabilityName(a.skill_id) }}</span></template>
+                <button type="button" class="inline-link" @click="traceActor(a.actor)">追责</button>
               </p>
               <p class="anom-meta">
                 关联请求：
-                <span v-for="rid in a.evidence_request_ids" :key="rid" class="tech-id evidence-rid">{{ rid }}</span>
+                <button
+                  v-for="rid in a.evidence_request_ids"
+                  :key="rid"
+                  type="button"
+                  class="tech-id evidence-rid request-chip"
+                  @click="replayRequest(rid)"
+                >{{ rid }}</button>
               </p>
             </li>
           </ul>
@@ -214,13 +240,14 @@ const accountabilityEmptyText = computed(() => {
               <input
                 v-model="accountActor"
                 type="text"
-                placeholder="姓名或账号标识"
-                @change="accountability.load(accountActor)"
+                placeholder="从异常列表点「追责」带入"
+                @change="accountActor.trim() && accountability.load(accountActor.trim())"
               />
             </label>
             <DataSourceBadge :source="accountability.source.value" />
           </div>
         </header>
+        <p class="field-help">关注对象来自异常列表的“关注对象”或审计事件中的操作人；不用手工猜账号。</p>
         <div v-if="accountability.data.value && accountability.data.value.total > 0">
           <p class="focus-prose">
             关注对象 <span class="tech-id">{{ formatActorLabel(accountability.data.value.actor) }}</span>，
@@ -232,6 +259,7 @@ const accountabilityEmptyText = computed(() => {
                 <span class="tech-id chain-rid">{{ chain.request_id }}</span>
                 <span class="status-pill" :title="chain.skill_id">{{ formatCapabilityName(chain.skill_id) }}</span>
                 <time>{{ formatTime(chain.denied_at) }}</time>
+                <button type="button" class="inline-link" @click="replayRequest(chain.request_id)">回放</button>
               </header>
               <ol class="chain-events">
                 <li v-for="(ev, i) in chain.events" :key="i">
@@ -251,11 +279,12 @@ const accountabilityEmptyText = computed(() => {
           <h2 class="focus-section-title">审计链回放</h2>
           <div class="focus-section-controls">
             <label>请求编号：
-              <input v-model="replayRequestId" type="text" @change="replay.load(replayRequestId)" />
+              <input v-model="replayRequestId" type="text" placeholder="从追责链点「回放」带入" @change="replay.load(replayRequestId)" />
             </label>
             <DataSourceBadge :source="replay.source.value" />
           </div>
         </header>
+        <p class="field-help">请求编号来自异常列表的“关联请求”、追责链每条记录左侧编号，或业务操作失败时的请求编号。</p>
         <div v-if="replay.data.value">
           <p class="focus-prose">
             请求 <span class="tech-id">{{ replay.data.value.request_id }}</span> 共
@@ -325,6 +354,24 @@ const accountabilityEmptyText = computed(() => {
 .anom-summary { margin: 8px 0 4px; font-size: 14px; line-height: 1.55; }
 .anom-meta { margin: 4px 0; font-size: 13px; color: var(--b-muted, #5c6370); line-height: 1.5; }
 .evidence-rid { margin-right: 6px; }
+.field-help { margin: -2px 0 10px; font-size: 12px; color: var(--b-muted, #5c6370); }
+.inline-link {
+  border: 0;
+  background: transparent;
+  color: var(--b-primary, #006be6);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0 0 0 8px;
+  text-decoration: underline;
+}
+.request-chip {
+  border: 0;
+  background: transparent;
+  color: var(--b-primary, #006be6);
+  cursor: pointer;
+  padding: 0;
+  font-size: 12px;
+}
 .chain-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 12px; }
 .chain-item { padding: 14px; background: #fff; border-radius: 6px; border: 1px solid var(--b-border, #d4e2f4); }
 .chain-item header { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; font-size: 12px; flex-wrap: wrap; }

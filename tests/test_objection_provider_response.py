@@ -124,6 +124,32 @@ def test_submitted_case_enters_provider_objection_inbox(brain: BrainService) -> 
     row = next((item for item in rows if item["id"] == case_id), None)
     assert row is not None, "submitted 态案件应出现在异议收件箱"
     assert row["status"] == "submitted"
+    assert row["target_label"] == "catalog:cat-obj-accept-001"
+    assert row["target_href"] == "#/provider/catalog/cat-obj-accept-001"
+
+
+def test_provider_objection_inbox_target_link_encodes_catalog_code(brain: BrainService) -> None:
+    """供方异议响应必须能跳到关联目录/资源；目录码可能含 /，href 必须编码后进入 hash 路由。"""
+    case_id = _seed_submitted_case(target_id="370000308004000000/000001")
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
+    row = next(item for item in snap["provider"]["objection_cases"] if item["id"] == case_id)
+    assert row["target_label"] == "catalog:370000308004000000/000001"
+    assert row["target_href"] == "#/provider/catalog/370000308004000000%2F000001"
+
+
+def test_workbench_objection_todo_counts_pending_acceptance_only(brain: BrainService) -> None:
+    """工作台待办是“待受理异议”，只等于 submitted；异议响应收件箱还包含核查中在办案。"""
+    pending_id = _seed_submitted_case(target_id="cat-obj-wb-pending")
+    investigating_id = _seed_provider_investigating_case()
+
+    snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
+    inbox_ids = {row["id"] for row in snap["provider"]["objection_cases"]}
+    assert {pending_id, investigating_id}.issubset(inbox_ids)
+
+    wb = invoke_trusted(brain, "workbench.view", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
+    todo = next(item for item in wb["todos"] if item["id"] == "backlog-objection")
+    assert todo["title"] == "待受理异议 1 条"
+    assert todo["href"] == "#/provider/inbox/objection"
 
 
 def test_busiaudit_accept_transitions_to_platform_investigating(brain: BrainService) -> None:

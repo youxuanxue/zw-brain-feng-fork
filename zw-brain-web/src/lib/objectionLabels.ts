@@ -26,3 +26,13 @@ export function objectionTargetHref(targetType: string, targetId: string): strin
   if (targetType === 'delivery') return `#/delivery-exchange/task/${targetId}`;
   return undefined;
 }
+
+/** 供数侧办理视角：目录/资源都有管理详情路由，异议详情必须能回到被投诉对象。 */
+export function providerObjectionTargetHref(targetType: string, targetId: string): string | undefined {
+  if (!targetId) return undefined;
+  const encodedTargetId = encodeURIComponent(targetId);
+  if (targetType === 'catalog') return `#/provider/catalog/${encodedTargetId}`;
+  if (targetType === 'resource') return `#/provider/resource/${encodedTargetId}`;
+  if (targetType === 'delivery') return `#/delivery-exchange/task/${encodedTargetId}`;
+  return undefined;
+}

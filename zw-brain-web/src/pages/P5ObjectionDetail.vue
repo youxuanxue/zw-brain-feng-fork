@@ -12,6 +12,7 @@ import { formatTodoStatus } from '@/lib/statusLabels';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { acceptObjectionCase } from '@/lib/objectionActions';
+import { formatObjectionType, providerObjectionTargetHref } from '@/lib/objectionLabels';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
@@ -55,12 +56,19 @@ const rows = computed(() => {
     ]);
   }
   const repo = (d.repository as Record<string, unknown> | undefined) ?? {};
+  const targetType = String(d.targetType ?? repo.targetType ?? '');
+  const targetId = String(d.targetId ?? '');
+  const targetLabel = String(d.targetLabel ?? (targetId || '—'));
   return mapDetailRows([
     { label: '异议编号', value: id.value },
     { label: '标题', value: String(d.title ?? d.topic ?? '—') },
     { label: '状态', value: formatTodoStatus(String(repo.status ?? d.status ?? '')) },
-    { label: '对象类型', value: String(d.targetType ?? repo.targetType ?? '—') },
-    { label: '对象编号', value: String(d.targetId ?? '—') },
+    { label: '对象类型', value: targetType ? formatObjectionType(targetType) : '—' },
+    {
+      label: '对象编号',
+      value: targetLabel,
+      href: String(d.targetHref ?? '') || providerObjectionTargetHref(targetType, targetId),
+    },
   ]);
 });
 

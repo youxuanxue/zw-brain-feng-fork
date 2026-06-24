@@ -11,6 +11,7 @@ import PhaseTrack from '@/components/PhaseTrack.vue';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { canReviewRequests, canPlatformReviewRequests } from '@/lib/requestFlowRoles';
+import { formatPersonLabel } from '@/lib/userLanguage';
 
 const route = useRoute();
 const role = getProductRole();
@@ -66,7 +67,8 @@ const rows = computed(() => {
   return mapDetailRows([
     { label: '申请编号', value: id.value },
     { label: '资源', value: String(r.resourceName ?? '—') },
-    { label: '申请人', value: String(r.applicant ?? '—') },
+    { label: '申请人', value: formatPersonLabel(r.applicant ?? '—') },
+    { label: '申请部门', value: String(r.applicantDept ?? '—') },
     { label: '用途', value: String(r.purpose ?? '—') },
     { label: '共享方式', value: isConditional.value ? '有条件共享' : '无条件共享' },
     { label: '当前状态', value: formatTodoStatus(String(r.status ?? '—')) },

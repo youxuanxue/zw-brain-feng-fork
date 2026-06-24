@@ -2,6 +2,7 @@
 
 import { formatActorLabel } from '@/lib/auditDisplay';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
+import { formatPersonLabel } from '@/lib/userLanguage';
 
 export type DetailRowKind = 'text' | 'status' | 'tech' | 'actor';
 
@@ -31,12 +32,11 @@ export function inferDetailRow(label: string, value: string): DetailRow {
     return { label, value: formatTodoStatus(v), kind: 'status', raw: v };
   }
   if (ACTOR_LABELS.has(label) || label.includes('申请人')) {
-    const short = formatActorLabel(v);
+    const short = formatPersonLabel(v);
     return {
       label,
       value: short,
-      kind: 'actor',
-      raw: short !== v ? v : undefined,
+      kind: 'text',
     };
   }
   if (TECH_HINT.test(v) || v.includes('[bypass]')) {

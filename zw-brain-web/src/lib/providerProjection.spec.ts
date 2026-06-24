@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  deriveDemandMatches,
   providerLifecycleBucket,
   providerLifecycleLabel,
   providerResourceRows,
@@ -43,5 +44,21 @@ describe('provider lifecycle display helpers', () => {
   it('把平台审核机器态保留为具体中文展示', () => {
     expect(providerLifecycleBucket('pending_platform_review')).toBe('reviewing');
     expect(providerLifecycleLabel('pending_platform_review')).toBe('平台审核中');
+  });
+});
+
+describe('供需对接投影', () => {
+  it('保留期望资源提示，详情页优先用于匹配目录', () => {
+    const rows = deriveDemandMatches({
+      demand_matches: [
+        {
+          id: 'DM-1',
+          title: '困难群众保障数据需求',
+          target_resource_hint: '低保对象',
+          status: 'registered',
+        },
+      ],
+    });
+    expect(rows[0].target_resource_hint).toBe('低保对象');
   });
 });

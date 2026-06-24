@@ -19,7 +19,15 @@ const role = getProductRole();
 // 与后端 objection.case.accept={MANAGER,BUSIAUDIT} set-equal，经 ACTION_ROLE_GATES chokepoint）。
 const canAccept = computed(() => canPerformAction('objection.case.accept', role.value));
 
-type InboxRow = { id: string; title: string; status: string; kind: string; holder: string };
+type InboxRow = {
+  id: string;
+  title: string;
+  status: string;
+  kind: string;
+  holder: string;
+  targetLabel: string;
+  targetHref: string;
+};
 
 // G：当前段 holder（「卡在谁桌上」）——取后端现算 timeline 的 current 段，列表即可见、不必进详情。
 function _currentHolder(raw: unknown): string {
@@ -47,6 +55,8 @@ const items = computed((): InboxRow[] => {
       status: String(it.status ?? ''),
       kind: String(it.objection_kind ?? ''),
       holder: _currentHolder(it.statusTimeline),
+      targetLabel: String(it.target_label ?? it.target_id ?? ''),
+      targetHref: String(it.target_href ?? ''),
     };
   });
 });
@@ -56,7 +66,10 @@ const headerMeta = computed(() => {
   const n = items.value.length;
   if (!n) return '暂无待办理异议';
   const pending = items.value.filter((it) => it.status === 'submitted').length;
-  return pending ? `${n} 条在办异议（${pending} 条待受理）` : `${n} 条在办异议`;
+  const investigating = items.value.filter((it) => it.status !== 'submitted').length;
+  if (pending && investigating) return `${pending} 条待受理 · ${investigating} 条核查中`;
+  if (pending) return `${pending} 条待受理`;
+  return `${investigating} 条核查中`;
 });
 
 async function accept(objectionId: string) {
@@ -72,12 +85,16 @@ async function accept(objectionId: string) {
 
       <table v-if="source === 'live' && items.length" class="focus-table">
         <thead>
-          <tr><th>异议编号</th><th>标题</th><th>类型</th><th>状态</th><th>当前环节</th><th>操作</th></tr>
+          <tr><th>异议编号</th><th>标题</th><th>关联对象</th><th>类型</th><th>状态</th><th>当前环节</th><th>操作</th></tr>
         </thead>
         <tbody>
           <tr v-for="it in items" :key="it.id" data-testid="objection-inbox-row">
             <td><code>{{ shortId(it.id) }}</code></td>
             <td>{{ it.title }}</td>
+            <td>
+              <a v-if="it.targetHref" :href="it.targetHref" class="row-link">{{ it.targetLabel || '查看对象' }}</a>
+              <span v-else>{{ it.targetLabel || '—' }}</span>
+            </td>
             <td>{{ it.kind ? formatObjectionType(it.kind) : '—' }}</td>
             <td><span :class="todoStatusTone(it.status)">{{ formatTodoStatus(it.status) }}</span></td>
             <!-- G：「卡在谁桌上」holder 进列表（列表不再比详情薄）；终态/不确证诚实留「—」。 -->
@@ -105,4 +122,5 @@ async function accept(objectionId: string) {
 .row-actions { display: flex; gap: 10px; align-items: center; }
 .holder-cell { color: var(--b-primary, #006be6); font-size: 13px; }
 .row-link-btn { background: none; border: 0; padding: 0; color: var(--b-primary, #006be6); cursor: pointer; font-size: 13px; text-decoration: underline; }
+.row-link { color: var(--b-primary, #006be6); font-size: 13px; }
 </style>

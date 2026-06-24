@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   displayRecordName,
+  formatPersonLabel,
   looksLikeBareCode,
   isTestMarkerName,
   stripKindSuffix,
@@ -60,5 +61,16 @@ describe('stripKindSuffix (Theme 3: drop engineering name suffix)', () => {
   });
   it('leaves a clean name unchanged', () => {
     expect(stripKindSuffix('历年GDP信息')).toBe('历年GDP信息');
+  });
+});
+
+describe('formatPersonLabel (actor ids are not applicant display names)', () => {
+  it('uses the person segment from user:gov actor ids', () => {
+    expect(formatPersonLabel('user:gov:ROLE_ORGAN_OPERATER:王凯')).toBe('王凯');
+  });
+
+  it('falls back to role label when actor id only carries a role name', () => {
+    expect(formatPersonLabel('user:gov:ROLE_ORGAN_OPERATER:部门操作员')).toBe('部门操作员');
+    expect(formatPersonLabel('ROLE_ORGAN_MANAGER')).toBe('部门管理员');
   });
 });

@@ -100,6 +100,34 @@ test.describe('B1.1 合规与运营 smoke', () => {
     }
   });
 
+  test('追责关注对象与回放请求编号可从异常列表带入', async ({ page }) => {
+    await page.getByRole('tab', { name: '异常' }).click();
+    await expect(page.getByRole('tab', { name: '异常' })).toHaveAttribute('aria-selected', 'true');
+
+    const traceBtn = page.getByRole('button', { name: '追责' }).first();
+    if (await traceBtn.isVisible().catch(() => false)) {
+      await traceBtn.click();
+      await expect(page.getByRole('tab', { name: '追责' })).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByText('关注对象来自异常列表的“关注对象”或审计事件中的操作人')).toBeVisible();
+      await expect(page.getByPlaceholder('从异常列表点「追责」带入')).not.toHaveValue('');
+    } else {
+      await page.getByRole('tab', { name: '追责' }).click();
+      await expect(page.getByText('关注对象来自异常列表的“关注对象”或审计事件中的操作人')).toBeVisible();
+    }
+
+    await page.getByRole('tab', { name: '异常' }).click();
+    const replayFromAnomaly = page.locator('.request-chip').first();
+    if (await replayFromAnomaly.isVisible().catch(() => false)) {
+      await replayFromAnomaly.click();
+      await expect(page.getByRole('tab', { name: '回放' })).toHaveAttribute('aria-selected', 'true');
+      await expect(page.getByText('请求编号来自异常列表的“关联请求”、追责链每条记录左侧编号')).toBeVisible();
+      await expect(page.getByPlaceholder('从追责链点「回放」带入')).not.toHaveValue('');
+    } else {
+      await page.getByRole('tab', { name: '回放' }).click();
+      await expect(page.getByText('请求编号来自异常列表的“关联请求”、追责链每条记录左侧编号')).toBeVisible();
+    }
+  });
+
   test('OPERATER 无权静默进入合规页', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/workbench');

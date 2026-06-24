@@ -10,6 +10,7 @@ export interface ProviderRow {
   catalog: string;
   status: string;
   source: 'projection' | 'derived';
+  target_resource_hint?: string;
   /** D57⑨/R10：挂接审核被审登记信息（去盲批）——真实登记字段，缺省诚实留空。 */
   detail?: {
     kindLabel: string;
@@ -143,6 +144,7 @@ export function deriveDemandMatches(provider: Record<string, unknown>): Provider
         catalog: safeCatalogName(it.source, it.matched_catalog),
         status: String(it.status ?? 'pending'),
         source: 'projection' as const,
+        target_resource_hint: String(it.target_resource_hint ?? it.targetResourceHint ?? ''),
       };
     });
   }
@@ -156,6 +158,7 @@ export function deriveDemandMatches(provider: Record<string, unknown>): Provider
       catalog: safeCatalogName(it.source),
       status: String(it.status ?? '待受理'),
       source: 'derived' as const,
+      target_resource_hint: String(it.target_resource_hint ?? it.targetResourceHint ?? ''),
     };
   });
 }

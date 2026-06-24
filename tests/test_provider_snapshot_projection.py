@@ -155,6 +155,7 @@ def _seed_inbox_rows() -> None:
         applicant_dept="市数据局",
         tenant_id=TENANT,
         phase=PHASE_REGISTERED,
+        target_resource_hint="低保对象",
     )
 
 
@@ -253,6 +254,7 @@ def test_hookup_and_demand_projection_shapes(brain: BrainService) -> None:
     assert demand["id"] == "dem-proj-match-001"
     assert demand["title"]
     assert demand["status"] == "registered"
+    assert demand["target_resource_hint"] == "低保对象"
 
 
 def test_manager_snapshot_merges_live_disputes(brain: BrainService) -> None:

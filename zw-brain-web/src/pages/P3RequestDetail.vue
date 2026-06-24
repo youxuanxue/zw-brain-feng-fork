@@ -15,7 +15,7 @@ import PhaseTrack from '@/components/PhaseTrack.vue';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import type { FormField } from '@/lib/formFields';
 import { formatTodoStatus } from '@/lib/statusLabels';
-import { displayRecordName, shortId } from '@/lib/userLanguage';
+import { displayRecordName, formatPersonLabel, shortId } from '@/lib/userLanguage';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -69,7 +69,7 @@ const rows = computed(() => {
   if (!r) return [];
   const raw: { label: string; value: string; state?: string; source?: string }[] = [];
   if (r.resourceName) raw.push({ label: '申请资源', value: String(r.resourceName) });
-  if (r.applicant) raw.push({ label: '申请人', value: String(r.applicant) });
+  if (r.applicant) raw.push({ label: '申请人', value: formatPersonLabel(r.applicant) });
   if (r.applicantDept) raw.push({ label: '申请部门', value: String(r.applicantDept) });
   if (r.purpose) raw.push({ label: '使用用途', value: String(r.purpose) });
   if (r.range) raw.push({ label: '覆盖范围', value: String(r.range) });

@@ -11,6 +11,7 @@ import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { apiUrl } from '@/composables/useApiBase';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
@@ -45,7 +46,7 @@ const rows = computed(() => {
 });
 
 async function matchCatalog() {
-  const q = item.value?.title?.slice(0, 24) ?? '';
+  const q = (item.value?.target_resource_hint || item.value?.title || '').slice(0, 24);
   if (!q) {
     pushToast({ kind: 'info', title: '无法检索', detail: '该需求缺少标题，无法检索匹配目录。' });
     return;
@@ -53,16 +54,25 @@ async function matchCatalog() {
   matching.value = true;
   try {
     const resp = await authFetch(
-      `/api/skills/catalog.entry.query?role=${encodeURIComponent(getProductRole().value)}&query=${encodeURIComponent(q)}&limit=1`,
-      { headers: { Accept: 'application/json' } },
+      apiUrl('/api/skills/catalog.entry.query'),
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          role: getProductRole().value,
+          confirmed: true,
+          query: q,
+          limit: 1,
+        }),
+      },
     );
     if (!resp.ok) {
       // R-005a：不漏原始 HTTP 码（R12）。
       pushToast({ kind: 'error', title: '检索失败', detail: '目录检索暂不可用，请稍后重试。' });
       return;
     }
-    const data = (await resp.json()) as { items?: Array<Record<string, unknown>> };
-    const first = data.items?.[0];
+    const data = (await resp.json()) as { items?: Array<Record<string, unknown>>; result?: { items?: Array<Record<string, unknown>> } };
+    const first = (data.items ?? data.result?.items ?? [])[0];
     if (first && first.catalog_code) {
       matchedResourceId.value = String(first.catalog_code);
       matchedResourceName.value = String(first.title ?? first.catalog_code);

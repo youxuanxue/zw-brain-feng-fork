@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import copy
 from typing import Any
+from urllib.parse import quote
 
 from zw_brain.domain import resource_labels
 from zw_brain.domain.lifecycle_timeline import (
@@ -115,6 +116,7 @@ def _demand_to_match(payload: dict[str, Any]) -> dict[str, Any]:
         "id": str(payload.get("id") or ""),
         "title": str(payload.get("title") or ""),
         "status": str(payload.get("demand_phase") or payload.get("status") or ""),
+        "target_resource_hint": str(payload.get("target_resource_hint") or ""),
         "applicant_dept": str(payload.get("applicantDept") or ""),
     }
 
@@ -127,13 +129,28 @@ def _case_to_objection_inbox(record: Any) -> dict[str, Any]:
     审办人列表即可判轻重，不必每行进详情）+ status timeline（办理脊柱「卡在谁桌上」现算）。
     全部取真实记录字段、缺省诚实留空（D11，不造假）。
     """
+    target_type = str(record.target_type or "")
+    target_id = str(record.target_id or "")
+    encoded_target_id = quote(target_id, safe="")
+    target_href = ""
+    if target_type == "catalog" and target_id:
+        target_href = f"#/provider/catalog/{encoded_target_id}"
+    elif target_type == "resource" and target_id:
+        target_href = f"#/provider/resource/{encoded_target_id}"
+    elif target_type == "delivery" and target_id:
+        target_href = f"#/delivery-exchange/task/{encoded_target_id}"
+    target_label = target_id
+    if target_type and target_id:
+        target_label = f"{target_type}:{target_id}"
     return {
         "id": record.id,
         "title": record.title,
         "status": record.status,
         "objection_kind": getattr(record, "objection_kind", ""),
-        "target_type": record.target_type,
-        "target_id": record.target_id,
+        "target_type": target_type,
+        "target_id": target_id,
+        "target_label": target_label,
+        "target_href": target_href,
         "complainant_org_id": getattr(record, "complainant_org_id", "") or "",
         "provider_org_id": getattr(record, "provider_org_id", "") or "",
         "basis_text": getattr(record, "basis_text", "") or "",

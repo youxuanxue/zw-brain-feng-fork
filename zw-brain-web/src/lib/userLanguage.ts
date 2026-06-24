@@ -47,6 +47,29 @@ export function formatChannel(raw: unknown): string {
   return key;
 }
 
+const ROLE_NAME_ZH: Record<string, string> = {
+  ROLE_ORGAN_OPERATER: '部门操作员',
+  ROLE_ORGAN_MANAGER: '部门管理员',
+  ROLE_BUSIAUDIT: '业务运营员',
+  ROLE_SECURITY_AUDIT: '安全审计员',
+  ROLE_SYSTEM: '平台运维员',
+};
+
+/** actor URI / 角色码 → 用户可读展示名；申请人等主字段不直出 user:gov:* 标识。 */
+export function formatPersonLabel(raw: unknown): string {
+  const text = String(raw ?? '').trim();
+  if (!text) return '—';
+  const parts = text.split(':').filter(Boolean);
+  if (parts.length >= 4 && parts[0] === 'user') {
+    const name = parts[parts.length - 1] ?? '';
+    const role = parts.find((p) => p.startsWith('ROLE_')) ?? '';
+    if (name && name !== role) return name;
+    return ROLE_NAME_ZH[role] ?? '用户';
+  }
+  if (ROLE_NAME_ZH[text]) return ROLE_NAME_ZH[text];
+  return text;
+}
+
 // 资源生命周期态 → 中文展示态：单一事实源在后端（zw_brain/domain/resource_lifecycle.py），
 // 由 serializer/卡片随记录下发 status(中文)+lifecycleStatus(原值)，前端零词表、只读不译（R12）。
 // 此处原 RESOURCE_STATUS_ZH / formatResourceStatus 镜像词表已退役，避免「两份词表手同步漂移」。
