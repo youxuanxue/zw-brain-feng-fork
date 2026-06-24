@@ -491,5 +491,5 @@
 - CLI entries: 1
 - MCP tools: 66
 - A2A agent cards: 1
-- Registered Skills (live): 185 / 249 on-disk
+- Registered Skills (live): 185 / 246 on-disk
 

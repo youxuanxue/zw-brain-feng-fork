@@ -312,15 +312,6 @@ test('P5 代理服务注册向导提交不报缺字段', async ({ page }) => {
   await expect(page.locator('body')).not.toContainText('missing required input field');
 });
 
-test('P5 质量规则向导保存不报缺字段', async ({ page }) => {
-  await setRole(page, 'ROLE_ORGAN_MANAGER');
-  await gotoHash(page, '#/provider/wizard/quality-rule');
-  await page.locator('.gov-select').selectOption({ index: 1 });
-  await page.getByRole('button', { name: '保存质量规则' }).click();
-  await page.waitForTimeout(800);
-  await expect(page.locator('body')).not.toContainText('missing required input field');
-});
-
 // 专题包（P7 / zones-pack）退出本期（D55/P6）：下线整面，保数据不删库，仅去入口/可见性。
 // 原 3 条「P7 列表/订阅/详情真接 topic.package.*」走查退役为退役不变量——
 // zones-pack 路由不再有侧栏入口，深链直达也不渲染专题包内容（无权=不可见 / 已下线=不可见）。

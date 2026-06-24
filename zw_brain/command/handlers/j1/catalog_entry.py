@@ -15,6 +15,7 @@ import hashlib
 from zw_brain.command.brain import BrainServiceError, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
+from zw_brain.domain import resource_labels
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.resource_lifecycle import with_lifecycle_label
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
@@ -48,7 +49,7 @@ _INLINE_BASIC_REQUIRED_FIELDS: tuple[tuple[str, str], ...] = (
     ("description", "数据资源摘要"),
 )
 # 「有条件共享」码（dsp_catalog shared_type=2）→ 共享条件转必填；其余共享类型选填。
-_CONDITIONAL_SHARE_TYPE = "2"
+_CONDITIONAL_SHARE_TYPE = str(resource_labels.SHARE_TYPE_CONDITIONAL)
 
 
 def _is_blank(value: Any) -> bool:

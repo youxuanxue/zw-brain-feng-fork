@@ -24,6 +24,7 @@ from zw_brain.domain.discovery_snapshot_projection import (
 )
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
+from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared import db as db_module
@@ -85,6 +86,7 @@ def _seed_asset(
     status: str = "active",
     share_type: object = "1",
     resource_kind: object = None,
+    catalog_code: str | None = None,
 ) -> None:
     asset: dict[str, object] = {
         "resource_code": code,
@@ -94,6 +96,8 @@ def _seed_asset(
         "owner_org_snapshot_json": {"org_name": "省大数据局"},
         "access_policy_json": {"share_type": share_type},
     }
+    if catalog_code is not None:
+        asset["catalog_code"] = catalog_code
     if resource_kind is not None:
         asset["resource_kind"] = resource_kind
     ResourceApiRepository().upsert_asset(asset, tenant_id=TENANT)
@@ -171,6 +175,32 @@ def test_enrich_discovery_resources_only_discoverable_statuses(temp_db: Path) ->
     # 共享类型（源表 DDL 权威：1=无条件 / 2=有条件）+ 色级
     assert cards["RES-1"]["shareType"] == "无条件共享"
     assert cards["RES-1"]["shareLevel"] == "open"
+
+
+def test_discovery_card_share_type_uses_catalog_policy_before_asset_fallback(temp_db: Path) -> None:
+    """卡片与详情共享类型同源：父目录 summary.shared_type 优先，资源资产字段仅兜底。"""
+    CatalogRepository().upsert_from_resource(
+        {
+            "id": "cat-share-consistent",
+            "name": "高等职业学校名单",
+            "status": "active",
+            "provider": "11370000MB284651XL",
+            "shared_type": "2",
+        },
+        tenant_id=TENANT,
+    )
+    _seed_asset(
+        "RES-SHARE-CAT",
+        title="高等职业学校名单",
+        share_type="1",
+        catalog_code="cat-share-consistent",
+    )
+    out = enrich_discovery_resources_snapshot({"discovery": {"resources": []}}, tenant_id=TENANT)
+    card = next(c for c in out["discovery"]["resources"] if c["id"] == "RES-SHARE-CAT")
+    assert card["shareType"] == "有条件共享"
+    assert card["shareLevel"] == "conditional"
+    assert card["accessPolicy"]["shareType"] == "2"
+    assert card["accessPolicy"]["shareTypeLabel"] == "有条件共享"
 
 
 def test_enrich_discovery_resources_folds_legacy_kind(temp_db: Path) -> None:

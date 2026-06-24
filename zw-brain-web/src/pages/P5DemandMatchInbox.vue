@@ -22,14 +22,12 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
+    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="供需对接收件箱"
         :meta="headerMeta"
-        :links="[
-          { label: '提供方管理', href: '#/provider' },
-          { label: '资源发现', href: '#/discovery' },
-        ]"
+        :links="[{ label: '资源发现', href: '#/discovery' }]"
       />
 
       <table v-if="source === 'live' && items.length" class="focus-table">
@@ -53,5 +51,7 @@ const headerMeta = computed(() => {
 </template>
 
 <style scoped>
+.crumbs { max-width: var(--content-max-width, 1200px); margin: 0 auto 8px; font-size: 14px; }
+.crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 .row-link { color: var(--b-primary, #006be6); font-size: 13px; }
 </style>

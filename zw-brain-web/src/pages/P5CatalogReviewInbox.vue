@@ -165,14 +165,12 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
+    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="目录审核收件箱"
         :meta="headerMeta"
-        :links="[
-          { label: '提供方管理', href: '#/provider' },
-          { label: '在线编制', href: '#/provider/wizard/inline-catalog' },
-        ]"
+        :links="[{ label: '在线编制', href: '#/provider/wizard/inline-catalog' }]"
       />
 
       <p v-if="reviewStage === 'none'" class="role-hint">
@@ -266,6 +264,8 @@ const headerMeta = computed(() => {
 </template>
 
 <style scoped>
+.crumbs { max-width: var(--content-max-width, 1200px); margin: 0 auto 8px; font-size: 14px; }
+.crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 /* 收件箱全量呈现（同 0611 断点 A：去 limit 截断）；行多时容器内滚动，不无限撑长页面。 */
 .inbox-scroll { max-height: 560px; overflow-y: auto; }
 .row-link-btn { background: none; border: 0; cursor: pointer; font-size: 13px; text-decoration: underline; margin-right: 12px; padding: 0; }

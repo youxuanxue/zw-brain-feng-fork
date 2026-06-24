@@ -60,7 +60,7 @@ def test_known_deferred_and_external_samples_are_filtered() -> None:
         "ops.exchange.diagnose",
         "ops.gateway.heartbeat.ingest",
         "metadata.lineage.query",
-        "quality.task.run",
+        "external.quality.scan.execute",
     }
     openapi = json.loads(OPENAPI_PATH.read_text(encoding="utf-8"))
     paths = openapi.get("paths", {})

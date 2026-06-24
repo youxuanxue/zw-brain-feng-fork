@@ -109,6 +109,8 @@ def test_accept_conditional_share_uses_platform_approve() -> None:
     assert labels == ["受理", "驳回"]
     assert action["decisions"][0]["payload"] == {"decision": "approve"}
     assert action["decisions"][1]["payload"] == {"decision": "reject"}
+    assert action["decisions"][1]["needsReason"] is True
+    assert action["decisions"][1]["reasonKey"] == "note"
     # context：4 行（资源/申请人/用途/共享方式=有条件共享），均有源值。
     ctx = {row["label"]: row["value"] for row in action["context"]}
     assert ctx == {"资源": "人口库", "申请人": "张三", "用途": "核验", "共享方式": "有条件共享"}
@@ -129,6 +131,10 @@ def test_accept_unconditional_share_uses_case_decide() -> None:
     tones = [d["tone"] for d in action["decisions"]]
     assert tones == ["primary", "secondary", "danger"]
     assert action["decisions"][1]["payload"] == {"decision": "return_for_fix"}
+    assert action["decisions"][1]["needsReason"] is True
+    assert action["decisions"][1]["reasonKey"] == "note"
+    assert action["decisions"][2]["needsReason"] is True
+    assert action["decisions"][2]["reasonKey"] == "note"
     # context 跳过缺失「用途」行（不渲染「—」空行），保留共享方式=无条件共享。
     ctx = {row["label"]: row["value"] for row in action["context"]}
     assert "用途" not in ctx
@@ -171,6 +177,8 @@ def test_dept_approve_todo_carries_dept_approve_action() -> None:
     assert labels == ["审核通过", "驳回"]
     assert action["decisions"][0]["payload"] == {"decision": "approve"}
     assert action["decisions"][1]["payload"] == {"decision": "reject"}
+    assert action["decisions"][1]["needsReason"] is True
+    assert action["decisions"][1]["reasonKey"] == "note"
     # 要点行随载荷下发——审批人展开即见「在审什么」，不必跳详情页（修 _dept_approve_action
     # 原 context=[] 缺口）。
     ctx = {row["label"]: row["value"] for row in action["context"]}

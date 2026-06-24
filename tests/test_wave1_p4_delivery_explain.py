@@ -243,10 +243,10 @@ def test_audit_chain_records_explain(brain, real_tasks):
     types = [e["type"] for e in feed if e.get("target") == sample["delivery_code"]]
     assert "delivery.status.explain" in types
     # Action F lock: handler attributes the audit feed to the per-request
-    # role-derived actor (ctx.actor), never the dead _ui_state "system" constant.
+    # trusted-session actor (ctx.actor), never the dead _ui_state "system" constant.
     explain_actor = next(
         e["actor"] for e in feed
         if e.get("target") == sample["delivery_code"] and e["type"] == "delivery.status.explain"
     )
     assert explain_actor != "system"
-    assert explain_actor.startswith("user:gov:ROLE_ORGAN_OPERATER:"), explain_actor
+    assert explain_actor == "test-actor:role_organ_operater"

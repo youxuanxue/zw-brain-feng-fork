@@ -400,11 +400,6 @@ PERMISSION_ROLES = {
     # schema 发现 — 反向编目入口；操作员 + 管理员 + 业务运营员可拉取候选 schema（D55/P14）
     "metadata.schema.discover.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
-    # 质量规则与任务（D27 #14：仅旁路；不进 J1/J2 主线）
-    "quality.rule.upsert.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "quality.task.run.execute": {"ROLE_ORGAN_MANAGER"},
-    "quality.task.replay.execute": {"ROLE_ORGAN_MANAGER"},
-
     # 数据直达（D27 #13：国家平台流程，独立子旅程）
     "direct_access.catalog.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "direct_access.delivery.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},
@@ -589,17 +584,16 @@ class ApprovalDirectionError(DomainAccessDeniedError):
     """Raised when a department manager outside the providing org tries to act (R11)."""
 
 
-def enforce_self_approval_guard(applicant_org_code: object, actor_org_code: object) -> None:
-    """Reject self-approval: the applicant org cannot approve its own request.
+def enforce_self_approval_guard(applicant_actor: object, actor: object) -> None:
+    """Reject self-approval: the same actor cannot approve their own request.
 
-    J1 有条件审批 Scenario 6. The legacy platform never enforced this (省大数据局
-    既申请又自审 × 4 真数据 anomaly, documented in the conditional pytest); the new
-    brain enforces it at the policy layer. Empty / unknown orgs do not match
-    (cannot prove a self-approval), so they pass — direction is enforced separately.
+    J1 有条件审批 Scenario 6. 同部门管理员审核部门操作员提交的申请是正常部门审核；
+    禁止的是申请提交人本人再次审批自己的单。Empty / unknown actors do not match
+    (cannot prove self-approval), so they pass — R11 direction is enforced separately.
     """
-    applicant = str(applicant_org_code or "")
-    actor = str(actor_org_code or "")
-    if applicant and actor and applicant == actor:
+    applicant = str(applicant_actor or "")
+    approver = str(actor or "")
+    if applicant and approver and applicant == approver:
         raise SelfApprovalNotAllowedError("self_approval_not_allowed")
 
 

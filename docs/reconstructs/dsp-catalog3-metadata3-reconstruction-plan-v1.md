@@ -178,7 +178,7 @@ catalog3 与 metadata3 在旧平台中表面上是两个仓库，但在业务事
 | `OpenApiController` | 对外目录统计、申请查询、资源查询 | 新 REST 由 Capability 投影，统计进入 read model。 |
 | `catalogModel` API | 目录模板、字段、历史字段、导入模板 | `CatalogModel` 与 `catalog_model_field`。 |
 | `catalogCompile` / 反向编目 | 编目任务、替换任务、国家目录、历史目录 | 外部编目/反向编目 Capability 草拟，最终写入走核心确认。 |
-| `catalogquality` | 质量规则、任务、报告、人工检测 | 质量证据 projection；任务执行外化。 |
+| `catalogquality` | 质量报告、人工检测 | 质量证据 projection；任务执行外化。 |
 | `dsp-catalog-job` | 统计、推送开放目录、导入导出、预警、短信 | worker / adapter / 外部 Capability，不进普通主导航。 |
 
 ### 4.2 catalog3 承重语义

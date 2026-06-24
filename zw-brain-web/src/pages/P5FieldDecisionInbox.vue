@@ -22,14 +22,12 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
+    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="反向编目审核收件箱"
         :meta="headerMeta"
-        :links="[
-          { label: '提供方管理', href: '#/provider' },
-          { label: '反向编目向导', href: '#/provider/wizard/reverse-catalog' },
-        ]"
+        :links="[{ label: '反向编目向导', href: '#/provider/wizard/reverse-catalog' }]"
       />
 
       <table v-if="source === 'live' && items.length" class="focus-table">
@@ -56,6 +54,8 @@ const headerMeta = computed(() => {
 </template>
 
 <style scoped>
+.crumbs { max-width: var(--content-max-width, 1200px); margin: 0 auto 8px; font-size: 14px; }
+.crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 code { font-size: 12px; background: var(--b-bg-subtle, #e8f2fc); padding: 2px 6px; border-radius: 4px; }
 .row-link { font-size: 13px; color: var(--b-primary, #006be6); text-decoration: none; }
 .status-pill { font-size: 12px; padding: 2px 8px; border-radius: 999px; }

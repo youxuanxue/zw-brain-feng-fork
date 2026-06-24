@@ -170,6 +170,7 @@ def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, paylo
         role,
         confirmed,
         actor_org_code=actor_org,
+        actor=ctx.actor,
         decision=decision,
         note=str(payload.get("note") or payload.get("reason") or ""),
         skill_id=ctx.skill_id,
@@ -193,4 +194,3 @@ def handler_application_platform_approve(deps: HandlerDeps, ctx: SkillContext, p
         note=str(payload.get("note") or payload.get("reason") or ""),
         skill_id=ctx.skill_id,
     )
-

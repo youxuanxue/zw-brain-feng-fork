@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain import resource_labels
 from zw_brain.domain.lifecycle_timeline import (
     catalog_lifecycle_timeline,
     lifecycle_sideline_note,
@@ -64,9 +65,6 @@ def _entry_to_field_decision(record: Any, *, owner_name: str = "") -> dict[str, 
     }
 
 
-# 共享类型机器值 → 政务白话（与 discovery 投影同口径；缺省诚实留空）。
-_SHARE_TYPE_LABELS = {"1": "无条件共享", "2": "有条件共享", "3": "不予共享"}
-
 # 资源物化形态 → 中文标签（挂接审核收件箱被审内容用；canonical 折叠后仅 table/file 进收件箱）。
 _HOOKUP_KIND_LABELS = {"table": "库表", "file": "文件"}
 
@@ -107,7 +105,7 @@ def _asset_to_hookup_review(
         "source_ref": mount_ref,
         # 资源描述：挂接向导业务块键 resource_desc；legacy/api 同义键 desc/description 回落。
         "desc": str(summary.get("resource_desc") or summary.get("desc") or summary.get("description") or ""),
-        "share_type_label": _SHARE_TYPE_LABELS.get(str(policy.get("share_type") or ""), ""),
+        "share_type_label": resource_labels.share_type_label(resource_labels.share_type_from_mapping(policy)),
         "field_count": len(fields) if isinstance(fields, list) else 0,
     }
 

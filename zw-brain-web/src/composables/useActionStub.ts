@@ -133,6 +133,10 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
       const missing = bodyDetail.match(/missing required input field\(s\):\s*(.+?)\s*\(skill:/i);
       if (missing) {
         detail = `缺少必填信息：${missing[1]}。请重新选择目录或联系管理员补全 schema 引用。`;
+      } else if (bodyDetail.includes('self_approval_not_allowed')) {
+        detail = '申请提交人本人不能审批自己的申请，请由其他有权限的部门管理员办理。';
+      } else if (bodyDetail.includes('approval_direction_mismatch')) {
+        detail = '当前部门不是该资源的提供方部门，不能办理此申请审批。';
       } else if (bodyDetail) {
         detail = bodyDetail;
       } else if (resp.status === 403) {

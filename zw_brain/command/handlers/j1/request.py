@@ -18,6 +18,7 @@ from datetime import datetime, timedelta
 import zw_brain.shared.clock as clock
 from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
+from zw_brain.domain import resource_labels
 from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
 from zw_brain.domain.approval_flow_schema import ApprovalFlowSchemaRepo
 from zw_brain.domain.approval_flow_walker import (
@@ -52,16 +53,14 @@ def _resolve_actor_org(actor: str, reference: ReferenceService) -> dict[str, Any
 
 def _extract_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> Any:
     """从 payload/resource 多个常见位置抽 shared_type；不存在返 None。"""
-    for key in ("shared_type", "share_type", "sharedType", "shareType"):
-        value = options.get(key)
-        if value is not None:
-            return value
+    value = resource_labels.share_type_from_mapping(options)
+    if value is not None:
+        return value
     repository = resource.get("repository") if isinstance(resource, dict) else None
     if isinstance(repository, dict):
-        for key in ("shared_type", "share_type", "sharedType", "shareType"):
-            value = repository.get(key)
-            if value is not None:
-                return value
+        value = resource_labels.share_type_from_mapping(repository)
+        if value is not None:
+            return value
     return None
 
 
@@ -78,11 +77,7 @@ def _resolved_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> 
     if raw is None and isinstance(resource, dict):
         access = resource.get("accessPolicy")
         if isinstance(access, dict):
-            for key in ("shared_type", "share_type", "sharedType", "shareType"):
-                value = access.get(key)
-                if value is not None:
-                    raw = value
-                    break
+            raw = resource_labels.share_type_from_mapping(access)
     # 末级回源 resource_asset.access_policy_json：canonical id 是旧资源码（与 asset 键不同名），
     # 先试 focusedResourceCode（=asset.resource_code）再试 id。
     if raw is None and isinstance(resource, dict):
@@ -93,10 +88,7 @@ def _resolved_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> 
                 raw = shared_type_for_resource(str(rid), _DEFAULT_TENANT_ID)
                 if raw is not None:
                     break
-    try:
-        return int(raw) if raw is not None else None
-    except (TypeError, ValueError):
-        return None
+    return resource_labels.share_type_int(raw)
 
 
 def _owner_org_code_from_resource(resource: dict[str, Any]) -> str:
@@ -253,6 +245,8 @@ def _create_request(
     if existing is not None:
         raise InvalidStateError(f"active request already exists for resource {canonical_id}: {existing['id']}")
 
+    applicant_actor = ctx.actor
+
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request_id = deps.services.request.new_request_id()
         task_id = deps.services.delivery.task_id_for_request(request_id)
@@ -270,7 +264,7 @@ def _create_request(
         shared_type_int = _resolved_shared_type(options, resource)
         if as_draft:
             initial_status = "draft"
-        elif shared_type_int == 2:
+        elif shared_type_int == resource_labels.SHARE_TYPE_CONDITIONAL:
             initial_status = "submitted"
         else:
             initial_status = "pending"
@@ -299,7 +293,8 @@ def _create_request(
             # 提供方局名随单存档（卡 providerOrgName←payload.provider_org_name；#280 holder 局名源）。
             "provider_org_name": provider_org_name,
             # R-006 fix: 部门名称由 applicantDept 字段单独表达；不再在 actor 文本里拼接（折叠后无法靠 role 判断身份）
-            "applicant": actor,
+            # 申请人个人 id 与 system.snapshot 的 caller_actor 同源，保障 mine/self-approval 按真实会话主体判定。
+            "applicant": applicant_actor,
             # 申请方机构码（隔离行级过滤快路径源，同 owner_org_code 之于提供方；request_party_in_scope
             # 优先读它）；applicantDept 落真实机构名供展示（替代旧硬编码"市营商环境专班"）。
             "applicant_org_code": _applicant_org_code,
@@ -510,7 +505,7 @@ def _create_request(
                 tenant_id=_DEFAULT_TENANT_ID,
                 shared_type=shared_type_int,
                 project_code=_extract_project_code(options, resource),
-                submitted_by=actor,
+                submitted_by=applicant_actor,
             )
         result: dict[str, Any] = {"request_id": request_id, "task_id": task_id, "status": request["status"]}
         if approval_case_id is not None:
@@ -557,7 +552,7 @@ def _submit_request(brain, deps, ctx, request_id: str, role: str, confirmed: boo
         {"shared_type": request.get("sharedType")}, resolved_resource or {}
     )
     # 有条件 (2) → 'submitted' 进受理两级队列；无条件/未知 → 'pending'（单步受理即终路径）。
-    target_status = "submitted" if shared_type_int == 2 else "pending"
+    target_status = "submitted" if shared_type_int == resource_labels.SHARE_TYPE_CONDITIONAL else "pending"
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request["status"] = target_status

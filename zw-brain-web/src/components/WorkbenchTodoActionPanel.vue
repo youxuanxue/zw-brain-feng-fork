@@ -102,7 +102,7 @@ async function dispatch(
       pushToast({
         kind: 'warn',
         title: '请先填写理由',
-        detail: '退回会把该条退回提交方整改，需要说明依据。',
+        detail: `${decision.label}需要说明依据，理由不能为空。`,
       });
       return;
     }
@@ -176,12 +176,12 @@ function cancelReason(): void {
             v-if="decision.needsReason && reasonFor.key === pairKey(item, idx)"
             class="todo-reason-box"
           >
-            <label :for="`reason-${item.id}-${idx}`">{{ decision.label }}理由（退回提交方整改）</label>
+            <label :for="`reason-${item.id}-${idx}`">{{ decision.label }}理由（必填，将告知申请人）</label>
             <textarea
               :id="`reason-${item.id}-${idx}`"
               v-model="reasonFor.text"
               rows="3"
-              placeholder="请说明需要整改的内容"
+              placeholder="请说明依据，便于申请人理解结论或按需调整后重新发起"
               data-testid="workbench-decision-reason"
             />
             <div class="todo-reason-actions">

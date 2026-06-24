@@ -20,6 +20,7 @@ const props = withDefaults(
     title: string;
     meta: string;
     links: { label: string; href: string }[];
+    backLink?: { label: string; href: string };
     columns: Column[];
     rows: ProviderAssetRow[];
     /** snapshot 是否已 live。 */
@@ -78,6 +79,7 @@ function hasTimeline(r: ProviderAssetRow): boolean {
 
 <template>
   <main class="focus-page">
+    <nav v-if="backLink" class="crumbs"><a :href="backLink.href">← {{ backLink.label }}</a></nav>
     <section class="panel">
       <PageFocusHeader :title="title" :meta="meta" :links="links" />
 
@@ -171,6 +173,8 @@ function hasTimeline(r: ProviderAssetRow): boolean {
 </template>
 
 <style scoped>
+.crumbs { max-width: var(--content-max-width, 1200px); margin: 0 auto 8px; font-size: 14px; }
+.crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 /* 搜索/筛选栏 */
 .filter-bar {
   display: flex;

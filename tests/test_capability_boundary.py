@@ -99,13 +99,13 @@ def test_external_capability_in_forbidden_zone_passes(tmp_path: Path) -> None:
 def test_multiple_violations_all_reported(tmp_path: Path) -> None:
     """多条越界一次性全报，不在第一条就 return（便于 reviewer 一次看完）。"""
     _write_manifest(tmp_path, "metadata.lineage.query", binding="builtin", status="live", journey="j1")
-    _write_manifest(tmp_path, "quality.task.run", binding="builtin", status="live", journey="j1")
+    _write_manifest(tmp_path, "quality.example.run", binding="builtin", status="live", journey="j1")
     _write_manifest(tmp_path, "standard.asset.sync", binding="builtin", status="live", journey="j1")
 
     code, out = _run_check(tmp_path)
     assert code == 1
     assert "3 live+builtin violation(s)" in out
-    for sid in ("metadata.lineage.query", "quality.task.run", "standard.asset.sync"):
+    for sid in ("metadata.lineage.query", "quality.example.run", "standard.asset.sync"):
         assert sid in out, f"violation {sid} not reported in output:\n{out}"
 
 
@@ -129,7 +129,7 @@ def test_classify_zone_known_prefixes() -> None:
 
         cases = {
             "metadata.lineage.query": "§1.3 血缘",
-            "quality.task.run": "§1.3 质量",
+            "quality.example.run": "§1.3 质量",
             "ops.catalog.quality.upsert": "§1.3 质量",
             "ops.gateway.heartbeat.ingest": "§1.3 运维监控",
             "ops.shift_handover.submit": "§1.3 运维监控",

@@ -9,12 +9,12 @@ REPO = Path(__file__).resolve().parents[1]
 
 def test_iam_governance_route_uses_real_page() -> None:
     router = (REPO / "zw-brain-web" / "src" / "router" / "index.ts").read_text(encoding="utf-8")
+    placeholder_component = "Page" + "Placeholder"
     assert "B12IamGovernance" in router
     assert "import B12IamGovernance from '@/pages/B12IamGovernance.vue'" in router
     assert "/integration-admin/iam-governance', component: B12IamGovernance" in router
-    assert "PagePlaceholder, meta: { page: 'B1.2', title: 'B1.2 身份治理' }" not in router
+    assert placeholder_component not in router
     assert "PLogin" in router
-    assert "PagePlaceholder, meta: { title: '登录中转' }" not in router
 
 
 def test_policy_candidates_composable_wires_registry_skills() -> None:

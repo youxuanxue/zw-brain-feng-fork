@@ -31,7 +31,7 @@ import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-from zw_brain.domain import policy
+from zw_brain.domain import policy, resource_labels
 from zw_brain.domain.errors import InvalidStateError, NotFoundError
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
@@ -109,11 +109,7 @@ class ConditionalApprovalService:
 
     @staticmethod
     def shared_type(payload: dict[str, Any]) -> int:
-        raw = payload.get("shared_type")
-        try:
-            return int(raw) if raw is not None else 0
-        except (TypeError, ValueError):
-            return 0
+        return resource_labels.share_type_int(resource_labels.share_type_from_mapping(payload)) or 0
 
     @staticmethod
     def applicant_org_code(payload: dict[str, Any], record: Any) -> str:
@@ -130,6 +126,7 @@ class ConditionalApprovalService:
         confirmed: bool,
         *,
         actor_org_code: str,
+        actor: str,
         decision: str,
         note: str = "",
         skill_id: str = "application.dept_approve",
@@ -148,9 +145,9 @@ class ConditionalApprovalService:
                 f"dept_approve（第二级部门审核）requires status={STATUS_DEPT_APPROVED!r}; got {record.status!r}"
             )
         owner_org = self.owner_org_code(payload)
-        applicant_org = self.applicant_org_code(payload, record)
+        applicant_actor = str(payload.get("applicant") or record.applicant_name or "")
         # Scenario 6: 申请人本人不能审批自己的申请（policy reject + audit）
-        policy.enforce_self_approval_guard(applicant_org, actor_org_code)
+        policy.enforce_self_approval_guard(applicant_actor, actor)
         # Scenario 5: 提供方部门外的 ORGAN_MANAGER 不能审批此申请（R11 方向）
         policy.enforce_dept_approval_direction(owner_org, actor_org_code)
 

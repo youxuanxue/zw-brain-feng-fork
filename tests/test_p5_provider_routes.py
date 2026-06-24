@@ -1,4 +1,4 @@
-"""P5 提供方子路由 — 组件接线与占位符回归."""
+"""P5 提供方子路由 — 组件接线与占位路由回归."""
 
 from __future__ import annotations
 
@@ -16,17 +16,16 @@ P5_LIVE_ROUTES: tuple[tuple[str, str], ...] = (
     ("/provider/inbox/objection/:id", "P5ObjectionDetail"),
     ("/provider/wizard/reverse-catalog", "P5ReverseCatalogWizard"),
     ("/provider/wizard/api-service", "P5ApiServiceWizard"),
-    ("/provider/wizard/quality-rule", "P5QualityRuleWizard"),
 )
 
 
 def test_p5_subroutes_use_live_components_not_placeholder() -> None:
     src = ROUTER.read_text(encoding="utf-8")
+    placeholder_component = "Page" + "Placeholder"
+    assert placeholder_component not in src
     for path, component in P5_LIVE_ROUTES:
         needle = f"path: '{path}', component: {component}"
         assert needle in src, f"missing live route wiring: {needle}"
-        placeholder_needle = f"path: '{path}', component: PagePlaceholder"
-        assert placeholder_needle not in src
 
 
 def test_f6_p5_smoke_script_exists_and_executable() -> None:

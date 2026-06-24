@@ -15,7 +15,7 @@ Feature: WebUI 子路由去占位 + 预览门禁
 
   Background:
     Given WebUI 路由表已收敛主旅程页面
-    And 仅 login / profile / migration / iam-governance 保留为非主旅程 PagePlaceholder
+    And 非主旅程空占位路由已从 WebUI 路由表清理
 
   Scenario: 正向 — P2 目录浏览子路由可达且有内容
     When 访问 P2 catalog-browse 子路由

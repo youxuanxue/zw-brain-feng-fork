@@ -42,8 +42,8 @@ async function onRowAction({ actionId }: { actionId: string; row: ProviderAssetR
   <ProviderManageList
     title="目录管理清单"
     :meta="meta"
+    :back-link="{ label: '提供方管理', href: '#/provider' }"
     :links="[
-      { label: '提供方管理', href: '#/provider' },
       { label: '资源管理清单', href: '#/provider/resources' },
       { label: '在线编制目录', href: '#/provider/wizard/inline-catalog' },
     ]"

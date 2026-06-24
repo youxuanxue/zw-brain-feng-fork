@@ -19,7 +19,7 @@ import {
 } from '@/config/productShellNav';
 
 /** 不参与 shell 权限判定的辅助路由（登录 / 个人中心等）。 */
-const PUBLIC_ROUTE_PREFIXES = ['/login', '/migration-acceptance'] as const;
+const PUBLIC_ROUTE_PREFIXES = ['/login'] as const;
 
 /**
  * 子路由级 role 白名单覆盖（比 shell 更严格）。
@@ -92,11 +92,6 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   // G3：代理服务注册向导（pages/P5ApiServiceWizard.vue）—— 注册口径同 resource.api.register（D54）：
   // 部门操作员 + 部门管理员；业务运营员退出 API 注册。
   { prefix: '/provider/wizard/api-service', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
-  // R-004：质量规则向导（pages/P5QualityRuleWizard.vue）—— 此前无 override，回落 provider shell
-  // 角色门（含 OPERATER），但页内唯一写动作 quality.rule.upsert 后端只授 MANAGER+BUSIAUDIT，
-  // 操作员看得到入口、进得了页、提交吃 403。收口到 quality.rule.upsert 的角色集（与
-  // ACTION_ROLE_GATES['quality.rule.upsert'] / 后端 policy set-equal），无权岗位路由 + 入口链均不可见。
-  { prefix: '/provider/wizard/quality-rule', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
   // G1：挂接审核（pages/P5HookupReviewInbox.vue → canApprove）—— 照 v5「资源挂接审核 = 部门管理员」
   // 校正（撤回 R-007 交叉审），与后端 resource.asset.review={ROLE_ORGAN_MANAGER} set-equal。
   { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_ORGAN_MANAGER'] },
@@ -194,7 +189,7 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // （做的人不审自己）。与后端 policy set-equal（test_action_role_gates… 守）。
   'catalog.entry.reverse_draft.confirm': ['ROLE_ORGAN_MANAGER'],
   'catalog.entry.reverse_draft.reject': ['ROLE_ORGAN_MANAGER'],
-  // P5 反向 / API / 质量 wizard
+  // P5 反向 / API wizard
   // G1：挂接资产审核照 v5 校正归部门管理员（撤回 R-007），与后端 resource.asset.review set-equal。
   'resource.asset.review': ['ROLE_ORGAN_MANAGER'],
   // 代理服务（API）注册口径 D54 GATE-1（业务方 2026-06-08 sign-off）：注册/提交审核 = 部门操作员 + 部门管理员；
@@ -208,7 +203,6 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // 不借 publish gate 代理（避免两者后端口径漂移时 UI 静默跟错）。
   'resource.api.withdraw': ['ROLE_ORGAN_MANAGER'],
   'resource.api.test': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
-  'quality.rule.upsert': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P3 供需 / 交付
   'delivery.trigger_recovery': ['ROLE_ORGAN_MANAGER'],
   // 'service.publish_or_suspend' 已删（减法）：全 zw-brain-web/src 无任何 CTA/skillId 调用它

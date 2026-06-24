@@ -73,6 +73,7 @@ def _seed_conditional_application(
     status: str = STATUS_SUBMITTED,
     owner_org_code: str = ORG_PROVIDER_B,
     applicant_org_code: str = ORG_APPLICANT_A,
+    applicant: str = "测试操作员",
 ) -> None:
     """合成一条有条件共享(shared_type=2)申请单，落 application_record（真写库）。"""
     from zw_brain.domain.repositories.application import ApplicationRepository
@@ -81,7 +82,7 @@ def _seed_conditional_application(
         {
             "id": code,
             "status": status,
-            "applicant": "测试操作员",
+            "applicant": applicant,
             "applicantDept": applicant_org_code,
             "resourceId": "C102_TEST",
             "shared_type": 2,
@@ -267,10 +268,25 @@ def test_cross_org_manager_cannot_dept_review_r11_direction(brain):
 # ============================================================================
 
 
-def test_self_approval_rejected_at_dept_review(brain):
+def test_same_org_manager_can_dept_review_when_not_applicant_actor(brain):
     code = "A301-COND-6"
-    # owner_org_code == applicant_org_code（同一部门既申请又自审 = legacy anomaly）
+    # 同部门管理员审核本部门操作员提交的申请：允许。禁止的是同一个 actor 自己审自己的单。
     _seed_conditional_application(code, owner_org_code=ORG_APPLICANT_A, applicant_org_code=ORG_APPLICANT_A)
+    _accept(brain, code)  # 受理进入第二级
+    out = _dept_review(brain, code, org_code=ORG_APPLICANT_A)
+    assert out["status"] == STATUS_GRANTED
+    assert _status(code) == STATUS_GRANTED
+
+
+def test_self_approval_rejected_at_dept_review(brain):
+    code = "A301-COND-6-SELF"
+    manager_actor = "test-actor:role_organ_manager"
+    _seed_conditional_application(
+        code,
+        owner_org_code=ORG_APPLICANT_A,
+        applicant_org_code=ORG_APPLICANT_A,
+        applicant=manager_actor,
+    )
     _accept(brain, code)  # 受理进入第二级
     with pytest.raises(SelfApprovalNotAllowedError) as exc:
         _dept_review(brain, code, org_code=ORG_APPLICANT_A)

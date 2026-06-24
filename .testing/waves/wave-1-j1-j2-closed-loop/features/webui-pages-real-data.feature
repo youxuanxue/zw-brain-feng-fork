@@ -29,7 +29,7 @@ Feature: WebUI 8 主页面成品化 — 装载 sd-default 真实数据
   Scenario: 正向 — 8 主页面均无占位、装载真实数据
     Then P1 工作台 / P2 发现 / P3 申请 / P4 交付 / P5 提供 / P7 专区 / B1.1 合规 / B1.2 接入
          8 页面各自展示对应真实库数据
-    And router PagePlaceholder 仅剩 login / profile / migration / iam-governance 4 条非主旅程路由
+    And router 不保留非主旅程空占位路由
 
   Scenario: 回归 — 真实数据投影与 5 消费面契约一致
     Then WebUI 渲染的能力与 registry 投影零漂移（段 29 / 段 52 守卫）

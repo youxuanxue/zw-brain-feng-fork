@@ -74,14 +74,12 @@ async function confirmReject(resourceCode: string) {
 
 <template>
   <main class="focus-page">
+    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="挂接审核收件箱"
         :meta="headerMeta"
-        :links="[
-          { label: '提供方管理', href: '#/provider' },
-          { label: '反向编目审核', href: '#/provider/inbox/field-decision' },
-        ]"
+        :links="[{ label: '反向编目审核', href: '#/provider/inbox/field-decision' }]"
       />
 
       <table v-if="source === 'live' && items.length" class="focus-table">
@@ -143,6 +141,8 @@ async function confirmReject(resourceCode: string) {
 </template>
 
 <style scoped>
+.crumbs { max-width: var(--content-max-width, 1200px); margin: 0 auto 8px; font-size: 14px; }
+.crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 .row-actions { display: flex; gap: 10px; align-items: center; }
 .row-link-btn { background: none; border: 0; padding: 0; color: var(--b-primary, #006be6); cursor: pointer; font-size: 13px; text-decoration: underline; }
 .row-link-btn--danger { color: #b42318; }

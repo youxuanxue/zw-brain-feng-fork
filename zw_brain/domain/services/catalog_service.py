@@ -26,12 +26,6 @@ if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
 
 
-# 旧平台编制规范码 → 中文（反馈 5：目录详情按编制规范展示，码值不直接示人）。
-_SHARE_TYPE_LABELS: dict[str, str] = {
-    "1": "无条件共享",
-    "2": "有条件共享",
-    "3": "不予共享",
-}
 _OPEN_TYPE_LABELS: dict[str, str] = {
     "1": "无条件开放",
     "2": "有条件开放",
@@ -430,9 +424,12 @@ class CatalogService:
         额外投影 ``shareTypeLabel`` / ``openTypeLabel`` 旧平台编制规范中文（无条件共享/
         有条件共享/不予共享 等），UI 渲染用 label、机器逻辑用码。
         """
+        raw_share_type = resource_labels.share_type_from_mapping(summary)
+        share_type_label = resource_labels.share_type_label(raw_share_type)
         return {
-            "shareType": summary.get("shared_type"),
-            "shareTypeLabel": _SHARE_TYPE_LABELS.get(str(summary.get("shared_type")), summary.get("shared_type")),
+            "shareType": raw_share_type,
+            "shareTypeLabel": share_type_label,
+            "shareLevel": resource_labels.share_type_level(share_type_label),
             "shareWay": summary.get("shared_way"),
             "shareCondition": summary.get("shared_condition") or "未登记附加共享条件，按受控申请审批。",
             "openType": summary.get("open_type"),

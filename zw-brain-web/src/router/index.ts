@@ -27,7 +27,6 @@ import P5ReverseCatalogWizard from '@/pages/P5ReverseCatalogWizard.vue';
 import P5ReverseCatalogDetail from '@/pages/P5ReverseCatalogDetail.vue';
 import P5ApiServiceWizard from '@/pages/P5ApiServiceWizard.vue';
 import P5HookupSubmitWizard from '@/pages/P5HookupSubmitWizard.vue';
-import P5QualityRuleWizard from '@/pages/P5QualityRuleWizard.vue';
 import P5FieldDecisionInbox from '@/pages/P5FieldDecisionInbox.vue';
 import P5FieldDecisionDetail from '@/pages/P5FieldDecisionDetail.vue';
 import P5HookupReviewInbox from '@/pages/P5HookupReviewInbox.vue';
@@ -44,7 +43,6 @@ import B12IamGovernance from '@/pages/B12IamGovernance.vue';
 import B12PackageDetail from '@/pages/B12PackageDetail.vue';
 import EnginesAdmin from '@/pages/EnginesAdmin.vue';
 import PLogin from '@/pages/PLogin.vue';
-import PagePlaceholder from '@/pages/PagePlaceholder.vue';
 
 // hash 模式 + 主入口枚举对齐旧 vanilla bundle ROUTES（参见 src/router/route-table.md）。
 // F3：P5 六条子路由 + P7 详情已实装；P2/P4/B1.2 部分辅助子路由仍占位。
@@ -99,7 +97,6 @@ const routes: RouteRecordRaw[] = [
   { path: '/provider/wizard/reverse-catalog', component: P5ReverseCatalogWizard, meta: { page: 'P5', title: 'P5 反向编目' } },
   { path: '/provider/wizard/api-service', component: P5ApiServiceWizard, meta: { page: 'P5', title: 'P5 API 服务化向导' } },
   { path: '/provider/wizard/hookup-submit', component: P5HookupSubmitWizard, meta: { page: 'P5', title: 'P5 资源挂接向导' } },
-  { path: '/provider/wizard/quality-rule', component: P5QualityRuleWizard, meta: { page: 'P5', title: 'P5 质量规则向导' } },
   { path: '/provider/inbox/field-decision', component: P5FieldDecisionInbox, meta: { page: 'P5', title: 'P5 反向编目审核收件箱' } },
   { path: '/provider/inbox/field-decision/:id', component: P5FieldDecisionDetail, meta: { page: 'P5', title: 'P5 反向编目审核详情' } },
   { path: '/provider/inbox/hookup-review', component: P5HookupReviewInbox, meta: { page: 'P5', title: 'P5 挂接审核收件箱' } },
@@ -128,7 +125,6 @@ const routes: RouteRecordRaw[] = [
 
   // 辅助页
   { path: '/login', component: PLogin, meta: { title: '登录' } },
-  { path: '/migration-acceptance', component: PagePlaceholder, meta: { title: 'M0 迁移验收（实施工程师）', note: '该模块按交付计划推进，当前暂未开放。' } },
 ];
 
 const router = createRouter({

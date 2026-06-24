@@ -3,7 +3,7 @@ status: working
 plan_item: P0-01
 goal_id: p0-contract-boundary
 sources:
-  - zw_brain/capability_registry/registered/*.json (<!-- stat:zwbrain.manifest-total -->249<!-- /stat --> manifests)
+  - zw_brain/capability_registry/registered/*.json (<!-- stat:zwbrain.manifest-total -->246<!-- /stat --> manifests)
   - docs/approved/zw-brain-architecture.md §1.3 §5.1 §5.2 §5.2.1 §10.1-10.6 §11 R7/R10/R14/R15
   - tests/test_wave0_*.py + tests/e2e/wave0_j1_golden_path.py
 ---
@@ -179,9 +179,7 @@ sources:
 | 141 | package.review_decide | builtin/internal | b1 | live | 保留 | B1.2 版本审决 |
 | 142 | package.view | builtin/internal | b1 | live | 保留 | B1.2 包详情 |
 | 143 | provider.view | builtin/internal | j2 | live | 保留 | P5 提供方视图 |
-| 144 | quality.rule.upsert | builtin/internal | external | external | external | **§1.3 "质量"** |
-| 145 | quality.task.replay | builtin/internal | external | external | external | **§1.3 同上** |
-| 146 | quality.task.run | builtin/internal | external | external | external | **§1.3 同上** |
+| 144 | external.quality.scan.execute | external_capability/external_contract | external | external | 保留 | **§1.3 "质量" 走外部质量检测契约** |
 | 147 | registry.artifact.export | builtin/internal | infra | live | 保留 | registry 导出（B1.2 + infra） |
 | 148 | request.create | builtin/internal | j1 | live | 保留 | golden-path tag（J1 申请） |
 | 149 | request.list | builtin/internal | j1 | live | 保留 | J1 申请列表 |
@@ -250,9 +248,7 @@ sources:
 |---|---|---|
 | metadata.lineage.query | **转 external** | "血缘" 明确不做；应走 external.lineage.graph.build |
 | metadata.lineage.upsert | **转 external** | 同上（写入应在治理中心，本仓只能查询投影） |
-| quality.rule.upsert | **转 external** | "质量" 明确不做；外部已有 external.quality.scan.execute |
-| quality.task.replay | **转 external** | 同上 |
-| quality.task.run | **转 external** | 同上 |
+| 质量内置规则/任务能力 | **删除内置残余** | "质量" 明确不做；只保留 external.quality.scan.execute 外部契约 |
 | ops.catalog.quality.query | **转 external** | 同上（"质量" 范畴） |
 | ops.catalog.quality.upsert | **转 external** | 同上 |
 
@@ -384,12 +380,9 @@ sources:
 ```
 1.  metadata.lineage.query         (§2.1 §1.3 血缘)
 2.  metadata.lineage.upsert        (§2.1 §1.3 血缘)
-3.  quality.rule.upsert            (§2.1 §1.3 质量)
-4.  quality.task.replay            (§2.1 §1.3 质量)
-5.  quality.task.run               (§2.1 §1.3 质量)
-6.  ops.catalog.quality.query      (§2.1 §1.3 质量)
-7.  ops.catalog.quality.upsert     (§2.1 §1.3 质量)
-8.  ops.exchange.diagnose          (§2.5 §1.3 运维)
+3.  ops.catalog.quality.query      (§2.1 §1.3 质量)
+4.  ops.catalog.quality.upsert     (§2.1 §1.3 质量)
+5.  ops.exchange.diagnose          (§2.5 §1.3 运维)
 9.  ops.gateway.heartbeat.ingest   (§2.5 §1.3 运维)
 10. ops.gateway.log.anchor         (§2.5 §1.3 运维)
 11. ops.shift_handover.submit      (§2.5 §1.3 运维/巡检)

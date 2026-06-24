@@ -880,6 +880,7 @@ class RestHandler(BaseHTTPRequestHandler):
                 # must too. (GET params are always a dict, so this guard lives on the POST path.)
                 self._json(400, {"error": "bad_request", "detail": "request body must be a JSON object"})
                 return
+            payload.pop("actor_snapshot", None)
             payload = self._apply_verified_identity_role(payload, skill_id=skill_id)
         self._json(200, get_service().invoke_skill(skill_id, payload))
 

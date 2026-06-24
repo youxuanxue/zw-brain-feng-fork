@@ -270,6 +270,28 @@ class CatalogRepository:
             ).scalars()
             return {code for code in rows if code}
 
+    def list_entries_by_codes(
+        self,
+        catalog_codes: list[str] | set[str] | tuple[str, ...],
+        *,
+        tenant_id: str = "sd-default",
+    ) -> list[CatalogEntryRecord]:
+        codes = sorted({str(code) for code in catalog_codes if str(code or "")})
+        if not codes:
+            return []
+        SessionLocal = create_session_factory()
+        with SessionLocal() as session:
+            return list(
+                session.execute(
+                    select(CatalogEntryRecord)
+                    .where(
+                        CatalogEntryRecord.tenant_id == tenant_id,
+                        CatalogEntryRecord.catalog_code.in_(codes),
+                    )
+                    .order_by(CatalogEntryRecord.catalog_code)
+                ).scalars()
+            )
+
     def list_entries(
         self,
         *,

@@ -23,7 +23,8 @@ import { ref } from 'vue';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
-const { resource, loading, fetchError } = useResourceDetail(() => id.value);
+const role = getProductRole();
+const { resource, loading, fetchError } = useResourceDetail(() => id.value, () => role.value);
 // request.create = OPERATER + MANAGER（D57④ 管理员申请人身份照 v5 保留）；BUSIAUDIT/SECURITY_AUDIT
 // 在 P2 详情页不渲染「发起申请」。
 // A1（0605#1）：详情页对「待发布」资源仍可达，但只有「已发布（机器值 active）」才可申请——
@@ -37,7 +38,7 @@ const providerView = computed(() => route.path.startsWith('/provider/'));
 const canApply = computed(
   () =>
     !providerView.value &&
-    canPerformAction('request.create', getProductRole().value) &&
+    canPerformAction('request.create', role.value) &&
     String(resource.value?.lifecycleStatus ?? '') === 'active',
 );
 
@@ -49,7 +50,7 @@ const showNotPublishedNote = computed(
   () =>
     !!resource.value &&
     !providerView.value &&
-    canPerformAction('request.create', getProductRole().value) &&
+    canPerformAction('request.create', role.value) &&
     String(resource.value?.lifecycleStatus ?? '') !== 'active',
 );
 
@@ -70,7 +71,7 @@ const isFile = computed(() => resourceKind.value === 'file');
 // （B2 字段级元数据 10 列后，注册向导对结构化文件也可登记字段，T4 的「文件无字段模型」
 // 前提不再成立——文件资源有快照则真展示、无快照走诚实空态；接口资源仍不渲染）。
 const canViewSchema = computed(
-  () => canPerformAction('metadata.schema.query', getProductRole().value) && (isTable.value || isFile.value),
+  () => canPerformAction('metadata.schema.query', role.value) && (isTable.value || isFile.value),
 );
 // T1（6.5#2）：该块默认折叠——把异步加载推迟到用户点击展开时才发起，从根上消除「与主详情并发
 // 竞速、先渲染加载态再切成表格」的二次撑高（仅有权且库表岗位会渲染本块，正是验收看到跳跃的角色）。
@@ -84,7 +85,7 @@ const {
 } = useResourceSchema(
   () => id.value,
   () => canViewSchema.value && showSchema.value,
-  () => getProductRole().value,
+  () => role.value,
 );
 
 // B2 扩展 3 列（关联目录信息项 / 更新标识 / 数据标准·数据字典）按需出列：任一行有值才出

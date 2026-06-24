@@ -140,11 +140,11 @@ def test_audit_chain_records_intent_parse(brain):
     ]
     assert events, "search.intent.parse not written to audit feed"
     # Action F lock: handler must attribute the audit feed to the per-request
-    # role-derived actor (ctx.actor), never the dead `_ui_state["actor"]` constant
-    # "system" — guards against a silent regression of audit attribution.
+    # trusted-session actor (ctx.actor), never the dead `_ui_state["actor"]`
+    # constant "system" — guards against a silent regression of audit attribution.
     actor = events[-1]["actor"]
     assert actor != "system"
-    assert actor.startswith("user:gov:ROLE_ORGAN_OPERATER:"), actor
+    assert actor == "test-actor:role_organ_operater"
 
 
 # ──────────────────────────────────────────────────────────────────────

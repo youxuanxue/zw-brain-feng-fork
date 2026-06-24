@@ -83,7 +83,6 @@ from zw_brain.command.handlers.j2 import (
     governance,
     metadata,
     national_ext_elem,
-    quality,
     service_lifecycle,
     tenant_policy,
     topic_package,
@@ -160,10 +159,6 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "metadata.schema.snapshot.upsert": metadata.handler_metadata_schema_snapshot_upsert,
     "metadata.gather.evidence.upsert": metadata.handler_metadata_gather_evidence_upsert,
     "metadata.lineage.upsert": metadata.handler_metadata_lineage_upsert,
-    # turn 4: J2 — quality (3 cap)
-    "quality.rule.upsert": quality.handler_quality_rule_upsert,
-    "quality.task.run": quality.handler_quality_task_run,
-    "quality.task.replay": quality.handler_quality_task_replay,
     # turn 4: J2 — topic_package (9 cap; create from turn 2)
     "topic.package.configure": topic_package.handler_topic_package_configure,
     "topic.package.submit": topic_package.handler_topic_package_submit,

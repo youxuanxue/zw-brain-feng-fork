@@ -162,9 +162,6 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `metadata.schema.discover` | j2 | `discover_metadata_schema` | 2265 |
 | `metadata.schema.query` | j2 | `query_metadata_schema` | 4494 |
 | `metadata.schema.snapshot.upsert` | j2 | `upsert_metadata_schema_snapshot` | 4724 |
-| `quality.rule.upsert` | j2 | `upsert_quality_rule` | 2304 |
-| `quality.task.replay` | j2 | `replay_quality_task` | 2364 |
-| `quality.task.run` | j2 | `run_quality_task` | 2335 |
 | `service.publish_or_suspend` | j2 | `publish_or_suspend_service` | 6985 |
 | `tenant.policy.evaluate` | j2 | `evaluate_tenant_policy` | 1379 |
 | `catalog.national_ext_elem.compile` | j2 | `handler_national_ext_elem_compile` | j2/national_ext_elem.py |

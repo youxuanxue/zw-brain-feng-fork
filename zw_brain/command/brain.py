@@ -421,14 +421,34 @@ class BrainService:
         without touching internals.
         """
         from zw_brain.command.deps import SkillContext  # noqa: PLC0415
+        actor = self._actor_for_context(role, payload)
         return SkillContext(
             skill_id=skill_id,
             role=role,
-            actor=self._actor_for_role(role),
+            actor=actor,
             confirmed=bool(payload.get("confirmed")),
             manifest=manifest,
             source=source,
         )
+
+    def _actor_for_context(self, role: str, payload: dict[str, Any]) -> str:
+        """Resolve actor from trusted session context; ignore client-supplied snapshots."""
+        from zw_brain.shared.auth_context import get_auth_context, is_system_origin_payload  # noqa: PLC0415
+        from zw_brain.shared.session_context import is_trusted_session_payload  # noqa: PLC0415
+
+        if is_system_origin_payload(payload):
+            return self._actor_for_role(role)
+        actor_snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
+        if is_trusted_session_payload(payload):
+            actor = str(actor_snapshot.get("actor") or "")
+            if actor:
+                return actor
+        auth_ctx = get_auth_context()
+        if auth_ctx is not None:
+            subject = str(auth_ctx.subject or "")
+            if subject:
+                return subject
+        return self._actor_for_role(role)
 
     def _get_handler_deps(self) -> Any:
         """Lazy-build cached HandlerDeps — commit-1 introduces; commits 2+ use.
@@ -1266,4 +1286,3 @@ class BrainService:
             "role": role,
             "confirmed": True,
         })
-

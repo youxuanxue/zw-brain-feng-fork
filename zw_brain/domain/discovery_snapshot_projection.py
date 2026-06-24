@@ -18,9 +18,11 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain import resource_labels
 from zw_brain.domain.data_quality import classify_purpose, is_dirty_purpose, purpose_from_payload
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
+from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.resource_lifecycle import lifecycle_label
@@ -57,21 +59,6 @@ DISCOVERABLE_STATUSES = _DISCOVERABLE_STATUSES
 # 无意义 desc 占位值（真实库 res_desc 82% 是空/「无」/标题复读 → 卡片不渲染噪声）
 _DESC_NOISE = frozenset({"", "无", "-", "暂无", "无。"})
 
-# 共享类型 access_policy_json.share_type → 中文（决策信号：能不能拿、要不要审批）。
-# **权威来源 = 源表 dc_resource_base_info DDL 注释「1：无条件共享 2：有条件共享 3：不予共享」
-# + 真实数据双重确认**（人口信息=2=有条件 / 学校名单=1=无条件）。注意：approval_flow_baseline 的
-# SHARED_TYPE 常量是反的（1=有条件），那是审批流另一码空间，**禁止用于资源卡**。
-_SHARE_TYPE_DISPLAY = {
-    "1": "无条件共享",
-    "2": "有条件共享",
-    "3": "不予共享",
-    "unconditional": "无条件共享",
-    "conditional": "有条件共享",
-}
-# 卡片色级：无条件=畅通 / 有条件=需审批 / 不予=不可得
-_SHARE_TYPE_LEVEL = {"无条件共享": "open", "有条件共享": "conditional", "不予共享": "closed"}
-
-
 # ───────────────────────────────────────────────────────────────────────────
 # requests — P3RequestFlow 在途申请 + P3RequestDetail 预填底座
 # ───────────────────────────────────────────────────────────────────────────
@@ -83,10 +70,7 @@ def _shared_type_for(payload: dict[str, Any], share_type_by_resource: dict[str, 
     """
     raw = payload.get("shared_type") or payload.get("sharedType")
     if raw is not None:
-        try:
-            return int(raw)
-        except (TypeError, ValueError):
-            return None
+        return resource_labels.share_type_int(raw)
     rid = str(payload.get("resourceId") or payload.get("resource_id") or "")
     if rid and share_type_by_resource:
         return share_type_by_resource.get(rid)
@@ -104,11 +88,7 @@ def _share_type_by_resource(tenant_id: str, assets: list[Any] | None = None) -> 
     rows = assets if assets is not None else ResourceApiRepository().list_assets(tenant_id=tenant_id)
     for asset in rows:
         access = asset.access_policy_json or {}
-        raw = access.get("share_type")
-        try:
-            st = int(raw) if raw is not None else None
-        except (TypeError, ValueError):
-            st = None
+        st = resource_labels.share_type_int(resource_labels.share_type_from_mapping(access))
         if st is None:
             continue
         for key in (str(asset.id or ""), str(getattr(asset, "resource_code", "") or "")):
@@ -129,6 +109,36 @@ def shared_type_for_resource(resource_id: str, tenant_id: str | None = None) -> 
         return None
     tid = tenant_id or get_runtime_tenant_id()
     return _share_type_by_resource(tid).get(rid)
+
+
+def _catalog_share_policy(record: Any) -> dict[str, Any]:
+    summary = resource_labels.summary_body(record.summary_json or {})
+    raw = resource_labels.share_type_from_mapping(summary)
+    label = resource_labels.share_type_label(raw)
+    return {
+        "shareType": raw,
+        "shareTypeLabel": label,
+        "shareLevel": resource_labels.share_type_level(label),
+    }
+
+
+def _share_policy_by_catalog(
+    tenant_id: str,
+    assets: list[Any] | None = None,
+    *,
+    catalog_repo: CatalogRepository | None = None,
+) -> dict[str, dict[str, Any]]:
+    """catalog_code → catalog summary 共享策略，一次性预载供发现卡/搜索卡复用。"""
+    rows = assets if assets is not None else ResourceApiRepository().list_assets(tenant_id=tenant_id)
+    catalog_codes = {str(getattr(asset, "catalog_code", "") or "") for asset in rows}
+    catalog_codes.discard("")
+    if not catalog_codes:
+        return {}
+    repo = catalog_repo or CatalogRepository()
+    return {
+        record.catalog_code: _catalog_share_policy(record)
+        for record in repo.list_entries_by_codes(catalog_codes, tenant_id=tenant_id)
+    }
 
 
 def _provider_org_from_payload(payload: dict[str, Any]) -> str:
@@ -416,13 +426,31 @@ def enrich_approvals_snapshot(
 # discovery.resources — P2Discovery 「可复用资源」（资源中心，架构 §5.2.1）
 # ───────────────────────────────────────────────────────────────────────────
 
-def _asset_to_resource_card(record: Any) -> dict[str, Any]:
+def _asset_share_policy(record: Any, catalog_share_policies: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
+    policy = (catalog_share_policies or {}).get(str(record.catalog_code or ""))
+    if policy and policy.get("shareTypeLabel"):
+        return policy
+    access = record.access_policy_json or {}
+    raw = resource_labels.share_type_from_mapping(access)
+    label = resource_labels.share_type_label(raw)
+    return {
+        "shareType": raw,
+        "shareTypeLabel": label,
+        "shareLevel": resource_labels.share_type_level(label),
+    }
+
+
+def _asset_to_resource_card(
+    record: Any,
+    *,
+    catalog_share_policies: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     owner = record.owner_org_snapshot_json or {}
     summary = record.summary_json or {}
-    access = record.access_policy_json or {}
     raw_desc = str(summary.get("res_desc") or "").strip()
     desc = "" if raw_desc in _DESC_NOISE or raw_desc == (record.title or "").strip() else raw_desc
-    share_type = _SHARE_TYPE_DISPLAY.get(str(access.get("share_type")).strip().lower(), "")
+    access_policy = _asset_share_policy(record, catalog_share_policies)
+    share_type = str(access_policy.get("shareTypeLabel") or "")
     return {
         "id": record.resource_code,
         "name": record.title,
@@ -431,7 +459,8 @@ def _asset_to_resource_card(record: Any) -> dict[str, Any]:
         "status": lifecycle_label(record.lifecycle_status),
         "lifecycleStatus": record.lifecycle_status,
         "shareType": share_type,
-        "shareLevel": _SHARE_TYPE_LEVEL.get(share_type, ""),
+        "shareLevel": str(access_policy.get("shareLevel") or ""),
+        "accessPolicy": access_policy,
         "provider": owner.get("org_name") or owner.get("owner_org_name") or record.owner_org_id or "",
         "providerOrgCode": record.owner_org_id or "",
         "regionCode": record.region_code or "",
@@ -445,7 +474,10 @@ def _asset_to_resource_card(record: Any) -> dict[str, Any]:
 
 
 def project_resource_cards(
-    *, tenant_id: str | None = None, assets: list[Any] | None = None
+    *,
+    tenant_id: str | None = None,
+    assets: list[Any] | None = None,
+    catalog_share_policies: dict[str, dict[str, Any]] | None = None,
 ) -> list[dict[str, Any]]:
     """发现页「可复用资源」卡片 — 共享给 snapshot enrich + data.search 空 query。
 
@@ -459,8 +491,10 @@ def project_resource_cards(
         assets if assets is not None
         else ResourceApiRepository().list_assets(tenant_id=tenant_id or get_runtime_tenant_id())
     )
+    tid = tenant_id or get_runtime_tenant_id()
+    policies = catalog_share_policies if catalog_share_policies is not None else _share_policy_by_catalog(tid, records)
     return [
-        _asset_to_resource_card(r)
+        _asset_to_resource_card(r, catalog_share_policies=policies)
         for r in records
         if r.lifecycle_status in _DISCOVERABLE_STATUSES
     ]
@@ -468,7 +502,9 @@ def project_resource_cards(
 
 def enrich_discovery_resources_snapshot(
     snapshot: dict[str, Any], *, tenant_id: str | None = None,
-    assets: list[Any] | None = None, copy: bool = True,
+    assets: list[Any] | None = None,
+    catalog_share_policies: dict[str, dict[str, Any]] | None = None,
+    copy: bool = True,
 ) -> dict[str, Any]:
     """Replace snapshot['discovery']['resources'] with the full real resource_asset list.
 
@@ -477,7 +513,11 @@ def enrich_discovery_resources_snapshot(
     ``assets`` 预取的 resource_asset（见 project_resource_cards）；``None``=回落自查。
     """
     out = _copy_snapshot(snapshot, copy)
-    cards = project_resource_cards(tenant_id=tenant_id, assets=assets)
+    cards = project_resource_cards(
+        tenant_id=tenant_id,
+        assets=assets,
+        catalog_share_policies=catalog_share_policies,
+    )
     # DB single SoT: 无条件替换（空库 → 空发现列表，不回退 seed 演示资源）。
     discovery = out.setdefault("discovery", {})
     discovery["resources"] = cards

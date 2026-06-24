@@ -78,7 +78,6 @@
 | 19 | 批量导入跑通 | `bash scripts/customer_acceptance_up.sh` | 写 `.data/customer-acceptance/migration-report.json` 且 status=succeeded | 迁移不通 → 客户旧数据进不来，大脑空跑 |
 | 20 | `legacy_object_mapping` 一对一回指 | `sqlite3 $ZW_BRAIN_DB_PATH "SELECT COUNT(*), SUM(mapping_status='mapped') FROM legacy_object_mapping"` | total > 0 且 mapped 比例 ≥ 95% | mapping 断 → 安全审计员 督查无法溯源到旧对象，合规证据链不完整 |
 | 21 | M0 验收 status query 11 卡片 | `curl -s /api/skills/legacy.migration.status.query?role=ROLE_BUSIAUDIT \| jq '.work_queue_cards \| length'` | `11` | 卡片缺失 → 业务运营员 看不到验收进度，无法签收 M0 |
-| 22 | P0 WebUI 页面渲染 | 浏览器访问 `#/migration-acceptance` | 11 张卡片 + totals + canonical/legacy 分布表 | 页面不渲染 → 实施工程师无法证明迁移完成，签收没视觉证据 |
 | 23 | 显式回滚 dry-run 可调 | `python -m zw_brain.entry.legacy_migration.rollback --tenant=sd-default --legacy-system=dsp_catalog --dry-run` | 返回 scanned 数 + audit_id=null | 回滚链路坏 → 迁移如果半途出错无法干净退回，业务无 rollback plan |
 
 ## 七、M0 + 7 角色 e2e 契约（10 项 — W5.2 全部）

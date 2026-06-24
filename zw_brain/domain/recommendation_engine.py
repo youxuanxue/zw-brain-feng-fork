@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from zw_brain.domain import resource_labels
 from zw_brain.domain.models import (
     CatalogItemRecord,
     RecommendationRuleClauseRecord,
@@ -25,13 +26,6 @@ from zw_brain.domain.recommendation_rule import RecommendationRuleRepo
 
 DEFAULT_SCORE_THRESHOLD = 0.1
 DEFAULT_TOP_K = 5
-
-# 不予共享码（access_policy_json.share_type=3，与 discovery_snapshot_projection 同源口径
-# + 源表 dc_resource_base_info DDL「1：无条件 2：有条件 3：不予共享」）。推荐安全边界：
-# shared_type=3 资源**结构性**排除出候选池，避免跨部门暴露不予共享数据
-# （engine-recommend-prefer.feature:50-55 负向场景 C_2499 类）。
-_NO_SHARE_TYPE = 3
-
 
 @dataclass
 class RecommendationCandidate:
@@ -205,12 +199,8 @@ class RecommendationEngine:
             select(ResourceAssetRecord).where(ResourceAssetRecord.tenant_id == tenant_id)
         ).scalars():
             access = asset.access_policy_json or {}
-            raw = access.get("share_type")
-            try:
-                st = int(raw) if raw is not None else None
-            except (TypeError, ValueError):
-                st = None
-            if st == _NO_SHARE_TYPE and asset.resource_code:
+            st = resource_labels.share_type_int(resource_labels.share_type_from_mapping(access))
+            if st == resource_labels.SHARE_TYPE_CLOSED and asset.resource_code:
                 out.add(str(asset.resource_code))
         return out
 

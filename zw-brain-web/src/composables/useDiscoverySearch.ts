@@ -1,4 +1,4 @@
-import { computed, reactive, ref, watch } from 'vue';
+import { computed, reactive, ref, watch, type Ref } from 'vue';
 import { authFetch } from './useAuth';
 import { useDiscoveryResources, useSnapshot } from './useSnapshot';
 import {
@@ -10,8 +10,17 @@ import {
 } from '@/lib/discoverySearchFilter';
 import { apiUrl } from './useApiBase';
 
+type RoleSource = string | Ref<string> | (() => string);
+const DEFAULT_ROLE = 'ROLE_ORGAN_OPERATER';
+
+function resolveRole(role: RoleSource): string {
+  if (typeof role === 'function') return role() || DEFAULT_ROLE;
+  if (typeof role === 'object' && role !== null && 'value' in role) return String(role.value || DEFAULT_ROLE);
+  return String(role || DEFAULT_ROLE);
+}
+
 /** P2 搜索：空 query 用 snapshot 精选；有关键词时本地即时筛选 + data.search 全库检索。 */
-export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
+export function useDiscoverySearch(role: RoleSource = DEFAULT_ROLE) {
   const query = ref('');
   const searchResults = ref<Record<string, unknown>[]>([]);
   const searching = ref(false);
@@ -34,7 +43,7 @@ export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
       const resp = await authFetch(apiUrl('/api/skills/data.search'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({ query: trimmed, page: 1, role }),
+        body: JSON.stringify({ query: trimmed, page: 1, role: resolveRole(role) }),
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = (await resp.json()) as { results?: unknown[] };
@@ -47,7 +56,7 @@ export function useDiscoverySearch(role = 'ROLE_ORGAN_OPERATER') {
     }
   }
 
-  watch(query, (q) => {
+  watch([query, () => resolveRole(role)], ([q]) => {
     if (debounceTimer !== null) window.clearTimeout(debounceTimer);
     if (!q.trim()) {
       searchResults.value = [];

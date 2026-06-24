@@ -148,9 +148,17 @@ def _list_catalog_resources(
     catalog_dict["accessPolicy"] = catalog_service.access_policy(
         catalog_service.summary_body(masked_summary), entry
     )
+    access_policy = catalog_dict["accessPolicy"]
+    items: list[dict[str, Any]] = []
+    for asset in window:
+        item = resource_api_ser.resource_asset_to_dict(asset)
+        item["accessPolicy"] = _copy.deepcopy(access_policy)
+        item["shareType"] = access_policy.get("shareTypeLabel") or ""
+        item["shareLevel"] = access_policy.get("shareLevel") or ""
+        items.append(item)
     return {
         "catalog": catalog_dict,
-        "items": [resource_api_ser.resource_asset_to_dict(a) for a in window],
+        "items": items,
         "total": total,
         "page": page,
         "limit": limit,
@@ -394,4 +402,3 @@ def handler_catalog_share_zone_query(deps: HandlerDeps, ctx: SkillContext, paylo
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _query_catalog_share_zones(brain, deps, ctx)
-

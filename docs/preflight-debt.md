@@ -625,7 +625,7 @@ trigger 关闭即可删除字段。
   是 BUSIAUDIT 审核侧入口，对应的「OPERATER 提交挂接」上游页未建。
 - **Implication**: J2-4 是 Wave-1 必备走线（基线 §3.3 三物化形式 table / file / api +
   §10.2 J2 资源挂接 + 旧 xlsx 行 [57..61] 资源注册）。当前 OPERATER 在 P5Provider 上有
-  在线编制 / API 服务化 / 质量规则 wizard，但**为已发布目录补挂 table/file 物化资源**没有入口，
+  在线编制 / API 服务化等入口，但**为已发布目录补挂 table/file 物化资源**没有入口，
   申请人 J1 只能拿到 api 物化的 catalog，table/file 形态完全走不通。
 - **Why deferred**: 涉及新 wizard page + composable + `resource.mount` skill（≥3 个 skill：
   table/file/api 各一）+ data_resource 表（D23 二次升级删 alembic，需 drop&recreate）+
@@ -822,7 +822,7 @@ trigger 关闭即可删除字段。
 
 - **Status (2026-05-25 更新)**: 不再是 "0% 实现 / deferred"。三引擎已在 **PR #92** 落地：检索
   `zw_brain/capability_registry/registered/` 现有 10 个三引擎 capability（`approval_flow.*` 4 +
-  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->249<!-- /stat -->）。`config_change_class` preview/draft
+  `form_schema.*` 4 + `recommendation.*` 2；总 manifest <!-- stat:zwbrain.manifest-total -->246<!-- /stat -->）。`config_change_class` preview/draft
   流已激活（当前 preview 2 / draft 4）。
 - **What remains**: 代码侧已交付；**未完成的是 T1 真实客户演练验证**——用三引擎在 ≤1 周内不改代码
   完成"鞍山 4 级审批 + 四川 7 字段表单 + 荆州 5 条推荐规则"项目级定制，由业务方 sign-off。

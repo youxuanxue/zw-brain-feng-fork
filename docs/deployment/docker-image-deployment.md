@@ -262,7 +262,7 @@ docker run --rm \
     --profile customer-core-v1 \
     --strict \
     --acceptance \
-    --report /reports/migration-acceptance-report.json
+    --report /reports/legacy-migration-report.json
 ```
 
 如需清空并重建目标库，可在确认数据可丢弃后追加 `--reset-db`（该路径会自动设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 走显式破坏性重置；不带 `--reset-db` 时迁移批走 `ensure_runtime_schema()` 的 alembic 向前迁移、**不 DROP**，D58）。

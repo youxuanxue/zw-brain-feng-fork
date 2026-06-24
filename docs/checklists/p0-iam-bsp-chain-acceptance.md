@@ -99,7 +99,7 @@
 | D-06 | fixture 降级 | 断 backend list API | 显示「后端暂不可达」；审核按钮 disabled | e2e `P0: fixture 模式禁用审核按钮` |
 | D-07 | 岗位切换 toast | 顶栏 `#role-switch` 切到无权页岗位 | toast 含**中文岗位名**；自动跳转可用入口 | e2e `P1: 岗位切换 toast` + `tests/e2e/webui_smoke.spec.ts` |
 | D-08 | 路由门禁 | 操作员深链 `#/provider` 等无权页 | hash 变更，不能停留 | `tests/test_page_access.py` + e2e smoke |
-| D-09 | 契约不漂移 | — | composable 绑定 registry skill；路由非 PagePlaceholder | `uv run pytest tests/test_iam_governance_web_surface.py -q` |
+| D-09 | 契约不漂移 | — | composable 绑定 registry skill；路由无空占位组件 | `uv run pytest tests/test_iam_governance_web_surface.py -q` |
 
 **一键浏览器 P0（需 start-local + build）**
 

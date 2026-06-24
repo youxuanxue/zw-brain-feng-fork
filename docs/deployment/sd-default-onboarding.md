@@ -298,7 +298,6 @@ curl -s http://localhost:8800/openapi.json | jq '.paths | length'
 
 | 岗位 | 主入口 | 关键动作 |
 | --- | --- | --- |
-| M0（隐式：ROLE_BUSIAUDIT + ROLE_SECURITY_AUDIT） | `#/migration-acceptance` | 11 张工作队列卡片状态 |
 | ROLE_ORGAN_OPERATER（申请发起） | `#/workbench` | "我的 API 凭据"卡 + "需求登记前置"表单 |
 | ROLE_ORGAN_MANAGER（部门审批） | `#/request-flow/review/<req>` | 分级授权策略 inline 表单 |
 | ROLE_ORGAN_OPERATER（基层补差） | `#/request-flow` | "只看我的"列表过滤 + "异常回传" |

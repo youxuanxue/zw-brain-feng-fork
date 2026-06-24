@@ -30,7 +30,13 @@ def _seed() -> None:
     asset_repo = ResourceApiRepository()
     # 有资源的目录 + 挂 7 个资源（真实形态：catalog_code 归属）
     catalog_repo.upsert_from_resource(
-        {"id": CAT_WITH, "name": "学生课程信息", "status": "active", "provider": "11370000MB284651XL"},
+        {
+            "id": CAT_WITH,
+            "name": "学生课程信息",
+            "status": "active",
+            "provider": "11370000MB284651XL",
+            "shared_type": "2",
+        },
         tenant_id=TENANT,
     )
     for idx in range(7):
@@ -70,6 +76,10 @@ def test_catalog_with_resources(brain: BrainService) -> None:
     assert res["catalog"]["title"] == "学生课程信息"
     assert res["total"] == 7
     assert {it["resource_code"] for it in res["items"]} >= {"res-stu-00", "res-stu-01"}
+    assert res["catalog"]["accessPolicy"]["shareTypeLabel"] == "有条件共享"
+    assert all(it["accessPolicy"]["shareTypeLabel"] == "有条件共享" for it in res["items"])
+    assert all(it["shareType"] == "有条件共享" for it in res["items"])
+    assert all(it["shareLevel"] == "conditional" for it in res["items"])
 
 
 def test_empty_catalog_honest_empty(brain: BrainService) -> None:

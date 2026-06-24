@@ -25,8 +25,8 @@ const meta = computed(() => {
   <ProviderManageList
     title="资源管理清单"
     :meta="meta"
+    :back-link="{ label: '提供方管理', href: '#/provider' }"
     :links="[
-      { label: '提供方管理', href: '#/provider' },
       { label: '目录管理清单', href: '#/provider/catalogs' },
       { label: '资源挂接', href: '#/provider/wizard/hookup-submit' },
     ]"

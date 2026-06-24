@@ -74,15 +74,14 @@ const headerMeta = computed(() => {
   return '从这里编目、挂接、注册你对外提供的数据（发布/审核去工作台办理）';
 });
 
-// 供数主线动作提升到页头药丸区，与质量规则并排（参考找数据页的入口药丸样式）。
-// 在线编制目录、反向编目、资源挂接、接口服务注册 + 质量规则，按角色权限过滤（无权=不可见）。
+// 供数主线动作提升到页头药丸区（参考找数据页的入口药丸样式）。
+// 在线编制目录、反向编目、资源挂接、接口服务注册，按角色权限过滤（无权=不可见）。
 const providerHeaderLinks = computed(() => {
   const items = [
     { label: '在线编制目录', href: '#/provider/wizard/inline-catalog', route: '/provider/wizard/inline-catalog' },
     { label: '反向编目', href: '#/provider/wizard/reverse-catalog', route: '/provider/wizard/reverse-catalog' },
     { label: '资源挂接', href: '#/provider/wizard/hookup-submit', route: '/provider/wizard/hookup-submit' },
     { label: '接口服务注册', href: '#/provider/wizard/api-service', route: '/provider/wizard/api-service' },
-    { label: '质量规则', href: '#/provider/wizard/quality-rule', route: '/provider/wizard/quality-rule' },
   ];
   // 无权=不可见：按路由可达性过滤（单源 = isRouteAllowedForRole，与导航/路由守卫同口径），
   // 不另猜 cap 名（未注册 cap 会对全角色放行，反而越权可见）。

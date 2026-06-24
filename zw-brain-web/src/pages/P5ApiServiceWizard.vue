@@ -315,7 +315,7 @@ function resetForm() {
       <PageFocusHeader
         title="代理服务注册向导"
         :meta="headerMeta"
-        :links="[{ label: '质量规则向导', href: '#/provider/wizard/quality-rule' }]"
+        :links="[]"
       />
 
       <!-- 已注册 API 服务列表（真实数据） -->

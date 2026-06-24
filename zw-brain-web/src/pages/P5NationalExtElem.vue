@@ -122,11 +122,11 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
+    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="国家扩展要素编制"
         :meta="headerMeta"
-        :links="[{ label: '提供方管理', href: '#/provider' }]"
       />
 
       <p v-if="!canCompile" class="role-hint">
@@ -187,6 +187,8 @@ const headerMeta = computed(() => {
 </template>
 
 <style scoped>
+.crumbs { max-width: var(--content-max-width, 1200px); margin: 0 auto 8px; font-size: 14px; }
+.crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 .role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0 0 12px; line-height: 1.5; }
 .notice-pending { font-size: 13px; color: #8a6d00; background: #fff7e0; padding: 8px 12px; border-radius: 6px; margin: 0 0 14px; }
 .new-row { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }

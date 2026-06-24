@@ -23,7 +23,7 @@ const role = getProductRole();
 const providerView = computed(() => route.path.startsWith('/provider/'));
 const { catalog, resources, total, loading, fetchError, source } = useCatalogResources(
   () => code.value,
-  role.value,
+  () => role.value,
 );
 const canApply = computed(() => !providerView.value && canPerformAction('request.create', role.value));
 

@@ -26,7 +26,6 @@
 | `#/provider/wizard/reverse-catalog`  | `PAGES.providerWizardReverseCatalog` | P5 反向编目列表    | J2   |
 | `#/provider/wizard/reverse-catalog/detail`  | `PAGES.providerWizardReverseCatalogDetail` | P5 反向编目向导    | J2   |
 | `#/provider/wizard/api-service`      | `PAGES.providerWizardApiService`     | P5 API 服务化向导  | J2   |
-| `#/provider/wizard/quality-rule`     | `PAGES.providerWizardQualityRule`    | P5 质量规则向导    | J2   |
 | `#/provider/inbox/field-decision`        | `PAGES.providerInboxFieldDecision`        | P5 反向编目审核收件箱 | J2 |
 | `#/provider/inbox/field-decision/:id`    | `PAGES.providerInboxFieldDecisionDetail`  | P5 反向编目审核详情   | J2 |
 | `#/provider/inbox/hookup-review`         | `PAGES.providerInboxHookupReview`         | P5 挂接审核收件箱  | J2 |
@@ -53,7 +52,6 @@
 | ----------------------- | ----------------- | --- |
 | `#/login`               | 登录中转页         | iaf 跳转后回调 |
 | `#/profile`             | 个人中心          | 用户菜单入口 |
-| `#/migration-acceptance`| M0 迁移验收（admin）| 实施工程师 |
 
 ## §5.4.4 嵌入式自然语言加速器（F7 接入位）
 

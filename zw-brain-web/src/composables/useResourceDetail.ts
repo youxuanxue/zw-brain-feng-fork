@@ -1,9 +1,18 @@
-import { computed, ref, watch } from 'vue';
+import { computed, ref, watch, type Ref } from 'vue';
 import { authFetch } from './useAuth';
 import { apiUrl } from './useApiBase';
 
+type RoleSource = string | Ref<string> | (() => string);
+const DEFAULT_ROLE = 'ROLE_ORGAN_OPERATER';
+
+function resolveRole(role: RoleSource): string {
+  if (typeof role === 'function') return role() || DEFAULT_ROLE;
+  if (typeof role === 'object' && role !== null && 'value' in role) return String(role.value || DEFAULT_ROLE);
+  return String(role || DEFAULT_ROLE);
+}
+
 /** 资源详情：始终从 API 拉取完整详情（0605#2：不再先用 snapshot 缩略信息首刷，消除视觉跳跃感）。 */
-export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_OPERATER') {
+export function useResourceDetail(resourceId: () => string, role: RoleSource = DEFAULT_ROLE) {
   const fetched = ref<Record<string, unknown> | null>(null);
   const fetchError = ref<string | null>(null);
   const loading = ref(false);
@@ -14,7 +23,7 @@ export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_O
     fetchError.value = null;
     try {
       const resp = await authFetch(
-        apiUrl(`/api/skills/catalog.resource_view?role=${encodeURIComponent(role)}&resource_id=${encodeURIComponent(id)}`),
+        apiUrl(`/api/skills/catalog.resource_view?role=${encodeURIComponent(resolveRole(role))}&resource_id=${encodeURIComponent(id)}`),
         { headers: { Accept: 'application/json' } },
       );
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -28,8 +37,8 @@ export function useResourceDetail(resourceId: () => string, role = 'ROLE_ORGAN_O
   }
 
   watch(
-    () => resourceId(),
-    (id) => {
+    [() => resourceId(), () => resolveRole(role)],
+    ([id]) => {
       fetched.value = null;
       fetchError.value = null;
       // 详情页始终拉 API 富集详情（typedDetail/catalogMeta/分型块 + accessPolicy + 真实 lifecycle）。

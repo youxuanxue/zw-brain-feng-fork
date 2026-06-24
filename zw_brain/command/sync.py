@@ -52,6 +52,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
 from zw_brain.command import demo_state_sync
+from zw_brain.domain import resource_labels
 
 if TYPE_CHECKING:
     from zw_brain.shared.state_store import StateStore
@@ -109,17 +110,16 @@ def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any], 
 # （dispatch.py 已注册），不新铸标识符。
 # ───────────────────────────────────────────────────────────────────────────
 
-# 有条件共享码：dsp_catalog shared_type==2（与 catalog_entry / request handler 同源口径）。
-_CONDITIONAL_SHARE_TYPE = 2
-
-
 def _decision_context(request: dict[str, Any], shared_type: int) -> list[dict[str, str]]:
     """组装行内决策面板的上下文行（<=6 行，源值缺失/空则跳过该行——不渲染「—」空行）。"""
     rows: list[tuple[str, Any]] = [
         ("资源", request.get("resourceName")),
         ("申请人", request.get("applicant")),
         ("用途", request.get("purpose")),
-        ("共享方式", "有条件共享" if shared_type == _CONDITIONAL_SHARE_TYPE else "无条件共享"),
+        (
+            "共享方式",
+            resource_labels.share_type_label(shared_type or resource_labels.SHARE_TYPE_UNCONDITIONAL),
+        ),
     ]
     return [{"label": label, "value": str(value)} for label, value in rows if value]
 
@@ -132,7 +132,7 @@ def _dept_approve_action(request: dict[str, Any], request_id: str) -> dict[str, 
     不必跳详情页读六行字。
     """
     capability = "application.dept_approve"
-    shared_type = int(request.get("shared_type", request.get("sharedType", 0)) or 0)
+    shared_type = resource_labels.share_type_int(request.get("shared_type", request.get("sharedType", 0))) or 0
     return {
         "kind": "decision",
         "capability": capability,
@@ -141,7 +141,14 @@ def _dept_approve_action(request: dict[str, Any], request_id: str) -> dict[str, 
         "context": _decision_context(request, shared_type),
         "decisions": [
             {"label": "审核通过", "tone": "primary", "success": "审核通过（已授权）", "payload": {"decision": "approve"}},
-            {"label": "驳回", "tone": "danger", "success": "部门审核驳回", "payload": {"decision": "reject"}},
+            {
+                "label": "驳回",
+                "tone": "danger",
+                "success": "部门审核驳回",
+                "needsReason": True,
+                "reasonKey": "note",
+                "payload": {"decision": "reject"},
+            },
         ],
     }
 
@@ -152,20 +159,41 @@ def _accept_action(request: dict[str, Any], request_id: str) -> dict[str, Any]:
     有条件共享（shared_type==2，受理后待部门审）→ application.platform_approve（受理/驳回）；
     无条件共享（受理即终）→ approval.case.decide（受理通过/退回补正/驳回）。
     """
-    shared_type = int(request.get("shared_type", request.get("sharedType", 0)) or 0)
+    shared_type = resource_labels.share_type_int(request.get("shared_type", request.get("sharedType", 0))) or 0
     context = _decision_context(request, shared_type)
-    if shared_type == _CONDITIONAL_SHARE_TYPE:
+    if shared_type == resource_labels.SHARE_TYPE_CONDITIONAL:
         capability = "application.platform_approve"
         decisions = [
             {"label": "受理", "tone": "primary", "success": "已受理（待部门审核）", "payload": {"decision": "approve"}},
-            {"label": "驳回", "tone": "danger", "success": "受理驳回", "payload": {"decision": "reject"}},
+            {
+                "label": "驳回",
+                "tone": "danger",
+                "success": "受理驳回",
+                "needsReason": True,
+                "reasonKey": "note",
+                "payload": {"decision": "reject"},
+            },
         ]
     else:
         capability = "approval.case.decide"
         decisions = [
             {"label": "受理通过", "tone": "primary", "success": "已通过", "payload": {"decision": "approve"}},
-            {"label": "退回补正", "tone": "secondary", "success": "已退回补正", "payload": {"decision": "return_for_fix"}},
-            {"label": "驳回", "tone": "danger", "success": "已驳回", "payload": {"decision": "reject"}},
+            {
+                "label": "退回补正",
+                "tone": "secondary",
+                "success": "已退回补正",
+                "needsReason": True,
+                "reasonKey": "note",
+                "payload": {"decision": "return_for_fix"},
+            },
+            {
+                "label": "驳回",
+                "tone": "danger",
+                "success": "已驳回",
+                "needsReason": True,
+                "reasonKey": "note",
+                "payload": {"decision": "reject"},
+            },
         ]
     return {
         "kind": "decision",

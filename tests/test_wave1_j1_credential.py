@@ -234,13 +234,13 @@ def test_audit_chain_contains_issue_and_sample_render(brain, real_resource):
     assert "credential.issue" in types_on_target
     assert "credential.sample.render" in types_on_target
     # Action F lock: handler attributes the audit feed to the per-request
-    # role-derived actor (ctx.actor), never the dead _ui_state "system" constant.
+    # trusted-session actor (ctx.actor), never the dead _ui_state "system" constant.
     render_actor = next(
         e["actor"] for e in feed
         if e.get("target") == "REQ-F5-AUDIT" and e["type"] == "credential.sample.render"
     )
     assert render_actor != "system"
-    assert render_actor.startswith("user:gov:ROLE_ORGAN_OPERATER:"), render_actor
+    assert render_actor == "test-actor:role_organ_operater"
 
 
 # ──────────────────────────────────────────────────────────────────────

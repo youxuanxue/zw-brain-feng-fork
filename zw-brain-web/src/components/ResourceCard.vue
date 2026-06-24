@@ -11,6 +11,10 @@ const props = defineProps<{
 const item = computed(() => {
   const r = props.resource as Record<string, unknown>;
   const kind = String(r.kind ?? r.resource_kind ?? '');
+  const accessPolicy =
+    r.accessPolicy && typeof r.accessPolicy === 'object'
+      ? (r.accessPolicy as Record<string, unknown>)
+      : null;
   return {
     id: String(r.id ?? ''),
     name: String(r.name ?? r.title ?? ''),
@@ -29,8 +33,8 @@ const item = computed(() => {
     // 单源 resourceKindLabel（lib/resourceKind.ts）：service→接口、folder/url/link→file，未知→空。
     kindLabel: resourceKindLabel(kind),
     updatedAt: String(r.updatedAt ?? r.updated_at ?? ''),
-    shareType: String(r.shareType ?? ''),
-    shareLevel: String(r.shareLevel ?? ''),
+    shareType: String(r.shareType ?? accessPolicy?.shareTypeLabel ?? ''),
+    shareLevel: String(r.shareLevel ?? accessPolicy?.shareLevel ?? ''),
   };
 });
 

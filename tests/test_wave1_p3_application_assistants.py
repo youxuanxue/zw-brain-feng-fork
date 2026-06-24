@@ -250,12 +250,12 @@ def test_audit_chain_records_both_caps(brain, real_apply_samples):
     types = [e["type"] for e in events]
     assert "application.draft.suggest" in types
     assert "approval.evidence.summarize" in types
-    # Action F lock: each audit feed attributes the per-request role-derived actor
+    # Action F lock: each audit feed attributes the per-request trusted-session actor
     # (ctx.actor), never the dead _ui_state "system" constant.
     draft_actor = next(e["actor"] for e in events if e["type"] == "application.draft.suggest")
     evidence_actor = next(e["actor"] for e in events if e["type"] == "approval.evidence.summarize")
-    assert draft_actor != "system" and draft_actor.startswith("user:gov:ROLE_ORGAN_OPERATER:"), draft_actor
-    assert evidence_actor != "system" and evidence_actor.startswith("user:gov:ROLE_ORGAN_MANAGER:"), evidence_actor
+    assert draft_actor != "system" and draft_actor == "test-actor:role_organ_operater", draft_actor
+    assert evidence_actor != "system" and evidence_actor == "test-actor:role_organ_manager", evidence_actor
 
 
 # ──────────────────────────────────────────────────────────────────────
