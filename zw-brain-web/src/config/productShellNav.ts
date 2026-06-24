@@ -53,18 +53,15 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   },
   {
-    // 数据应用：基于政务共享数据构建的独立应用画廊（B 类场景智能体的家）。
-    // 与「找数据」副驾区分——副驾是助手（嵌在工作流里），数据应用是独立目的地。
-    // roles = 本期所有 data-app「可用角色并集」（no-permission=invisible：无权角色不应看到入口）。
-    //   当前唯一 data-app（法人信用画像核验）绑定 metadata.catalog_item.query，仅
-    //   {部门管理员, 业务运营员} 可用（部门操作员无该敏感字段映射权 → 进来必 403 死胡同）。
-    //   新增更宽角色可用的 data-app 时，把对应角色并进来，并保持卡片级 allowed_roles 过滤兜底。
+    // 智能体：承接 A 类平台办事助手 + B 类场景用数助手。路由沿用 /data-apps，
+    // 避免 URL churn；页面内按 AGENT.yaml labels.scenario_class 分组。
+    // roles = 已落地 AgentRuntime 场景智能体可用角色并集；卡片级继续按 allowed_roles 过滤。
     key: 'data-apps',
-    navLabel: '数据应用',
-    navDesc: '基于政务共享数据构建的应用与服务',
+    navLabel: '智能体',
+    navDesc: '找数办事的智能助手',
     to: '/data-apps',
     group: 'use',
-    roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT', 'ROLE_SECURITY_AUDIT', 'ROLE_SYSTEM'],
   },
   // 专题包导航项退出本期（D55/P6）：下线整面，保数据不删库；待复活时恢复 zones-pack 导航。
   {

@@ -1,0 +1,202 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 异议分诊副驾只读能力
+  description: 异议分诊副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/objection.case.query:
+    post:
+      operationId: objection_case_query
+      summary: 查询异议案件
+      description: 查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                confirmed:
+                  type: boolean
+                status:
+                  type: string
+                target_type:
+                  type: string
+              required: []
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  run:
+                    type: object
+                  mapping:
+                    type:
+                    - object
+                    - 'null'
+                  summary:
+                    type: object
+                  audit_id:
+                    type: string
+  /api/skills/objection.process.query:
+    post:
+      operationId: objection_process_query
+      summary: 查询异议过程
+      description: 查询异议处理过程、证据与评价链路。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                confirmed:
+                  type: boolean
+                objection_id:
+                  type: string
+              required:
+              - objection_id
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  run:
+                    type: object
+                  mapping:
+                    type:
+                    - object
+                    - 'null'
+                  summary:
+                    type: object
+                  audit_id:
+                    type: string
+  /api/skills/objection.metric.query:
+    post:
+      operationId: objection_metric_query
+      summary: 查询异议指标
+      description: 查询异议状态分布和闭环指标投影。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                confirmed:
+                  type: boolean
+              required: []
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  run:
+                    type: object
+                  mapping:
+                    type:
+                    - object
+                    - 'null'
+                  summary:
+                    type: object
+                  audit_id:
+                    type: string
+  /api/skills/audit.replay_evidence_chain:
+    post:
+      operationId: audit_replay_evidence_chain
+      summary: 回放证据链
+      description: 按争议标识回放原始证据、关联审计事件、工单与知识建议。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - dispute_id
+              properties:
+                dispute_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - disputeId
+                - summary
+                - evidenceChain
+                - auditEvents
+                - tickets
+                - knowledgeArticles
+                properties:
+                  disputeId:
+                    type: string
+                  summary:
+                    type: string
+                  evidenceChain:
+                    type: array
+                    items:
+                      type: object
+                  auditEvents:
+                    type: array
+                    items:
+                      type: object
+                  tickets:
+                    type: array
+                    items:
+                      type: object
+                  knowledgeArticles:
+                    type: array
+                    items:
+                      type: object

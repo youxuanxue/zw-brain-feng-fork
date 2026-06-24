@@ -1,9 +1,8 @@
 # 场景智能体 · 本地部署与使用指南（客户向）
 
-> 面向：想在本机把平台跑起来、亲手用一下 **A① 数据发现副驾** 与 **B 试点 法人信用画像研判副驾** 的客户。
+> 面向：想在本机把平台跑起来、亲手用一下 **A 类平台内副驾** 与 **B 类外部用数方智能体** 的客户。
 > §2 的 **REST 调用路径**所有命令与输出均已在本机实跑验证（真实 GLM-4 推理 + 真实数据库）。
-> A① 本期**只经 REST/AgentRuntime 调用**（§2），其 P2 找数页内嵌副驾 UI 是 Wave-2 后续交付（见验收清单 U6）；
-> WebUI（§3）本期只承载 B 类【数据应用】与平台指南副驾。
+> 无外部依赖的场景智能体已统一落到 AgentRuntime bundle；WebUI（§3）通过【智能体】入口区分 A 类与 B 类。
 > ⚠️ 本指南是 **dev / 演示** 路径（含 IAM 免登录）。生产部署走 `docs/deployment/docker-image-deployment.md`（真实 IAF/OIDC），切勿混用。
 
 ---
@@ -52,6 +51,7 @@ cp .env.example .env
 cd <zw-brain 仓库根>
 # D68 单一模型：AgentRuntime 只作为独立服务运行。
 # 这里的 ZW_BRAIN_AGENT_RUNTIME_MODE=http 只是 start-local 本地兼容启动开关，含义是同起独立 agent-runtime serve（:8001）+ REST（:8800）。
+# start-local 会自动给 zw-brain 与 AgentRuntime 注入同一个本地 trusted_gateway 签名密钥，用来验证平台运维重载权限。
 ZW_BRAIN_AGENT_RUNTIME_MODE=http \
 ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
 ZW_BRAIN_PYTHON_BIN=$PWD/.venv-py312/bin/python \
@@ -82,11 +82,11 @@ B=http://127.0.0.1:8800
 
 # (1) 看有哪些智能体
 curl -s "$B/api/agent-runtime/agents" | python3 -m json.tool
-#   → 返回 zw-search-helper / legal-person-credit-profiler / zw-platform-guide，各带 capability_skills
+#   → 返回所有已启用的 A/B 类智能体，各带 capability_skills、agent_class、agent_type_label
 
 # (2) 用 A① 数据发现副驾：起一个任务（role=用数方操作员）
 curl -s -X POST "$B/api/agent-runtime/tasks" -H 'Content-Type: application/json' -d '{
-  "agent_id": "zw-search-helper",
+  "agent_id": "a-zw-search-helper",
   "input": "我想找企业登记和停车场相关的政务数据，有哪些可以申请？",
   "role": "ROLE_ORGAN_OPERATER"
 }'
@@ -114,7 +114,7 @@ curl -s "$B/api/agent-runtime/tasks/<task_id>"
 
 ```bash
 curl -s -X POST "$B/api/agent-runtime/tasks" -H 'Content-Type: application/json' -d '{
-  "agent_id": "legal-person-credit-profiler",
+  "agent_id": "b-legal-person-credit-profiler",
   "input": "我要对一家企业做信用风险尽调，平台上有哪些法人/登记/信用类数据可以用来研判？",
   "role": "ROLE_ORGAN_MANAGER"
 }'
@@ -129,13 +129,12 @@ curl -s -X POST "$B/api/agent-runtime/tasks" -H 'Content-Type: application/json'
 
 ## 3. 使用方式 B · 浏览器（WebUI，推荐给业务用户）
 
-浏览器打开 `http://127.0.0.1:8800` 即平台界面（dev 免登录，右上角可切换岗位走查）。两类智能体各在其位：
+浏览器打开 `http://127.0.0.1:8800` 即平台界面（dev 免登录，右上角可切换岗位走查）。左侧「用数据」分组进入【智能体】：
 
-- **B 类 → 顶级【数据应用】**：切到**部门管理员**（或业务运营员）岗位后，左侧「用数据」分组出现【数据应用】入口（该入口仅对能调用其中应用的岗位可见——无权岗位不显示，避免点开撞 403）；进入数据应用画廊，点开「法人信用画像核验」卡片 → 进入对话工作台，直接提问、看研判（敏感字段映射需管理员/审计权限）。
-- **A① 找数副驾**：本期**只经 REST 调用**（见 §2），P2 找数页内嵌副驾 UI 是 Wave-2 后续交付（验收清单 U6）；当前【找数据】页走平台既有「智能检索」，不经本 Agent。
-- **平台指南副驾**（`zw-platform-guide`）仍在右下角悬浮入口可直接对话。
+- **A 类 · 平台内副驾**：服务平台内找数、申请、编目、审核、审计、运营等流程，只读研判，不替用户提交、审批、发布或处置。
+- **B 类 · 外部用数方智能体**：服务政务服务、监管、经济分析、城市治理等用数方场景，消费已编目共享数据，只读输出研判摘要。
 
-> 落位由后端 `/api/agent-runtime/agents` 的 `category` 字段（从 `AGENT.yaml labels.surface` 派生：`data-app` / `copilot`）驱动——单一事实源：给新数据应用打 `labels.surface: data-app` 即自动进【数据应用】画廊，无需改前端。
+> 落位由后端 `/api/agent-runtime/agents` 的 `category`、`agent_class` 和 `agent_type_label` 驱动；单一事实源是 `agents/*/AGENT.yaml` 与 `capabilities.json`。给新场景智能体打 `labels.surface: agent` 并标注 `labels.scenario_class: A/B` 后，即可自动进入【智能体】页对应分组。
 
 ---
 
@@ -151,6 +150,7 @@ curl -s -X POST "$B/api/agent-runtime/tasks" -H 'Content-Type: application/json'
 - POST 报 503 `agent_runtime_disabled` → 启动时漏了 `ZW_BRAIN_AGENT_RUNTIME_ENABLED=1`。
 - POST 报 404 `agent_not_found` → agent_id 拼错（用 `/api/agent-runtime/agents` 里的准确 id）。
 - POST 报 403 `no_product_role_for_identity` → 带上 `"role"`（A① 用 `ROLE_ORGAN_OPERATER`，B 试点用 `ROLE_ORGAN_MANAGER`）。
+- 平台运维点「重载」报 401/403 → zw-brain 与 AgentRuntime 的 `AGENT_RUNTIME_GATEWAY_SIGNING_SECRET` 不一致，或 zw-brain 侧没有签出带 `admin:runtime` 的服务身份。
 - 任务 30s+ 才完成属正常（智能体认真多次检索）；REST 默认非阻塞，请用轮询，别用 `?mode=block`。
 
 ---

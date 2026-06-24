@@ -1,0 +1,132 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "scenario_class": "A",
+  "quick_questions": [
+    "这个助手适合帮供数方目录编制人员处理什么问题？",
+    "我应该提供哪些编号、时间范围或判断条件？",
+    "请围绕“基于现有模型、字段、资源和重复检测结果，给出目录编制检查清单。”给出一份只读研判摘要。"
+  ],
+  "runtime_ready": true,
+  "net_new": "none",
+  "capability_tools": [
+    {
+      "skill_id": "provider.view",
+      "name": "provider_view",
+      "description": "查看模板版本、目录状态、资源与治理建议。",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "skill_id": "catalog.model.query",
+      "name": "catalog_model_query",
+      "description": "查询目录/台账模板模型定义。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "model_code": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "catalog.model.field.query",
+      "name": "catalog_model_field_query",
+      "description": "查询目录/台账模板字段口径、敏感级别和策略摘要。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "model_code"
+        ],
+        "properties": {
+          "model_code": {
+            "type": "string",
+            "minLength": 1
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "catalog.resource.list",
+      "name": "catalog_resource_list",
+      "description": "给定 catalog_code，钻取列出该目录关联的所有 resource_asset（一对多）。目录存在但无资源时返回空列表（诚实空态），目录不存在返回 404。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "catalog_code"
+        ],
+        "properties": {
+          "catalog_code": {
+            "type": "string"
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 20
+          },
+          "lifecycle": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "catalog.resource_view",
+      "name": "catalog_resource_view",
+      "description": "查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "resource_id"
+        ],
+        "properties": {
+          "resource_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "catalog.duplicate.check",
+      "name": "catalog_duplicate_check",
+      "description": "J2 发布前对单一 catalog 做轻量重复率检测，返回 duplicate_warnings 数组供 P5 提供方管理面 UI 展示（非硬拦：调用方继续执行 publish 即可）。匹配规则：title 完全相等的其他 catalog；同 region_code + 同 owner_org_id 的其他 catalog。不做模糊匹配 / Embedding similarity（属高级匹配，归 R14 三引擎或 ML 阶段）。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "catalog_code": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "catalog_code"
+        ]
+      }
+    }
+  ]
+}

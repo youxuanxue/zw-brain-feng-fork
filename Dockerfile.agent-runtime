@@ -37,7 +37,7 @@ COPY scripts/docker-entrypoint-agent-runtime.sh /usr/local/bin/docker-entrypoint
 RUN chmod +x /usr/local/bin/render-agent-specs.sh /usr/local/bin/docker-entrypoint.sh
 
 # openai_compatible 适配器读 OPENAI_COMPATIBLE_*；默认模型读 AGENT_RUNTIME_DEFAULT_MODEL。
-# 生产用 agent-runtime.yaml（trusted_gateway）；dev/联调用 agent-runtime.dev.yaml（auth none，compose 默认）。
+# 生产用 agent-runtime.yaml（trusted_gateway）；dev/联调用 agent-runtime.dev.yaml（同为 trusted_gateway，轻量内存存储）。
 EXPOSE 8001
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["agent-runtime", "serve", "--config", "/app/agent-runtime.yaml", "--product", "--host", "0.0.0.0", "--port", "8001"]

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { useAgentChat } from '@/composables/useAgentChat';
 
-// 通用内联 Agent 对话面板。数据应用工作台、找数页副驾共用本组件，只传 agentId 等 props，
+// 通用内联 Agent 对话面板。智能体工作台、找数页副驾共用本组件，只传 agentId 等 props，
 // 不带悬浮球外壳（由所在页面/容器决定布局）。对话引擎复用 useAgentChat。
 // agentId 固定于实例：切换应用请由父组件用 :key="agentId" 重挂载本组件。
 const props = withDefaults(
@@ -14,6 +14,7 @@ const props = withDefaults(
     presets?: string[];
     roleHint?: string;
     requestPrefix?: string;
+    runtimeEnabled?: boolean;
     // 本应用可用的岗位中文名（来自 /agents 的 allowed_role_names）；403 文案据此列出可切换岗位。
     allowedRoleNames?: string[];
   }>(),
@@ -24,17 +25,20 @@ const props = withDefaults(
     presets: () => [],
     roleHint: '',
     requestPrefix: 'UI-AGENT',
+    runtimeEnabled: undefined,
     allowedRoleNames: () => [],
   },
 );
 
-const { messages, loading, error, runtimeEnabled, probeRuntime, ask, stop } = useAgentChat(props.agentId, {
+const { messages, loading, error, runtimeEnabled: chatRuntimeEnabled, probeRuntime, ask, stop } = useAgentChat(props.agentId, {
   requestPrefix: props.requestPrefix,
   logPrefix: 'AgentChat',
   allowedRoleNames: props.allowedRoleNames,
 });
 
 const draft = ref('');
+const canAsk = computed(() => props.runtimeEnabled !== false && chatRuntimeEnabled.value !== false);
+const showUnavailable = computed(() => props.runtimeEnabled === false || chatRuntimeEnabled.value === false);
 
 async function submit() {
   const q = draft.value.trim();
@@ -62,8 +66,8 @@ onUnmounted(() => {
       <strong class="achat-title">{{ title }}</strong>
       <p v-if="hint" class="achat-hint">{{ hint }}</p>
       <p v-if="roleHint" class="achat-rolehint">{{ roleHint }}</p>
-      <p v-if="runtimeEnabled === false" class="achat-warn">
-        智能问答暂未开启，请联系平台运维员开启后使用。
+      <p v-if="showUnavailable" class="achat-warn">
+        当前助手暂不可用。
       </p>
     </header>
 
@@ -88,9 +92,9 @@ onUnmounted(() => {
         class="achat-input"
         rows="3"
         :placeholder="placeholder"
-        :disabled="loading"
+        :disabled="loading || !canAsk"
       />
-      <button type="submit" class="achat-submit" :disabled="loading || runtimeEnabled === false">
+      <button type="submit" class="achat-submit" :disabled="loading || !canAsk">
         {{ loading ? '思考中…' : '发送' }}
       </button>
     </form>
@@ -102,7 +106,7 @@ onUnmounted(() => {
         :key="p"
         type="button"
         class="achat-chip"
-        :disabled="loading"
+        :disabled="loading || !canAsk"
         @click="applyPreset(p)"
       >{{ p }}</button>
     </div>

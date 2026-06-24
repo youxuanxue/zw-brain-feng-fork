@@ -225,8 +225,8 @@ section "8. 烟测"
 
 "$VENV_PY" -c "from agent_runtime import RuntimeService; print('  agent_runtime import: ok')"
 "$VENV_PY" -c "import zw_brain; print('  zw_brain import: ok')"
-if "$VENV_PY" scripts/agentruntime_validate.py agents/zw_search_helper/AGENT.yaml >/dev/null 2>&1; then
-    log_ok "agentruntime_validate.py (zw_search_helper): ok"
+if "$VENV_PY" scripts/agentruntime_validate.py agents/a_zw_search_helper/AGENT.yaml >/dev/null 2>&1; then
+    log_ok "agentruntime_validate.py (a_zw_search_helper): ok"
 else
     log_fail "agentruntime_validate.py 报错 — 重跑去掉 >/dev/null 看详情"
 fi

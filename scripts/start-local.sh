@@ -256,6 +256,7 @@ start_agent_runtime() {
             OPENAI_COMPATIBLE_API_KEY="${OPENAI_COMPATIBLE_API_KEY:-}" \
             OPENAI_COMPATIBLE_API_KEY_OPTIONAL="${OPENAI_COMPATIBLE_API_KEY_OPTIONAL:-}" \
             AGENT_RUNTIME_DEFAULT_MODEL="${AGENT_RUNTIME_DEFAULT_MODEL:-}" \
+            AGENT_RUNTIME_GATEWAY_SIGNING_SECRET="${AGENT_RUNTIME_GATEWAY_SIGNING_SECRET:-}" \
             "$ar_cli" serve --config agent-runtime.dev.yaml --product --host "$AR_HOST" --port "$AR_PORT"
     ) &
     AR_PID=$!
@@ -334,6 +335,7 @@ if [[ "$AR_LOCAL_SWITCH" == "http" ]]; then
         show_port_conflict "$AR_PORT"
         exit 1
     fi
+    export AGENT_RUNTIME_GATEWAY_SIGNING_SECRET="${AGENT_RUNTIME_GATEWAY_SIGNING_SECRET:-zw-brain-local-agent-runtime-gateway-secret}"
     ensure_agent_runtime_inference_ready
     echo "[start-local] 启动独立 AgentRuntime 服务（D68 单一模型，进程隔离）"
     start_agent_runtime

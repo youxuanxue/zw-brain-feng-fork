@@ -15,7 +15,7 @@
   B1.1「网关运行」只读面板（`B11ComplianceOps.vue`），从台账移出。
 - **[2026-06-13] 分诊清账（chore/webui-capability-render-triage）**：把 81 个逐个分诊四桶
   （全文 `docs/webui-capability-render-triage.md`）——2 个 NL 可达（platform.docs.read/search，
-  经 zw-platform-guide Agent 通用派发触达）留台账作长期豁免；79 个降 status/真死「诚实降级」
+  经 a-zw-platform-guide Agent 通用派发触达）留台账作长期豁免；79 个降 status/真死「诚实降级」
   （manifest `compatibility` 去 `webui`，能力本体与 seed 保留、仍 live 在 REST/CLI/MCP/A2A，
   只是不再声称 WebUI 大堂供应），退出 live+webui 集合。接大堂 0（IA 已 freeze ≤10 页，无用户
   刚需面板缺位；少数 borderline 真需求转债）。净存量债务 81 → 2。
@@ -55,7 +55,7 @@
   由 manifest 生成），证明不了任何真实前端落点。原经此循环锚误判「可达」的 `governance.iam_overview` /
   `tenant.policy.evaluate` 已降为台账债务（见 §一 2026-06-14 条）。
 
-**仍需手工豁免的两类**：①**NL / 内置 Agent 工具可达**（如 `platform.docs.*` 经 zw-platform-guide
+**仍需手工豁免的两类**：①**NL / 内置 Agent 工具可达**（如 `platform.docs.*` 经 a-zw-platform-guide
 Agent，无 slug 字面量、无专属路由、无真实 surface 锚）——守卫**设计内**的合理长期豁免；②**待裁循环债**
 （`governance.iam_overview` / `tenant.policy.evaluate`，无真实 surface，待 owner 裁接面板 or 诚实降级）。
 回潮锁见 `tests/test_webui_capability_render_guard.py`（含「PINNED 不接受 manifest-读-manifest」一条）。

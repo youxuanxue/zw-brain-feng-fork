@@ -83,7 +83,7 @@ tools:
 
 - **独立 AR 起栈**：把 vendored 升到 1.1.3（`agent-runtime serve --config agent-runtime.dev.yaml --product --host 127.0.0.1 --port 8001`，`embedded_library` memory store / 无 DB / `runtime_core=deepagents` / 真网关），`/runtime/ready` ok。
 - **DRIVE adapter（`http_client.py`，纯 HTTP 零 SDK 依赖）**：`run_agent_task_sync` / `start_agent_task_background` / `poll_agent_task` / `resume` 经 AR 原生 REST（`POST /sessions`→`POST /tasks`→poll `GET /tasks/{id}`→`/resume`）实测 completed + 真实 LLM 产出。
-- **全链路经 zw-brain 真 REST**：`POST /api/agent-runtime/tasks {zw-platform-guide}`（REST :8801, `ZW_BRAIN_AGENT_RUNTIME_MODE=http`）→ http_client → 独立 AR :8001 → deepagents+真网关 → `running`→`completed` → 真实中文产出。两进程、HTTP 通信。
+- **全链路经 zw-brain 真 REST**：`POST /api/agent-runtime/tasks {a-zw-platform-guide}`（REST :8801, `ZW_BRAIN_AGENT_RUNTIME_MODE=http`）→ http_client → 独立 AR :8001 → deepagents+真网关 → `running`→`completed` → 真实中文产出。两进程、HTTP 通信。
 - **进程隔离实证（本轮头号收益）**：`kill -9` 独立 AR 后，REST `/health` 仍 200；新任务**优雅降级**为 500「AgentRuntime unreachable」（非崩溃），REST 不被拖垮。对比 embedded 后台线程（service.py:34-71）跑飞会拖垮 REST。
 - **复现**：`ZW_BRAIN_AGENT_RUNTIME_MODE=http ZW_BRAIN_PYTHON_BIN=<py312> bash scripts/start-local.sh`（co-located 起 AR+REST，健康门）。
 

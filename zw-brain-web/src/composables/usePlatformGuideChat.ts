@@ -1,6 +1,6 @@
 import { useAgentChat, type AgentChatMessage } from './useAgentChat';
 
-export const PLATFORM_GUIDE_AGENT_ID = 'zw-platform-guide';
+export const PLATFORM_GUIDE_AGENT_ID = 'a-zw-platform-guide';
 
 /** 兼容旧引用：平台指南对话消息类型 = 通用 Agent 对话消息。 */
 export type GuideChatMessage = AgentChatMessage;

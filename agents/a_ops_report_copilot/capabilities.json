@@ -1,0 +1,105 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "scenario_class": "A",
+  "quick_questions": [
+    "这个助手适合帮业务运营与平台运维人员处理什么问题？",
+    "我应该提供哪些编号、时间范围或判断条件？",
+    "请围绕“汇总目录、交换、服务调用和投影状态，形成运营态势摘要。”给出一份只读研判摘要。"
+  ],
+  "runtime_ready": true,
+  "net_new": "none",
+  "capability_tools": [
+    {
+      "skill_id": "ops.catalog.statistics.query",
+      "name": "ops_catalog_statistics_query",
+      "description": "查询目录、资源、schema 映射和质量证据的治理统计摘要。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "ops.exchange.statistics.query",
+      "name": "ops_exchange_statistics_query",
+      "description": "只读查询交换、订阅和交付投影统计，不反向驱动业务状态。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "resource_code": {
+            "type": "string"
+          },
+          "delivery_code": {
+            "type": "string"
+          },
+          "metric_scope": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "skill_id": "ops.service.report.query",
+      "name": "ops_service_report_query",
+      "description": "只读汇总网关心跳和服务调用统计，形成服务运行态势报告。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "ops.service.invocation.query",
+      "name": "ops_service_invocation_query",
+      "description": "只读查询 API 服务调用量、成功失败和错误归因摘要。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "resource_code": {
+            "type": "string"
+          },
+          "capability_id": {
+            "type": "string"
+          },
+          "metric_scope": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "projection.status.query",
+      "name": "projection_status_query",
+      "description": "聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给 业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string"
+          },
+          "tenant_id": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

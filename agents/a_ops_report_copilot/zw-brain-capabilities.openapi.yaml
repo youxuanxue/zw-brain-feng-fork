@@ -1,0 +1,194 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 运营报表副驾只读能力
+  description: 运营报表副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/ops.catalog.statistics.query:
+    post:
+      operationId: ops_catalog_statistics_query
+      summary: 查询目录资源统计
+      description: 查询目录、资源、schema 映射和质量证据的治理统计摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+  /api/skills/ops.exchange.statistics.query:
+    post:
+      operationId: ops_exchange_statistics_query
+      summary: 查询交换统计
+      description: 只读查询交换、订阅和交付投影统计，不反向驱动业务状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource_code:
+                  type: string
+                delivery_code:
+                  type: string
+                metric_scope:
+                  type: string
+                role:
+                  type: string
+              required: []
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  ok:
+                    type: boolean
+                  summary:
+                    type: object
+  /api/skills/ops.service.report.query:
+    post:
+      operationId: ops_service_report_query
+      summary: 查询服务运行态势
+      description: 只读汇总网关心跳和服务调用统计，形成服务运行态势报告。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - gateways
+                - metrics
+                - summary
+                properties:
+                  gateways:
+                    type: array
+                    items:
+                      type: object
+                  metrics:
+                    type: array
+                    items:
+                      type: object
+                  summary:
+                    type: object
+  /api/skills/ops.service.invocation.query:
+    post:
+      operationId: ops_service_invocation_query
+      summary: 查询服务调用统计
+      description: 只读查询 API 服务调用量、成功失败和错误归因摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource_code:
+                  type: string
+                capability_id:
+                  type: string
+                metric_scope:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - summary
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  summary:
+                    type: object
+  /api/skills/projection.status.query:
+    post:
+      operationId: projection_status_query
+      summary: 查询 5 类投影状态 + 失败摘要
+      description: 聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给
+        业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                tenant_id:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant_id:
+                    type: string
+                  projections:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kind:
+                          type: string
+                        total_rows:
+                          type: integer
+                        latest_updated_at:
+                          type:
+                          - string
+                          - 'null'
+                        failed_count:
+                          type: integer
+                        failure_summary:
+                          type: array
+                          items:
+                            type: object
+                  overall_health:
+                    type: string

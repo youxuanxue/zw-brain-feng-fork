@@ -16,3 +16,7 @@ class AgentRuntimeNotEnabledError(RuntimeError):
 
 class AgentRuntimeNotFoundError(LookupError):
     """请求的 agent / 任务 / 能力不存在。"""
+
+
+class AgentRuntimePermissionError(PermissionError):
+    """调用 AgentRuntime 管理端点缺少必要 scope / 凭据。"""

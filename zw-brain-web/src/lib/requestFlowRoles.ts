@@ -50,6 +50,18 @@ export function isPlatformOps(role: string): boolean {
   return (PLATFORM_OPS_ROLES as readonly string[]).includes(role);
 }
 
+/** 智能体授权面向业务岗位；平台运维员通过调试旁路打开全部可运行智能体，不作为业务授权项写入。 */
+export const AGENT_AUTHORIZATION_ASSIGNABLE_ROLES = [
+  'ROLE_ORGAN_OPERATER',
+  'ROLE_ORGAN_MANAGER',
+  'ROLE_BUSIAUDIT',
+  'ROLE_SECURITY_AUDIT',
+] as const;
+
+export function defaultAgentAuthorizationRoles(): string[] {
+  return [...AGENT_AUTHORIZATION_ASSIGNABLE_ROLES];
+}
+
 export function canReviewRequests(role: string): boolean {
   return (REQUEST_FLOW_REVIEWER_ROLES as readonly string[]).includes(role);
 }

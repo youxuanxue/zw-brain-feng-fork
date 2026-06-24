@@ -82,11 +82,11 @@ B1 运维/治理     —        ⑳          ⑰          ⑮          —      
 ## 5. 收敛提案：~20 个场景智能体
 
 分 4 个 Wave（聚焦：先核心链路，后周边）。每条标注：**服务角色 · 痛点 · 消费能力(示意 skill_id，构建时校验) · 形态**。
-两个已存在的智能体（`zw-platform-guide`、`zw-search-helper`）纳入清单但标注「已有」，净新增约 18 个。
+两个已存在的智能体（`a-zw-platform-guide`、`a-zw-search-helper`）纳入清单但标注「已有」，净新增约 18 个。
 
 ### Wave 1 · 核心黄金链路（先做、做到能演示签收）
 
-**① 数据发现副驾 `data-discovery-copilot`**（升级现有 `zw-search-helper`）
+**① 数据发现副驾 `data-discovery-copilot`**（升级现有 `a-zw-search-helper`）
 服务：用数方操作员/管理员 · 痛点：搜索反复、术语对不上、找不到（J1 首步） ·
 能力：`search.intent.parse`、`data.search`、`catalog.browse`、`catalog.entry.query` · 形态：发现+可行性评分+TOP-N 推荐（只读）。
 
@@ -110,7 +110,7 @@ B1 运维/治理     —        ⑳          ⑰          ⑮          —      
 服务：部门管理员/业务运营员 · 痛点：审核负担、有条件共享两级把关易被旁路（断点 C） ·
 能力：`application.resource.review`/`approval.review_decide`（**仅给研判建议，人决策**）、申请人历史+相似裁决检索 · 形态：摘要+通过/补正/驳回建议。**严守 §8.5：不自动裁决。**
 
-**⑲ 平台使用指南 `zw-platform-guide`（已有）**
+**⑲ 平台使用指南 `a-zw-platform-guide`（已有）**
 服务：全角色 · 痛点：平台使用/部署/权限/AgentRuntime 怎么用 · 能力：`platform.docs.search/read` · 形态：文档问答（只读）。
 
 ### Wave 2 · 链路完整化（把黄金链路补成端到端）
@@ -127,7 +127,7 @@ B1 运维/治理     —        ⑳          ⑰          ⑮          —      
 服务：业务运营员 · 痛点：供需对接纯手工梳理（供需盲人摸象） ·
 能力：`data_business` 查询、`data.search`、推荐 · 形态：需求→现有资源匹配+供数方认领推荐（只读）。
 
-**⑫ 异议分诊副驾 `objection-triage-copilot`**
+**⑫ 异议分诊副驾 `a-objection-triage-copilot`**
 服务：业务运营员/部门 · 痛点：异议多角色流转慢、受理待办缺投影 ·
 能力：`objection.case.create/query/review`（**分诊+起草，人处置**） · 形态：四维分类(catalog/resource/authz/content/use)+路由+处置建议。
 

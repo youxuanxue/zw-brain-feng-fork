@@ -12,15 +12,19 @@ facade 签名与历史一致；service.py 全部委派到这里（embedded 已�
 
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import logging
+import os
 import time
 import urllib.error
 import urllib.request
 from typing import Any
 
 from zw_brain.shared.agent_runtime.config import agent_runtime_base_url
-from zw_brain.shared.agent_runtime.errors import AgentRuntimeNotFoundError
+from zw_brain.shared.agent_runtime.errors import AgentRuntimeNotFoundError, AgentRuntimePermissionError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +32,25 @@ _LOGGER = logging.getLogger(__name__)
 _TASK_BLOCK_TIMEOUT_SECONDS = 25.0
 _POLL_INTERVAL_SECONDS = 1.0
 _HTTP_TIMEOUT_SECONDS = 30.0
+_ADMIN_SCOPES = (
+    "sessions:create",
+    "sessions:read",
+    "sessions:update",
+    "sessions:delete",
+    "messages:read",
+    "tasks:start",
+    "tasks:start:any_user",
+    "tasks:read",
+    "tasks:stream",
+    "tasks:resume",
+    "tasks:cancel",
+    "events:read",
+    "workspaces:read",
+    "workspaces:write",
+    "agents:read",
+    "admin:runtime",
+    "callbacks:deliver",
+)
 
 # AR TaskRecord.status → zw-brain 既有 facade 状态串（与历史 drain 语义对齐）。
 _TERMINAL_STATUSES = {"completed", "failed", "cancelled", "waiting_input"}
@@ -36,6 +59,33 @@ _TERMINAL_STATUSES = {"completed", "failed", "cancelled", "waiting_input"}
 def _map_status(ar_status: str) -> str:
     """AR 状态归一到 facade 既有语义：waiting_input→waiting（保 WebUI resume 流）。"""
     return "waiting" if ar_status == "waiting_input" else ar_status
+
+
+def _trusted_gateway_headers() -> dict[str, str]:
+    """Build AgentRuntime trusted-gateway headers for the zw-brain service principal."""
+    secret = (os.environ.get("AGENT_RUNTIME_GATEWAY_SIGNING_SECRET") or "").strip()
+    if not secret:
+        return {}
+    timestamp = str(int(time.time()))
+    principal = {
+        "principal_id": "zw-brain-platform-operator",
+        "principal_type": "operator",
+        "user_id": "zw-brain-platform-operator",
+        "tenant_id": "sd-default",
+        "client_id": "zw-brain",
+        "scopes": list(_ADMIN_SCOPES),
+        "claims": {"source": "zw-brain"},
+    }
+    blob = base64.b64encode(
+        json.dumps(principal, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).decode("ascii")
+    message = f"{timestamp}.{blob}".encode()
+    signature = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    return {
+        "X-Runtime-Principal": blob,
+        "X-Runtime-Principal-Timestamp": timestamp,
+        "X-Runtime-Principal-Signature": f"sha256={signature}",
+    }
 
 
 class AgentRuntimeClient:
@@ -52,7 +102,11 @@ class AgentRuntimeClient:
             f"{self._base}{path}",
             data=data,
             method=method,
-            headers={"Content-Type": "application/json", "Accept": "application/json"},
+            headers={
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                **_trusted_gateway_headers(),
+            },
         )
         try:
             with self._opener.open(req, timeout=_HTTP_TIMEOUT_SECONDS) as resp:
@@ -61,6 +115,10 @@ class AgentRuntimeClient:
             raw = exc.read()
             if exc.code == 404:
                 raise AgentRuntimeNotFoundError(f"AgentRuntime 404 at {path}: {raw[:200]!r}") from exc
+            if exc.code in {401, 403} and path.startswith("/agents/"):
+                raise AgentRuntimePermissionError(
+                    f"AgentRuntime 管理权限不足（HTTP {exc.code} at {method} {path}）"
+                ) from exc
             raise RuntimeError(
                 f"AgentRuntime HTTP {exc.code} at {method} {path}: {raw.decode('utf-8', 'replace')[:400]}"
             ) from exc
@@ -91,6 +149,15 @@ class AgentRuntimeClient:
 
     def resume_task(self, *, task_id: str, input_data: str | dict[str, Any]) -> dict[str, Any]:
         return self._request("POST", f"/tasks/{task_id}/resume", {"input": input_data})
+
+    def health(self) -> dict[str, Any]:
+        return self._request("GET", "/runtime/health")
+
+    def reload_agents(self) -> dict[str, Any]:
+        return self._request("POST", "/agents/reload")
+
+    def runtime_diagnostics(self) -> dict[str, Any]:
+        return self._request("GET", "/runtime/diagnostics")
 
 
 _client: AgentRuntimeClient | None = None
@@ -208,3 +275,15 @@ def resume_agent_task_http(
     """恢复 waiting 任务（POST /tasks/{id}/resume）；后续状态走 poll。"""
     rec = get_client().resume_task(task_id=task_id, input_data=input_data)
     return {"task_id": str(task_id), "status": _map_status(str(rec.get("status") or "resumed"))}
+
+
+def runtime_health_http() -> dict[str, Any]:
+    return get_client().health()
+
+
+def reload_agents_http() -> dict[str, Any]:
+    return get_client().reload_agents()
+
+
+def runtime_diagnostics_http() -> dict[str, Any]:
+    return get_client().runtime_diagnostics()

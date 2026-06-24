@@ -56,7 +56,7 @@
 | `system.snapshot` | **ROUTE 专属路由（自动认）** | **全 WebUI 唯一读路径**：`useSnapshot.ts:39` 经 `/api/snapshot`（openapi `x-zwbrain-skill-id`）拉统一事实源，32 个前端文件依赖；描述明示"供主 WebUI" |
 | `governance.iam_overview` | **PINNED 契约钉死（自动认）** | 身份治理页 `/integration-admin/iam-governance`（D52）经注册表派发消费；`test_governance_iam_overview_contract_is_shared_across_five_surfaces` 钉死 5 面 |
 | `tenant.policy.evaluate` | **PINNED 契约钉死（自动认）** | D2 五消费面共享的全局授权评估基础能力（非独立面板，每页授权隐式依赖）；`test_tenant_policy_evaluate_contract_is_shared_across_five_surfaces` 钉死 5 面 |
-| `platform.docs.read` | NL 豁免（手工台账） | `PlatformGuideChatPanel.vue` → `usePlatformGuideChat.ts` 经 `/api/agent-runtime/tasks` 调内置 `zw-platform-guide` Agent，本 cap 是该 Agent 的工具 |
+| `platform.docs.read` | NL 豁免（手工台账） | `PlatformGuideChatPanel.vue` → `usePlatformGuideChat.ts` 经 `/api/agent-runtime/tasks` 调内置 `a-zw-platform-guide` Agent，本 cap 是该 Agent 的工具 |
 | `platform.docs.search` | NL 豁免（手工台账） | 同上（平台向导问答检索工具） |
 
 > ROUTE/PINNED 由 `check_webui_capability_rendered.py` 现取（openapi 路由映射 + tests/ 契约断言扫描），
@@ -103,7 +103,7 @@ manifest `compatibility` 已去 `webui`（故已退出守卫的 live+webui 集�
 | `package.exposure.matrix.query` | b1 | 降 status | UI 查询面 D52.c 已退役（接入中心瘦身），保留协议面(MCP/CLI)；复活须先有 owner 面板 |
 | `package.register_version` | b1 | 降 status | 能力包版本登记属系统自动化，非用户 UI 操作 |
 | `service.rating.submit` | b1 | 降 status | 服务评价本期未接面板，属交付后可选环节（真需求转债） |
-| `platform.docs.read` | infra | NL 可达 | PlatformGuideChatPanel.vue 经 AgentRuntime(zw-platform-guide Agent) 调用为工具；入口=平台向导问答面板 |
+| `platform.docs.read` | infra | NL 可达 | PlatformGuideChatPanel.vue 经 AgentRuntime(a-zw-platform-guide Agent) 调用为工具；入口=平台向导问答面板 |
 | `platform.docs.search` | infra | NL 可达 | 同上，平台向导问答检索工具；入口=平台向导问答面板 |
 | `system.schema_info` | infra | 真死 | canonical schema 信息属运维参考工具，无页面消费者 |
 | `adapter.external.mapping.query` | infra | 降 status | 外部对象映射调试工具，非用户驱动能力 |

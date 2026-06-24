@@ -1,0 +1,193 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "scenario_class": "A",
+  "quick_questions": [
+    "这个助手适合帮平台运维与安全审计人员处理什么问题？",
+    "我应该提供哪些编号、时间范围或判断条件？",
+    "请围绕“查看角色能力矩阵、用户角色清单和审计事件，提示潜在权限风险。”给出一份只读研判摘要。"
+  ],
+  "runtime_ready": true,
+  "net_new": "none",
+  "capability_tools": [
+    {
+      "skill_id": "governance.access_matrix",
+      "name": "governance_access_matrix",
+      "description": "只读派生 角色→能力 授权矩阵（来源 policy.PERMISSION_ROLES 单一事实源）+ 固定角色目录（role_codes），供身份治理可审计性查看，不做任何菜单授权写。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tenant_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "governance.actor.list",
+      "name": "governance_actor_list",
+      "description": "列出本租户的身份 actor（用户）及其有效角色绑定、IAF 认领状态、停用状态，供身份治理管理面检索（按机构/角色/状态/关键字过滤）。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tenant_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "q": {
+            "type": "string"
+          },
+          "org_filter": {
+            "type": "string"
+          },
+          "role_code": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "audit.event.query",
+      "name": "audit_event_query",
+      "description": "按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用 evidence chain 二次申请）。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "actor": {
+            "type": "string",
+            "description": "按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'"
+          },
+          "skill_id": {
+            "type": "string",
+            "description": "按 capability skill_id 精确匹配"
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）"
+          },
+          "audit_class": {
+            "type": "string",
+            "enum": [
+              "write-critical",
+              "write-normal",
+              "read-sensitive"
+            ],
+            "description": "按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time",
+            "description": "起始时间（ISO8601 含时区）"
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time",
+            "description": "截止时间（ISO8601 含时区）"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 200
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "audit.event.statistics",
+      "name": "audit_event_statistics",
+      "description": "按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户 sd-default 强过滤。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "bucket": {
+            "type": "string",
+            "enum": [
+              "hour",
+              "day",
+              "week",
+              "month"
+            ],
+            "default": "day",
+            "description": "时间桶粒度"
+          },
+          "dimension": {
+            "type": "string",
+            "enum": [
+              "actor",
+              "skill_id",
+              "audit_class",
+              "tenant_id"
+            ],
+            "default": "audit_class",
+            "description": "聚合维度"
+          },
+          "tenant_id": {
+            "type": "string",
+            "description": "租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10000,
+            "default": 1000
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "audit.event.accountability",
+      "name": "audit_event_accountability",
+      "description": "按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段 hash 化）；不返回原始 payload 全文。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "actor"
+        ],
+        "properties": {
+          "actor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tenant_id": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "until": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000,
+            "default": 100
+          }
+        }
+      }
+    }
+  ]
+}

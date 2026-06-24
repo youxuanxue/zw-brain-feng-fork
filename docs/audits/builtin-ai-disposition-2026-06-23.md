@@ -8,7 +8,7 @@
 
 ## 本轮实施结果
 
-- 已把 `zw-platform-guide` 与 `legal-person-credit-profiler` 收敛到 #321 单一模式：`AGENT.yaml` 显式声明 `kind: api` 工具，工具经各自 `zw-brain-capabilities.openapi.yaml` 回调 `/api/skills/*`，不再依赖 embedded provider 注入。
+- 已把 `a-zw-platform-guide` 与 `b-legal-person-credit-profiler` 收敛到 #321 单一模式：`AGENT.yaml` 显式声明 `kind: api` 工具，工具经各自 `zw-brain-capabilities.openapi.yaml` 回调 `/api/skills/*`，不再依赖 embedded provider 注入。
 - 已加 manifest 守卫：凡 `capabilities.json` 声明 `capability_tools`，`AGENT.yaml` 必须有同名 `kind:api` 工具，且 OpenAPI 中必须存在同名 `operationId`。
 - 已把 Web 上泛称“智能检索”的入口收敛为场景名：P2“找数助手”、P3“申请助手”、B1.1“审计助手”、B1.2“接入助手”。
 - 已补真实 UI E2E：AgentRuntime 开启时，数据应用页会从浏览器真实发送问题并等待 assistant 回复；本地验证使用独立 `agent-runtime serve` + REST + Playwright 完成。
@@ -38,15 +38,15 @@ AgentRuntime 适合承载跨多个能力的多轮对话与数据应用，不适�
 
 | Agent | 当前入口 | 运行可用性 | 处置 |
 | --- | --- | --- | --- |
-| `zw-search-helper` 找数副驾 | `surface=copilot`，不进数据应用列表 | 已改为 `kind:api` 工具，可在 standalone AR 内回调 zw-brain | 保留，但应做成 P2 页内嵌副驾，替代“泛智能检索”膨胀 |
-| `zw-platform-guide` 平台指南 | 悬浮平台指南问答 | 已改为 `kind:api` 工具，可在 standalone AR 内回调文档检索/读取能力 | 保留，并以 manifest 守卫防止回退到 sidecar-only |
-| `legal-person-credit-profiler` 法人信用画像核验 | 数据应用画廊 | 已改为 `kind:api` 工具，可在 standalone AR 内回调目录检索/查询能力 | 保留，数据应用 E2E 必须持续验证真实对话往返 |
+| `a-zw-search-helper` 找数副驾 | `surface=copilot`，不进数据应用列表 | 已改为 `kind:api` 工具，可在 standalone AR 内回调 zw-brain | 保留，但应做成 P2 页内嵌副驾，替代“泛智能检索”膨胀 |
+| `a-zw-platform-guide` 平台指南 | 悬浮平台指南问答 | 已改为 `kind:api` 工具，可在 standalone AR 内回调文档检索/读取能力 | 保留，并以 manifest 守卫防止回退到 sidecar-only |
+| `b-legal-person-credit-profiler` 法人信用画像核验 | 数据应用画廊 | 已改为 `kind:api` 工具，可在 standalone AR 内回调目录检索/查询能力 | 保留，数据应用 E2E 必须持续验证真实对话往返 |
 
 ## 核心问题
 
 ### P0：#321 后曾有两个 Agent manifest 仍停在 embedded 时代
 
-`zw-platform-guide` 和 `legal-person-credit-profiler` 的 `AGENT.yaml` 曾经都是 `tools: []`。`legal-person-credit-profiler` 还明确注释“由 ZwBrainCapabilityProvider 在 Embedded Runtime 启动时注入”。但 #321 已删除 in-process provider，`service.py` 只委派 HTTP，能力回调只认 `AGENT.yaml kind:api`。
+`a-zw-platform-guide` 和 `b-legal-person-credit-profiler` 的 `AGENT.yaml` 曾经都是 `tools: []`。`b-legal-person-credit-profiler` 还明确注释“由 ZwBrainCapabilityProvider 在 Embedded Runtime 启动时注入”。但 #321 已删除 in-process provider，`service.py` 只委派 HTTP，能力回调只认 `AGENT.yaml kind:api`。
 
 这曾意味着：
 
@@ -64,7 +64,7 @@ AgentRuntime 适合承载跨多个能力的多轮对话与数据应用，不适�
 - P3：申请/审批动作摘要；
 - B1.1/B1.2：审计/接入治理快捷动作。
 
-这会把用户预期拉到“全局 AI 搜索/问答”，同时又和 `zw-search-helper` “找数副驾”重叠。乔布斯式处置是收口：一个用户意图只保留一个主入口。本轮已把入口改为场景名，不再把所有页面统称“智能检索”。
+这会把用户预期拉到“全局 AI 搜索/问答”，同时又和 `a-zw-search-helper` “找数副驾”重叠。乔布斯式处置是收口：一个用户意图只保留一个主入口。本轮已把入口改为场景名，不再把所有页面统称“智能检索”。
 
 ### P1：“数据应用”首个应用不能只做壳
 
@@ -88,7 +88,7 @@ AgentRuntime 适合承载跨多个能力的多轮对话与数据应用，不适�
 
 ### 立即做
 
-1. 已修 `zw-platform-guide` 与 `legal-person-credit-profiler`：
+1. 已修 `a-zw-platform-guide` 与 `b-legal-person-credit-profiler`：
    - 为各自补 `*.openapi.yaml`；
    - 在 `AGENT.yaml tools` 声明 `kind:api`；
    - 删除 embedded provider 注释；
@@ -112,7 +112,7 @@ AgentRuntime 适合承载跨多个能力的多轮对话与数据应用，不适�
 2. P2 做入口合并：
    - 基础搜索框保留；
    - `search.intent.parse` 作为轻量解析增强；
-   - `zw-search-helper` 作为“需要推荐/术语对齐/多轮追问”时的副驾；
+   - `a-zw-search-helper` 作为“需要推荐/术语对齐/多轮追问”时的副驾；
    - 不新增第二个平行的“找数聊天入口”。
 
 3. 清理运行时配置文档：

@@ -8,6 +8,7 @@ import yaml
 
 from zw_brain.command.brain import AccessDeniedError, BrainService
 from zw_brain.domain import policy
+from zw_brain.domain.repositories.agent_runtime_state import AgentRuntimeStateRepository
 from zw_brain.domain.role_codes import BUSINESS_ROLE_CODES, ROLE_DISPLAY_NAMES_ZH
 from zw_brain.shared.agent_runtime.capability_provider import (
     agent_directory_for_id,
@@ -21,6 +22,7 @@ from zw_brain.shared.agent_runtime.config import agents_dir, is_agent_runtime_en
 from zw_brain.shared.agent_runtime.errors import (  # noqa: F401  (re-export)
     AgentRuntimeNotEnabledError,
     AgentRuntimeNotFoundError,
+    AgentRuntimePermissionError,
 )
 
 _TASK_METADATA_FIELDS = frozenset(
@@ -32,11 +34,33 @@ _TASK_METADATA_FIELDS = frozenset(
     }
 )
 
+_DEFAULT_TENANT_ID = "sd-default"
+_AGENT_ASSIGNABLE_ROLE_CODES = tuple(role for role in BUSINESS_ROLE_CODES if role != "ROLE_SYSTEM")
+_AGENT_ASSIGNABLE_ROLE_SET = set(_AGENT_ASSIGNABLE_ROLE_CODES)
+
+
+class AgentRuntimeDisabledByOpsError(PermissionError):
+    pass
+
 
 def runtime_status() -> dict[str, Any]:
-    # 仅暴露 enable bit；Agent topology（agent_id / capability_skills）属敏感信息，
+    # 公开健康面只暴露 enable/ready/status；Agent topology（agent_id / capability_skills）
     # 仅通过 /api/agent-runtime/agents 在鉴权后返回。
-    return {"enabled": is_agent_runtime_enabled()}
+    if not is_agent_runtime_enabled():
+        return {"enabled": False, "ready": False, "status": "disabled"}
+    try:
+        from zw_brain.shared.agent_runtime.service import runtime_health
+
+        runtime_health()
+    except Exception as exc:  # noqa: BLE001 — health 必须 fail-closed，但不把拓扑泄漏到公网健康面。
+        return {
+            "enabled": False,
+            "configured": True,
+            "ready": False,
+            "status": "service_unreachable",
+            "detail": str(exc)[:200],
+        }
+    return {"enabled": True, "configured": True, "ready": True, "status": "running"}
 
 
 def _roles_that_can_use(bindings: list[dict[str, Any]]) -> list[str]:
@@ -66,7 +90,16 @@ def _roles_that_can_use(bindings: list[dict[str, Any]]) -> list[str]:
     return allowed
 
 
-def list_builtin_agents() -> list[dict[str, Any]]:
+def list_builtin_agents(
+    *,
+    role: str | None = None,
+    tenant_id: str = _DEFAULT_TENANT_ID,
+    state_overrides: dict[str, Any] | None = None,
+) -> list[dict[str, Any]]:
+    state_repo = AgentRuntimeStateRepository()
+    state_by_agent = state_repo.list_states(tenant_id=tenant_id)
+    if state_overrides:
+        state_by_agent = {**state_by_agent, **state_overrides}
     items: list[dict[str, Any]] = []
     for agent_yaml in sorted(agents_dir().glob("*/AGENT.yaml")):
         agent, sidecar = _load_agent_files(agent_yaml)
@@ -74,31 +107,141 @@ def list_builtin_agents() -> list[dict[str, Any]]:
         agent_id = str(metadata.get("id") or "")
         if not agent_id:
             continue
-        # UI 落位的单一事实源：labels.surface 显式声明该 Agent 属哪种产品对象——
-        #   'copilot'  = 嵌在工作流里的副驾（找数副驾等），不进【数据应用】列表；
-        #   'data-app' = 独立数据应用，进【数据应用】画廊。
-        # 缺省回落 copilot（保守：未声明的不会误入数据应用页）。
+        # UI 落位的单一事实源：labels.surface 显式声明该 Agent 属哪种产品对象。
+        # D68 后 /data-apps 升级为【智能体】入口，surface=agent 是 A/B 场景智能体清单；
+        # 旧 data-app 仍兼容归入 agent，copilot 保留给页内嵌副驾。
         labels = metadata.get("labels") if isinstance(metadata.get("labels"), dict) else {}
         surface = str(labels.get("surface") or "").strip().lower()
-        category = "data-app" if surface == "data-app" else "copilot"
+        category = "agent" if surface in {"agent", "data-app"} else "copilot"
+        agent_class = str(labels.get("scenario_class") or sidecar.get("scenario_class") or "").strip().upper()
+        if agent_class not in {"A", "B"}:
+            agent_class = "A" if category == "copilot" else "B"
+        runtime_ready = _truthy(labels.get("runtime_ready")) or bool(sidecar.get("runtime_ready"))
+        net_new = str(labels.get("net_new") or sidecar.get("net_new") or "none").strip() or "none"
         bindings = load_capability_bindings(agent_yaml.parent)
-        allowed_roles = _roles_that_can_use(bindings)
+        raw_quick_questions = metadata.get("quick_questions")
+        if not isinstance(raw_quick_questions, list):
+            raw_quick_questions = sidecar.get("quick_questions")
+        quick_questions = [
+            str(item).strip()
+            for item in (raw_quick_questions if isinstance(raw_quick_questions, list) else [])
+            if str(item).strip()
+        ][:3]
+        policy_allowed_roles = _roles_that_can_use(bindings)
+        default_allowed_roles = [
+            role_code for role_code in policy_allowed_roles if role_code in _AGENT_ASSIGNABLE_ROLE_SET
+        ]
+        state_record = state_by_agent.get(agent_id)
+        raw_state = state_repo.to_dict(state_record, default_roles=default_allowed_roles)
+        configured_roles = [
+            role_code
+            for role_code in raw_state["allowed_roles"]
+            if role_code in _AGENT_ASSIGNABLE_ROLE_SET
+        ]
+        if state_record is not None and not raw_state["allowed_roles"]:
+            configured_roles = []
+        state = dict(raw_state)
+        state["allowed_roles"] = configured_roles
+        visible_enabled = bool(state["enabled"])
+        # ROLE_SYSTEM 是平台运维调试旁路：可查看、可打开全部已启用且 runtime-ready 的智能体。
+        # configured_roles 仍只表示业务岗位授权，不限制平台运维员本人。
+        caller_can_use = bool(
+            role
+            and visible_enabled
+            and runtime_ready
+            and (role == "ROLE_SYSTEM" or role in configured_roles)
+        )
+        ops_visible = role == "ROLE_SYSTEM"
+        if role and not ops_visible and not caller_can_use:
+            continue
         items.append(
             {
+                "id": agent_id,
                 "agent_id": agent_id,
                 "name": metadata.get("name"),
                 "version": metadata.get("version"),
                 "trust_level": metadata.get("trust_level") or sidecar.get("trust_level"),
                 "description": metadata.get("description"),
+                "quick_questions": quick_questions,
                 "capability_skills": [b["skill_id"] for b in bindings],
                 "category": category,
+                "surface": surface or "copilot",
+                "agent_class": agent_class,
+                "agent_type_label": "A 类 · 平台办事助手" if agent_class == "A" else "B 类 · 场景用数助手",
+                "runtime_ready": runtime_ready,
+                "enabled": visible_enabled,
+                "callable": caller_can_use,
+                "assignable_roles": list(_AGENT_ASSIGNABLE_ROLE_CODES),
+                "assignable_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in _AGENT_ASSIGNABLE_ROLE_CODES],
+                "policy_allowed_roles": policy_allowed_roles,
+                "policy_allowed_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in policy_allowed_roles],
+                "net_new": net_new,
+                "tool_count": len(bindings),
                 # 调用方角色须 ∈ allowed_roles 才可用本 Agent（与 task 启动鉴权同口径）。
                 # 前端据此过滤卡片（无权不渲染）+ 渲染 403「可切换到」岗位名。
-                "allowed_roles": allowed_roles,
-                "allowed_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in allowed_roles],
+                "allowed_roles": configured_roles,
+                "allowed_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in configured_roles],
+                "state": state,
             }
         )
     return items
+
+
+def update_agent_state(
+    *,
+    agent_id: str,
+    enabled: bool,
+    allowed_roles: list[str] | None,
+    updated_by: str | None,
+    reason: str | None,
+    tenant_id: str = _DEFAULT_TENANT_ID,
+) -> dict[str, Any]:
+    agent = _agent_catalog_item(agent_id, tenant_id=tenant_id)
+    default_roles = [
+        role_code for role_code in agent["policy_allowed_roles"] if role_code in _AGENT_ASSIGNABLE_ROLE_SET
+    ]
+    requested_set = set(default_roles if allowed_roles is None else allowed_roles)
+    invalid = sorted(requested_set - _AGENT_ASSIGNABLE_ROLE_SET)
+    if invalid:
+        raise AccessDeniedError(f"invalid agent authorization roles: {', '.join(invalid)}")
+    requested_roles = [role_code for role_code in _AGENT_ASSIGNABLE_ROLE_CODES if role_code in requested_set]
+    record = AgentRuntimeStateRepository().set_state(
+        agent_id,
+        tenant_id=tenant_id,
+        enabled=enabled,
+        allowed_roles=requested_roles,
+        updated_by=updated_by,
+        reason=reason,
+    )
+    return _agent_catalog_item(agent_id, tenant_id=tenant_id, state_record=record)
+
+
+def reload_agents() -> dict[str, Any]:
+    if not is_agent_runtime_enabled():
+        raise AgentRuntimeNotEnabledError("ZW_BRAIN_AGENT_RUNTIME_ENABLED is not set")
+    from zw_brain.shared.agent_runtime.service import reload_agents as _reload
+
+    try:
+        return _reload()
+    except AgentRuntimeNotFoundError:
+        return {"ok": False, "status": "unsupported", "detail": "runtime reload endpoint is not available"}
+
+
+def runtime_diagnostics() -> dict[str, Any]:
+    if not is_agent_runtime_enabled():
+        return {"enabled": False, "status": "service_not_started"}
+    from zw_brain.shared.agent_runtime.service import runtime_diagnostics as _diagnostics
+
+    try:
+        return _diagnostics()
+    except AgentRuntimeNotFoundError:
+        return runtime_status() | {"diagnostics": "unsupported"}
+    except Exception as exc:  # noqa: BLE001
+        return runtime_status() | {"diagnostics": "unavailable", "detail": str(exc)[:200]}
+
+
+def _truthy(value: Any) -> bool:
+    return str(value or "").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _resolve_task_metadata(
@@ -143,18 +286,12 @@ def _verify_agent_and_policy(
     if not bindings:
         raise AgentRuntimeNotFoundError(f"agent {agent_id} has no capability_tools")
 
-    for binding in bindings:
-        skill_id = binding["skill_id"]
-        try:
-            from zw_brain.capability_registry.runtime import get_manifest
-
-            manifest = get_manifest(skill_id)
-        except KeyError as exc:
-            raise AgentRuntimeNotFoundError(skill_id) from exc
-        try:
-            policy.enforce_manifest_policy(skill_id, manifest, role, {})
-        except policy.DomainAccessDeniedError as exc:
-            raise AccessDeniedError(str(exc)) from exc
+    catalog_item = _agent_catalog_item(agent_id)
+    if not catalog_item["enabled"]:
+        raise AgentRuntimeDisabledByOpsError("agent disabled by platform operator")
+    is_platform_operator = role == "ROLE_SYSTEM"
+    if not is_platform_operator and role not in catalog_item["allowed_roles"]:
+        raise AccessDeniedError("current role is not allowed to use this agent")
 
 
 def start_agent_task(
@@ -255,6 +392,27 @@ def _resolve_agent_dir(agent_id: str) -> Path | None:
     if (candidate / "AGENT.yaml").is_file():
         return candidate
     return None
+
+
+def _agent_catalog_item(
+    agent_id: str,
+    *,
+    tenant_id: str = _DEFAULT_TENANT_ID,
+    state_record: Any | None = None,
+) -> dict[str, Any]:
+    if state_record is None:
+        for item in list_builtin_agents(role="ROLE_SYSTEM", tenant_id=tenant_id):
+            if item["agent_id"] == agent_id:
+                return item
+    else:
+        for item in list_builtin_agents(
+            role="ROLE_SYSTEM",
+            tenant_id=tenant_id,
+            state_overrides={agent_id: state_record},
+        ):
+            if item["agent_id"] == agent_id:
+                return item
+    raise AgentRuntimeNotFoundError(agent_id)
 
 
 def _load_agent_files(agent_yaml: Path) -> tuple[dict[str, Any], dict[str, Any]]:

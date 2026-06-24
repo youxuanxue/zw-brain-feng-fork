@@ -36,11 +36,15 @@ def test_runtime_status_when_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ZW_BRAIN_AGENT_RUNTIME_ENABLED", raising=False)
     from zw_brain.command.agent_runtime_bridge import runtime_status
 
-    assert runtime_status() == {"enabled": False}
+    status = runtime_status()
+    assert status["enabled"] is False
+    assert status["ready"] is False
 
 
 def test_rest_server_health_agent_runtime_disabled(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ZW_BRAIN_AGENT_RUNTIME_ENABLED", raising=False)
     from zw_brain.entry.rest.server import _agent_runtime_bridge
 
-    assert _agent_runtime_bridge().runtime_status() == {"enabled": False}
+    status = _agent_runtime_bridge().runtime_status()
+    assert status["enabled"] is False
+    assert status["ready"] is False

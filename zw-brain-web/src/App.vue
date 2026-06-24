@@ -57,6 +57,7 @@ const currentRoleLabel = computed(() => PRODUCT_ROLE_LABELS[currentRole.value] ?
 
 const showRoleControl = computed(() => Boolean(user.value && !isLoginRoute.value && currentRoleLabel.value));
 const canSwitchRole = computed(() => allowRoleSwitch.value && allowedRoles.value.length > 1);
+const showPlatformGuide = computed(() => Boolean(user.value && !isLoginRoute.value && route.path !== '/data-apps'));
 
 const missingProductRole = computed(
   () => Boolean(user.value && !isLoginRoute.value && !hasAllowedProductRoles())
@@ -307,7 +308,7 @@ watch(
   </footer>
 
   <ActionToast />
-  <PlatformGuideChatPanel v-if="user && !isLoginRoute" />
+  <PlatformGuideChatPanel v-if="showPlatformGuide" />
 </template>
 
 <style scoped>

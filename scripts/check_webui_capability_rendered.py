@@ -26,7 +26,7 @@
          证明不了任何真实前端落点 — 2026-06-14 上帝视角复核坐实并根治该循环判据）。
   - 读豁免清单 scripts/webui_capability_rendered_exemptions.txt（净存量债务台账）：留作
     **NL 加速器 / 内置 Agent 工具可达**这一类——经通用 NL 派发触达、无 slug 字面量、亦无专属
-    路由/契约测试锚（如 platform.docs.* 经内置 zw-platform-guide Agent）。这是守卫**设计内**
+    路由/契约测试锚（如 platform.docs.* 经内置 a-zw-platform-guide Agent）。这是守卫**设计内**
     的合理长期豁免，非「缺陷工作量」。
   - FAIL（净新增漂移）：某能力既非 webui 可达（LIT/ROUTE/PINNED 全不命中）又不在豁免清单。
   - FAIL（台账漂移）：豁免清单含已可达的 slug（过期，应删——ROUTE/PINNED 现能自动识别的别再挂豁免）

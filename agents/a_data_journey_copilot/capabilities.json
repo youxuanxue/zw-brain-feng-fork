@@ -1,0 +1,139 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "scenario_class": "A",
+  "quick_questions": [
+    "这个助手适合帮用数方申请与交付跟踪人员处理什么问题？",
+    "我应该提供哪些编号、时间范围或判断条件？",
+    "请围绕“串联申请草拟、申请状态、审批详情、交付任务和凭据领取，形成一条只读办理摘要。”给出一份只读研判摘要。"
+  ],
+  "runtime_ready": true,
+  "net_new": "none",
+  "capability_tools": [
+    {
+      "skill_id": "application.draft.suggest",
+      "name": "application_draft_suggest",
+      "description": "P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。zw-brain 主进程不持有推理平台 SDK/env，当前走本地确定性规则。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "resource_name": {
+            "type": "string"
+          },
+          "applicant_org": {
+            "type": "string"
+          },
+          "use_case": {
+            "type": "string",
+            "description": "使用场景一句话描述"
+          },
+          "role": {
+            "type": "string"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "request_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "resource_name",
+          "applicant_org"
+        ]
+      }
+    },
+    {
+      "skill_id": "request.list",
+      "name": "request_list",
+      "description": "查看黄金链路中的申请清单和当前状态。",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "skill_id": "request.view",
+      "name": "request_view",
+      "description": "查看申请详情、差异字段、时间线与 AI 解释。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "request_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "approval.view",
+      "name": "approval_view",
+      "description": "查看审批建议、风险、影响和异常项。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "request_id"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "delivery.list",
+      "name": "delivery_list",
+      "description": "查看预填下发、自动汇总、回流候选和异常交付任务列表。",
+      "input_schema": {
+        "type": "object",
+        "properties": {}
+      }
+    },
+    {
+      "skill_id": "delivery.view",
+      "name": "delivery_view",
+      "description": "查看预填下发、自动汇总和回流候选的交付任务详情。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "credential.query",
+      "name": "credential_query",
+      "description": "只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受 policy 控制）。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "request_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "request_id"
+        ]
+      }
+    }
+  ]
+}

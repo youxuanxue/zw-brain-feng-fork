@@ -1,0 +1,92 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 平台使用指南只读能力
+  description: 平台使用指南在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/platform.docs.search:
+    post:
+      operationId: platform_docs_search
+      summary: 平台文档关键词检索
+      description: 在 zw-brain 仓库 docs/ 等只读文档中按关键词检索，返回路径、标题与摘要片段，供平台问答 Agent 定位资料。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: 检索关键词或短语
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 8
+                role:
+                  type: string
+                request_id:
+                  type: string
+              required:
+              - query
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  hits:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /api/skills/platform.docs.read:
+    post:
+      operationId: platform_docs_read
+      summary: 平台文档全文读取
+      description: 按相对路径读取 zw-brain 仓库内已授权 Markdown 文档正文（只读，带长度上限），供平台问答 Agent 核对细节。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                  description: 文档相对路径，如 deployment/docker-image-deployment.md
+                rel_path:
+                  type: string
+                  description: 同 path 的别名
+                max_chars:
+                  type: integer
+                  minimum: 500
+                  maximum: 24000
+                role:
+                  type: string
+                request_id:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  content:
+                    type: string
+                  truncated:
+                    type: boolean
+                  size_chars:
+                    type: integer

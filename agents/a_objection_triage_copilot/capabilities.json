@@ -1,0 +1,106 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "scenario_class": "A",
+  "quick_questions": [
+    "这个助手适合帮异议受理与核查人员处理什么问题？",
+    "我应该提供哪些编号、时间范围或判断条件？",
+    "请围绕“基于异议案件、过程、指标和证据链，给出分诊建议与需人工处理的问题清单。”给出一份只读研判摘要。"
+  ],
+  "runtime_ready": true,
+  "net_new": "none",
+  "capability_tools": [
+    {
+      "skill_id": "objection.case.query",
+      "name": "objection_case_query",
+      "description": "查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tenant_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "target_type": {
+            "type": "string"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "skill_id": "objection.process.query",
+      "name": "objection_process_query",
+      "description": "查询异议处理过程、证据与评价链路。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tenant_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "confirmed": {
+            "type": "boolean"
+          },
+          "objection_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "objection_id"
+        ]
+      }
+    },
+    {
+      "skill_id": "objection.metric.query",
+      "name": "objection_metric_query",
+      "description": "查询异议状态分布和闭环指标投影。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "tenant_id": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "confirmed": {
+            "type": "boolean"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "skill_id": "audit.replay_evidence_chain",
+      "name": "audit_replay_evidence_chain",
+      "description": "按争议标识回放原始证据、关联审计事件、工单与知识建议。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "dispute_id"
+        ],
+        "properties": {
+          "dispute_id": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ]
+}

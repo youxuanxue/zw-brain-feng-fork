@@ -5,7 +5,7 @@ import { newRequestId } from './useApiClient';
 import { apiUrl } from './useApiBase';
 
 // 通用 Agent 对话引擎：「POST 提交任务 → 轮询到终端态」。任何内置 Agent（平台指南副驾、
-// 找数副驾、数据应用…）共用本引擎，只需传 agentId。角色取当前产品角色（顶部岗位切换），
+// 找数副驾、智能体工作台…）共用本引擎，只需传 agentId。角色取当前产品角色（顶部岗位切换），
 // 后端按该角色对 Agent 绑定的能力做权限门控（无权时任务侧返错，本引擎透传错误文案）。
 
 /** 轮询间隔（毫秒） */
@@ -63,12 +63,14 @@ export function sanitizeAssistantText(text: string): string {
     .replace(/任务执行失败，请查看服务端日志/g, '本次智能分析没有形成可用答案，请换一个问题或稍后重试')
     .replace(/查看服务端日志/g, '联系平台运维员')
     .replace(/\bHTTP\s+\d{3}\b/gi, '服务暂不可用')
-    .replace(/\bAgentRuntime\s+unreachable\b/gi, '智能问答服务暂不可用')
-    .replace(/\bagent[_-]?runtime[_-]?unreachable\b/gi, '智能问答服务暂不可用')
-    .replace(/\bagent[_-]?runtime[_-]?disabled\b/gi, '智能问答未启用')
-    .replace(/\bagent[_-]?runtime[_-]?not[_-]?found\b/gi, '智能问答助手不存在')
-    .replace(/\bAgentRuntime\b/g, '智能问答服务')
-    .replace(/\bAgent Runtime\b/g, '智能问答服务')
+    .replace(/智能问答服务暂未就绪，请稍后重试。?/g, '当前助手暂不可用。')
+    .replace(/智能问答服务暂不可用，请稍后重试。?/g, '当前助手暂不可用。')
+    .replace(/\bAgentRuntime\s+unreachable\b/gi, '当前助手暂不可用')
+    .replace(/\bagent[_-]?runtime[_-]?unreachable\b/gi, '当前助手暂不可用')
+    .replace(/\bagent[_-]?runtime[_-]?disabled\b/gi, '当前助手暂不可用')
+    .replace(/\bagent[_-]?runtime[_-]?not[_-]?found\b/gi, '当前助手暂不可用')
+    .replace(/\bAgentRuntime\b/g, '智能助手')
+    .replace(/\bAgent Runtime\b/g, '智能助手')
     .replace(/平台指南\s*Agent/g, '平台指南')
     .replace(/Agent\s*列表接口/g, '助手列表接口')
     .replace(/可用的\s*Agent/g, '可用助手')
@@ -76,10 +78,10 @@ export function sanitizeAssistantText(text: string): string {
 }
 
 function agentErrorMessage(status: number, detail = ''): string {
-  if (status === 503) return '智能问答服务暂未就绪，请稍后重试。';
-  if (status >= 500) return '智能问答服务暂不可用，请稍后重试。';
+  if (status === 503) return '当前助手暂不可用。';
+  if (status >= 500) return '当前助手暂不可用。';
   if (/agent[_-]?runtime|AgentRuntime|服务端日志|HTTP\s+\d{3}/i.test(detail)) {
-    return '智能问答服务暂不可用，请稍后重试。';
+    return '当前助手暂不可用。';
   }
   return '智能问答暂时无法处理这个问题，请换一种问法或稍后重试。';
 }
@@ -167,7 +169,7 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
     try {
       const enabled = runtimeEnabled.value ?? (await probeRuntime());
       if (!enabled) {
-        throw new Error('智能问答暂未开启，请联系平台运维员开启后使用。');
+        throw new Error('当前助手暂不可用。');
       }
       logStep('[Step 1] POST /api/agent-runtime/tasks');
       const resp = await authFetch(apiUrl('/api/agent-runtime/tasks'), {
@@ -180,6 +182,9 @@ export function useAgentChat(agentId: string, options?: UseAgentChatOptions) {
           request_id: newRequestId(requestPrefix),
         }),
       });
+      if (resp.status === 503) {
+        throw new Error('当前助手暂不可用。');
+      }
       if (resp.status === 403) {
         const names = options?.allowedRoleNames ?? [];
         const suffix = names.length ? `可切换到：${names.join(' / ')}。` : '';

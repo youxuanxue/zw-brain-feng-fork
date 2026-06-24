@@ -30,7 +30,7 @@ from zw_brain.shared.agent_runtime.manifest_checks import (  # noqa: E402
 @pytest.mark.parametrize(
     "agent_yaml",
     [
-        REPO / "agents" / "zw_platform_guide" / "AGENT.yaml",
+        REPO / "agents" / "a_zw_platform_guide" / "AGENT.yaml",
         FIX / "hello-agent" / "AGENT.yaml",
         FIX / "external-data-consumer" / "AGENT.yaml",
     ],
@@ -43,9 +43,9 @@ def test_validate_accepts_clean_agents(agent_yaml: Path) -> None:
 @pytest.mark.parametrize(
     "agent_yaml",
     [
-        REPO / "agents" / "zw_search_helper" / "AGENT.yaml",
-        REPO / "agents" / "zw_platform_guide" / "AGENT.yaml",
-        REPO / "agents" / "legal_person_credit_profiler" / "AGENT.yaml",
+        REPO / "agents" / "a_zw_search_helper" / "AGENT.yaml",
+        REPO / "agents" / "a_zw_platform_guide" / "AGENT.yaml",
+        REPO / "agents" / "b_legal_person_credit_profiler" / "AGENT.yaml",
     ],
 )
 def test_builtin_agents_declare_api_tools_for_sidecar_capabilities(agent_yaml: Path) -> None:

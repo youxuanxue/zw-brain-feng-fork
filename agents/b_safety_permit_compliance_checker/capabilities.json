@@ -1,0 +1,103 @@
+{
+  "runtime_spec_version": "anp-agent/v1.2",
+  "trust_level": "platform",
+  "source_type": "builtin",
+  "auth_mode": "trusted_gateway",
+  "tenant_id": "sd-default",
+  "context_policy": "regulated_minimal",
+  "scenario_class": "B",
+  "quick_questions": [
+    "这个助手适合帮安全生产合规核验人员处理什么问题？",
+    "我应该提供哪些编号、时间范围或判断条件？",
+    "请围绕“检索安全生产许可、环境隐患和企业画像目录，输出证照合规体检要点。”给出一份只读研判摘要。"
+  ],
+  "runtime_ready": true,
+  "net_new": "none",
+  "capability_tools": [
+    {
+      "skill_id": "data.search",
+      "name": "data_search",
+      "description": "按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。",
+      "input_schema": {
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1
+          },
+          "page": {
+            "type": "integer",
+            "minimum": 1,
+            "default": 1
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "catalog.entry.query",
+      "name": "catalog_entry_query",
+      "description": "查询已进入 canonical 聚合的目录条目详情和列表。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "catalog_code": {
+            "type": "string"
+          },
+          "source": {
+            "type": "string",
+            "description": "filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)"
+          },
+          "lifecycle_status": {
+            "type": "string",
+            "description": "filter by lifecycle_status (draft / pending_review / active / ...)"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "max rows to return; filters apply in SQL before serialization"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "skip rows before applying limit"
+          },
+          "order": {
+            "type": "string",
+            "enum": [
+              "updated_desc"
+            ],
+            "description": "result ordering: 'updated_desc' = newest updated first (work-queue view); default = catalog_code ascending (stable browse order)"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "skill_id": "metadata.catalog_item.query",
+      "name": "metadata_catalog_item_query",
+      "description": "查询目录项与资源 schema 字段之间的映射证据。",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "resource_code": {
+            "type": "string"
+          },
+          "catalog_code": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  ]
+}

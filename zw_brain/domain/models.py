@@ -857,6 +857,20 @@ class TenantCapabilityPolicyRecord(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
 
+class AgentRuntimeAgentStateRecord(Base):
+    __tablename__ = "agent_runtime_agent_state"
+    __table_args__ = (UniqueConstraint("tenant_id", "agent_id", name="uq_agent_runtime_state_tenant_agent"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    agent_id: Mapped[str] = mapped_column(String(128), index=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, index=True)
+    allowed_roles_json: Mapped[list] = mapped_column(JSON, default=list)
+    updated_by: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class TenantProjectionRecord(Base):
     __tablename__ = "tenant_projection"
     __table_args__ = (UniqueConstraint("tenant_id", name="uq_tenant_projection_tenant"),)

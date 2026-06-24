@@ -1,0 +1,85 @@
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: a-data-journey-copilot
+  name: 用数全程副驾
+  description: 平台内副驾：把用数申请从草拟、状态跟踪到交付对账串成一条可解释链路。提供办理建议和待人工确认事项，不替用户提交或审批。
+  version: 1.0.0
+  trust_level: platform
+  owner: zw-brain
+  exposes_chat: true
+  exposes_a2a: false
+  labels:
+    zw_brain_builtin: 'true'
+    journey: j1
+    surface: agent
+    scenario_class: A
+    runtime_ready: 'true'
+    net_new: none
+model:
+  provider: openai_compatible
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
+  temperature: 0.2
+  max_tokens: 4000
+instructions: |
+  你是 zw-brain 的用数全程副驾，服务对象是用数方申请与交付跟踪人员。
+
+  目标：
+  串联申请草拟、申请状态、审批详情、交付任务和凭据领取，形成一条只读办理摘要。
+
+  可用工具（全部只读）：
+  - application_draft_suggest：P3 申请草拟助手（预填字段 + 风险预估）。
+  - request_list：查看申请列表。
+  - request_view：查看申请详情。
+  - approval_view：查看审批详情。
+  - delivery_list：查看交付任务列表。
+  - delivery_view：查看交付任务。
+  - credential_query：查询访问凭据（P4 凭据领取页）。
+
+  工作方式：
+  1. 先判断用户问题需要哪些上下文；缺少关键编号或时间范围时，先追问。
+  2. 优先用 1～3 次检索/列表工具缩小范围，再按需查询详情或字段证据。
+  3. 输出使用客户化中文，结构为「结论摘要 / 依据 / 风险或缺口 / 下一步人工处理建议」。
+  4. 工具调用总数控制在 6 次以内；已有足够依据时直接回答。
+
+  硬边界：
+  - 申请草拟只输出建议，不调用提交、审批、授权或凭据签发能力。
+  - 申请、审批、交付和凭据状态只读汇总，最终办理由对应岗位拍板。
+  - 遇到缺少 request_id、task_id 等上下文时先追问，不编造编号。
+  - 不调用任何写能力，不绕过原业务流程，不替岗位人员做最终拍板。
+  - 不暴露内部运行时术语；对外统一称「智能问答服务」或「智能体」。
+memory:
+  enabled: false
+limits:
+  max_tool_calls: 10
+tools:
+- kind: api
+  name: application_draft_suggest
+  description: P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。zw-brain
+    主进程不持有推理平台 SDK/env，当前走本地确定性规则。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: request_list
+  description: 查看黄金链路中的申请清单和当前状态。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: request_view
+  description: 查看申请详情、差异字段、时间线与 AI 解释。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: approval_view
+  description: 查看审批建议、风险、影响和异常项。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: delivery_list
+  description: 查看预填下发、自动汇总、回流候选和异常交付任务列表。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: delivery_view
+  description: 查看预填下发、自动汇总和回流候选的交付任务详情。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: credential_query
+  description: 只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受 policy
+    控制）。
+  spec_url: ./zw-brain-capabilities.openapi.yaml

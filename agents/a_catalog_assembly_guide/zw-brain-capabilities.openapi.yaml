@@ -1,0 +1,251 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 目录编制向导只读能力
+  description: 目录编制向导在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/provider.view:
+    post:
+      operationId: provider_view
+      summary: 查看供给侧治理
+      description: 查看模板版本、目录状态、资源与治理建议。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - overview
+                - catalogs
+                - resources
+                - services
+                - aiGovernance
+                properties:
+                  overview:
+                    type: array
+                    items:
+                      type: object
+                  catalogs:
+                    type: array
+                    items:
+                      type: object
+                  resources:
+                    type: array
+                    items:
+                      type: object
+                  services:
+                    type: array
+                    items:
+                      type: object
+                  aiGovernance:
+                    type: object
+  /api/skills/catalog.model.query:
+    post:
+      operationId: catalog_model_query
+      summary: 查询目录模型
+      description: 查询目录/台账模板模型定义。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model_code:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /api/skills/catalog.model.field.query:
+    post:
+      operationId: catalog_model_field_query
+      summary: 查询目录模型字段
+      description: 查询目录/台账模板字段口径、敏感级别和策略摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - model_code
+              properties:
+                model_code:
+                  type: string
+                  minLength: 1
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /api/skills/catalog.resource.list:
+    post:
+      operationId: catalog_resource_list
+      summary: 列目录下的资源
+      description: 给定 catalog_code，钻取列出该目录关联的所有 resource_asset（一对多）。目录存在但无资源时返回空列表（诚实空态），目录不存在返回 404。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - catalog_code
+              properties:
+                catalog_code:
+                  type: string
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                lifecycle:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - catalog
+                - items
+                - total
+                - page
+                - limit
+                properties:
+                  catalog:
+                    type: object
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                    minimum: 0
+                  page:
+                    type: integer
+                    minimum: 1
+                  limit:
+                    type: integer
+                    minimum: 1
+  /api/skills/catalog.resource_view:
+    post:
+      operationId: catalog_resource_view
+      summary: 查看资源详情
+      description: 查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - resource_id
+              properties:
+                resource_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - name
+                - status
+                - fields
+                - coverage
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  status:
+                    type: string
+                  fields:
+                    type: array
+                    items:
+                      type: string
+                  coverage:
+                    type: string
+  /api/skills/catalog.duplicate.check:
+    post:
+      operationId: catalog_duplicate_check
+      summary: 目录重复率检测（发布前）
+      description: J2 发布前对单一 catalog 做轻量重复率检测，返回 duplicate_warnings 数组供 P5 提供方管理面 UI 展示（非硬拦：调用方继续执行 publish 即可）。匹配规则：title
+        完全相等的其他 catalog；同 region_code + 同 owner_org_id 的其他 catalog。不做模糊匹配 / Embedding similarity（属高级匹配，归 R14 三引擎或 ML 阶段）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                catalog_code:
+                  type: string
+                role:
+                  type: string
+              required:
+              - catalog_code
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  catalog_code:
+                    type: string
+                  duplicate_warnings:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer

@@ -27,13 +27,15 @@ _SHELL_ROLES: dict[str, frozenset[str]] = {
             "ROLE_BUSIAUDIT",
         }
     ),
-    # 数据应用画廊（B 类场景智能体的家）：roles = 本期所有 data-app 可用角色并集。
-    # 唯一 data-app（法人信用画像核验）绑定 metadata.catalog_item.query → 仅
-    # {部门管理员, 业务运营员}（部门操作员无权 → 不渲染入口，no-permission=invisible）。
+    # 智能体入口：承接 A 类平台内副驾 + B 类外部用数方智能体。roles = 已落地
+    # AgentRuntime 场景智能体可用角色并集；卡片级仍按后端 allowed_roles 过滤。
     "data-apps": frozenset(
         {
+            "ROLE_ORGAN_OPERATER",
             "ROLE_ORGAN_MANAGER",
             "ROLE_BUSIAUDIT",
+            "ROLE_SECURITY_AUDIT",
+            "ROLE_SYSTEM",
         }
     ),
     # 「办申请」(request-flow) 导航项已随 IA 重构整体删除：我的申请/授权并入领数据，
@@ -199,15 +201,14 @@ def _default_route_for_role(role: str, from_path: str | None = None) -> str:
     return "/workbench"
 
 
-def test_data_apps_route_gated_to_usable_roles_only() -> None:
-    """数据应用画廊：仅当前唯一 data-app（法人信用画像核验）可用角色 {部门管理员, 业务运营员}
-    可达——它绑定 metadata.catalog_item.query（部门操作员/安全审计员无权）。无权角色路由不可达
-    （no-permission=invisible：不留「看得到入口、点开撞 403」死胡同；后端卡片级 allowed_roles
-    过滤兜底同口径）。"""
+def test_data_apps_route_is_scenario_agent_entry() -> None:
+    """智能体入口对已落地场景智能体可用岗位并集开放；单个智能体由后端 allowed_roles
+    做卡片级过滤，避免无权卡片撞 403。"""
+    assert _is_route_allowed("/data-apps", "ROLE_ORGAN_OPERATER")
     assert _is_route_allowed("/data-apps", "ROLE_ORGAN_MANAGER")
     assert _is_route_allowed("/data-apps", "ROLE_BUSIAUDIT")
-    assert not _is_route_allowed("/data-apps", "ROLE_ORGAN_OPERATER")
-    assert not _is_route_allowed("/data-apps", "ROLE_SECURITY_AUDIT")
+    assert _is_route_allowed("/data-apps", "ROLE_SECURITY_AUDIT")
+    assert _is_route_allowed("/data-apps", "ROLE_SYSTEM")
 
 
 def test_operater_cannot_access_integration_admin() -> None:

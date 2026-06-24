@@ -1,0 +1,259 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 供需匹配副驾只读能力
+  description: 供需匹配副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/demand.list:
+    post:
+      operationId: demand_list
+      summary: 查询供需需求列表
+      description: 列出当前租户登记的 demand 记录，可按 phase 筛选。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                phase:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /api/skills/search.intent.parse:
+    post:
+      operationId: search_intent_parse
+      summary: P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由）
+      description: P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。zw-brain 主进程不持有推理平台
+        SDK/env，当前走本地确定性规则。可由调用方传 enabled=false 标记关闭。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: 用户一句话搜索语句
+                role:
+                  type: string
+                enabled:
+                  type: boolean
+                  description: false 时跳过推理直接走本地规则；默认 true
+                request_id:
+                  type: string
+                  description: 审计关联（D4）；缺省由 cap 自动生成
+              required:
+              - query
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  intent:
+                    type: string
+                    description: discover_resource | register_demand | query_application | unknown
+                  keywords:
+                    type: array
+                    items:
+                      type: string
+                  dimension:
+                    type: object
+                    properties:
+                      keyword:
+                        type: array
+                        items:
+                          type: string
+                      target_resource_hint:
+                        type: string
+                      region:
+                        type: string
+                  missing_fields:
+                    type: array
+                    items:
+                      type: string
+                  recommendation_reason:
+                    type: string
+                  follow_up_questions:
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    description: inference | fallback_rule
+                  enabled:
+                    type: boolean
+                  degraded:
+                    type: boolean
+                    description: 兼容旧客户端的可选字段；当前 zw-brain 本地规则路径不设置。
+  /api/skills/data.search:
+    post:
+      operationId: data_search
+      summary: 数据资源检索
+      description: 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - query
+              properties:
+                query:
+                  type: string
+                  minLength: 1
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - results
+                - total
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                    minimum: 0
+  /api/skills/recommendation.similar_catalog.suggest:
+    post:
+      operationId: recommendation_similar_catalog_suggest
+      summary: 智能推荐相似目录
+      description: J1 申请前置：基于已入库 live 推荐规则 + 历史申请投影，按意向文本推荐相似目录候选。推荐为空且 fallback_register=true 时落 manual_requirement 转人工登记。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - tenant_id
+              - intent_text
+              - submitted_by
+              properties:
+                tenant_id:
+                  type: string
+                intent_text:
+                  type: string
+                intent_org:
+                  type: string
+                top_k:
+                  type: integer
+                submitted_by:
+                  type: string
+                fallback_register:
+                  type: boolean
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - ok
+                - skill_id
+                - audit_id
+                - result
+                properties:
+                  ok:
+                    type: boolean
+                  skill_id:
+                    type: string
+                  audit_id:
+                    type: string
+                  result:
+                    type: object
+                    properties:
+                      candidates:
+                        type: array
+                      fallback_required:
+                        type: boolean
+                      manual_submission_id:
+                        type: string
+  /api/skills/catalog.entry.query:
+    post:
+      operationId: catalog_entry_query
+      summary: 查询目录条目
+      description: 查询已进入 canonical 聚合的目录条目详情和列表。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                catalog_code:
+                  type: string
+                source:
+                  type: string
+                  description: filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)
+                lifecycle_status:
+                  type: string
+                  description: filter by lifecycle_status (draft / pending_review / active / ...)
+                limit:
+                  type: integer
+                  minimum: 1
+                  description: max rows to return; filters apply in SQL before serialization
+                offset:
+                  type: integer
+                  minimum: 0
+                  description: skip rows before applying limit
+                order:
+                  type: string
+                  enum:
+                  - updated_desc
+                  description: 'result ordering: ''updated_desc'' = newest updated first (work-queue view); default = catalog_code
+                    ascending (stable browse order)'
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer

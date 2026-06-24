@@ -1,0 +1,303 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 用数全程副驾只读能力
+  description: 用数全程副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/application.draft.suggest:
+    post:
+      operationId: application_draft_suggest
+      summary: P3 申请草拟助手（预填字段 + 风险预估）
+      description: P3 申请页减摩组件。基于资源名称、申请方、使用场景与历史相似申请，预填申请字段（purpose / use_reason / use_item / service_times / use_region 等）并给出风险评分。仅作辅助建议，绝不调用申请提交接口。zw-brain
+        主进程不持有推理平台 SDK/env，当前走本地确定性规则。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource_name:
+                  type: string
+                applicant_org:
+                  type: string
+                use_case:
+                  type: string
+                  description: 使用场景一句话描述
+                role:
+                  type: string
+                enabled:
+                  type: boolean
+                request_id:
+                  type: string
+              required:
+              - resource_name
+              - applicant_org
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  suggested_fields:
+                    type: object
+                    properties:
+                      purpose:
+                        type: string
+                      use_reason:
+                        type: string
+                      use_item:
+                        type: string
+                      service_times:
+                        type: integer
+                      service_times_unit:
+                        type: string
+                      use_region:
+                        type: string
+                  risk_score:
+                    type: integer
+                  risk_band:
+                    type: string
+                    description: low | medium | high
+                  risk_factors:
+                    type: array
+                    items:
+                      type: string
+                  missing_fields:
+                    type: array
+                    items:
+                      type: string
+                  recommended_use_reasons:
+                    type: array
+                    items:
+                      type: string
+                  reasoning:
+                    type: string
+                  source:
+                    type: string
+                  enabled:
+                    type: boolean
+                  degraded:
+                    type: boolean
+                    description: 兼容旧客户端的可选字段；当前 zw-brain 本地规则路径不设置。
+                  historical_examples_count:
+                    type: integer
+  /api/skills/request.list:
+    post:
+      operationId: request_list
+      summary: 查看申请列表
+      description: 查看黄金链路中的申请清单和当前状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+  /api/skills/request.view:
+    post:
+      operationId: request_view
+      summary: 查看申请详情
+      description: 查看申请详情、差异字段、时间线与 AI 解释。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - request_id
+              properties:
+                request_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - status
+                - timeline
+                - aiStatus
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  timeline:
+                    type: array
+                    items:
+                      type: object
+                  aiStatus:
+                    type: object
+  /api/skills/approval.view:
+    post:
+      operationId: approval_view
+      summary: 查看审批详情
+      description: 查看审批建议、风险、影响和异常项。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - request_id
+              properties:
+                request_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - suggestion
+                - actions
+                properties:
+                  id:
+                    type: string
+                  suggestion:
+                    type: string
+                  actions:
+                    type: array
+                    items:
+                      type: string
+  /api/skills/delivery.list:
+    post:
+      operationId: delivery_list
+      summary: 查看交付任务列表
+      description: 查看预填下发、自动汇总、回流候选和异常交付任务列表。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+  /api/skills/delivery.view:
+    post:
+      operationId: delivery_view
+      summary: 查看交付任务
+      description: 查看预填下发、自动汇总和回流候选的交付任务详情。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - task_id
+              properties:
+                task_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - status
+                - history
+                - backflow
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  history:
+                    type: array
+                    items:
+                      type: object
+                  backflow:
+                    type: object
+  /api/skills/credential.query:
+    post:
+      operationId: credential_query
+      summary: 查询访问凭据（P4 凭据领取页）
+      description: 只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受
+        policy 控制）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                request_id:
+                  type: string
+                role:
+                  type: string
+              required:
+              - request_id
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                  credential:
+                    type: object
+                  status:
+                    type: string
+                    description: issued | not_issued
+                  issued_audit_id:
+                    type: string
+                  issued_at:
+                    type: string
+                  issued_by:
+                    type: string
+                  resource_id:
+                    type: string
+                  resource_name:
+                    type: string
+                  hint:
+                    type: string

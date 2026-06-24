@@ -38,7 +38,7 @@
 #   能力+seed 保留、仍 live 在 REST/CLI/MCP/A2A)。**降级涉及业务面**，由产品研发负责人定夺（见本 PR residual）。
 #   本台账除此 2 条待裁债务外，只剩 NL/内置 Agent 工具可达这一守卫设计内的合理长期豁免。
 
-platform.docs.read  # NL 可达 — PlatformGuideChatPanel.vue 经 AgentRuntime(内置 zw-platform-guide Agent) 把本 cap 作工具调用；入口=平台向导问答面板
+platform.docs.read  # NL 可达 — PlatformGuideChatPanel.vue 经 AgentRuntime(内置 a-zw-platform-guide Agent) 把本 cap 作工具调用；入口=平台向导问答面板
 platform.docs.search  # NL 可达 — 同上，平台向导问答检索工具；入口=平台向导问答面板
 governance.iam_overview  # 待裁债务(2026-06-14) — 无真实前端 surface(仅 pages.generated.ts 循环)；B1.2 页实际用 policy_candidate.*。owner 裁：接面板 or 诚实降级(去 webui)。
 tenant.policy.evaluate  # 待裁债务(2026-06-14) — 纯后端策略评估，无 .vue 消费者/专属路由。owner 裁：接面板 or 诚实降级(去 webui)。

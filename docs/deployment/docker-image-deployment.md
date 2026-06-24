@@ -57,10 +57,10 @@ AR 用它**跑** Agent，zw-brain 用它**列** Agent。compose 把 `./agents` �
 
 - **AR 容器 entrypoint** 把只读源拷到可写 `/app/agents`，再按 `ZW_BRAIN_REST_BASE_URL`（compose 内 = `http://zw-brain:8800`）
   渲染各 `*.openapi.yaml` 的 `servers.url`——因为 AgentRuntime **不解析** spec 内 `${env:}`，跨容器回调地址须在部署期落成字面量（见 `scripts/render-agent-specs.sh`）。本地 start-local 用 committed 默认 `http://127.0.0.1:8800`，无需渲染。
-- **数据应用页自动派生**：WebUI【数据应用】画廊从 `/api/agent-runtime/agents` 的 `category`（由 `AGENT.yaml labels.surface` 派生：`data-app`/`copilot`）渲染——给新 Agent 打 `labels.surface: data-app` 即自动进画廊并可跳转对话，**零前端改动**。
+- **智能体页自动派生**：WebUI【智能体】页从 `/api/agent-runtime/agents` 的 `category`、`agent_class`、`agent_type_label` 渲染 A 类平台内副驾与 B 类外部用数方智能体——给新 Agent 打 `labels.surface: agent`、`labels.scenario_class: A/B` 即自动进对应分组并可跳转对话，**零前端改动**。
 
 > 渲染只在 **AR 容器**发生（跨容器服务名不同）；zw-brain 容器只「列」不回调，无需渲染。生产把 `agent-runtime` 服务的
-> `command` 切回默认 CMD（`agent-runtime.yaml` / `trusted_gateway`，而非 compose 默认的 `agent-runtime.dev.yaml` / `auth none`）。
+> `command` 切回默认 CMD（`agent-runtime.yaml` / `trusted_gateway`；compose 默认的 `agent-runtime.dev.yaml` 也走 trusted_gateway，只是存储更轻）。
 
 ## 2. 导出与导入镜像文件
 
@@ -118,7 +118,8 @@ docker run -d \
 
 > `.env` 里至少填：`ZW_BRAIN_DATABASE_URL`（指向托管 PG，须容器内可达） +
 > IAF 一组 + 生产的 `ZW_BRAIN_SESSION_REDIS_URL` + AgentRuntime 指向
-> `ZW_BRAIN_AGENT_RUNTIME_URL`。模型网关变量只给独立 `agent-runtime` 服务：
+> `ZW_BRAIN_AGENT_RUNTIME_URL` + zw-brain 与 AgentRuntime 共用的 `AGENT_RUNTIME_GATEWAY_SIGNING_SECRET`。
+> 模型网关变量只给独立 `agent-runtime` 服务：
 > `OPENAI_COMPATIBLE_BASE_URL` / `OPENAI_COMPATIBLE_API_KEY` / `AGENT_RUNTIME_DEFAULT_MODEL`。
 > 清单见 `.env.example`。
 > 单条覆盖可继续追加 `-e KEY=VALUE`（`-e` 优先于 `--env-file`）。后端 PG-only，容器无本地数据卷。
@@ -202,6 +203,7 @@ location /zw-brain/ {
 | `ZW_BRAIN_AGENT_RUNTIME_ENABLED` | 启用 `/api/agent-runtime/*` 任务接口（zw-brain → 独立 AR） | 未设置（关闭） |
 | `ZW_BRAIN_AGENT_RUNTIME_URL` | **独立 AgentRuntime 服务地址**，zw-brain 经 HTTP 驱动它；compose 内 = `http://agent-runtime:8001` | 启用时必填（单一模型） |
 | `ZW_BRAIN_AGENTS_DIR` | Agent 清单目录（**单一源**：zw-brain 用它「列」、AR 用它「跑」） | 镜像内 `/app/agents` |
+| `AGENT_RUNTIME_GATEWAY_SIGNING_SECRET` | zw-brain 调 AgentRuntime trusted_gateway 的共享签名密钥；两边必须一致，平台运维的重载/体检依赖它获得 `admin:runtime` | 生产必填 |
 | `OPENAI_COMPATIBLE_BASE_URL` | **AgentRuntime 服务侧** OpenAI 兼容网关 base URL；zw-brain REST 不读取 | AR 启用模型时必填 |
 | `OPENAI_COMPATIBLE_API_KEY` | **AgentRuntime 服务侧**网关 Bearer key；密钥只注入 AR 服务 | AR 启用模型时必填 |
 | `AGENT_RUNTIME_DEFAULT_MODEL` | **AgentRuntime 服务侧**默认模型名 | AR 启用模型时必填 |
@@ -219,6 +221,7 @@ docker run -d --name zw-brain-agent-runtime -p 8001:8001 \
   -e OPENAI_COMPATIBLE_BASE_URL=https://<集团推理网关>/api/v3 \
   -e OPENAI_COMPATIBLE_API_KEY=<网关密钥或 unused> \
   -e AGENT_RUNTIME_DEFAULT_MODEL=<模型名> \
+  -e AGENT_RUNTIME_GATEWAY_SIGNING_SECRET=<强随机共享密钥> \
   -e ZW_BRAIN_REST_BASE_URL=http://<zw-brain 容器可达地址>:8800 \
   zw-brain-agent-runtime:1.1.3
   # 注意：docker -e 用 VAR=value，不要写 VAR=='value'（会把引号传入容器）
@@ -228,6 +231,7 @@ docker run -d \
   ... \
   -e ZW_BRAIN_AGENT_RUNTIME_ENABLED=1 \
   -e ZW_BRAIN_AGENT_RUNTIME_URL=http://<AR 容器可达地址>:8001 \
+  -e AGENT_RUNTIME_GATEWAY_SIGNING_SECRET=<同一个强随机共享密钥> \
   zw-brain:1.0.0
 ```
 

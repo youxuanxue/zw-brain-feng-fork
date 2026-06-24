@@ -14,7 +14,7 @@ from zw_brain.shared.db import get_database_url
 # D23 当年把 alembic 整体删除、冷启动走 drop_all+create_all：任何 schema 漂移都
 # DROP 全表重建。这对**生产试用库**是数据丢失风险（一次列名漂移 = 整库清空）。
 # D58 反转：用 alembic 向前迁移取代「漂移即 DROP」。
-#   - 空库          → run_migrations()（upgrade head）建全部 75 表；
+#   - 空库          → run_migrations()（upgrade head）建全部 76 表；
 #   - 有 alembic_version → run_migrations()（upgrade head）幂等续迁；
 #   - 有数据但无版本表（存量库）→ stamp baseline（零 DDL、保数据）再 upgrade head；
 #   - prod 下检测真漂移且无迁移可上 → raise 拒启（绝不 DROP）。
@@ -24,11 +24,12 @@ from zw_brain.shared.db import get_database_url
 # 用来在 ensure_runtime_schema 里判断「存量库 schema 是否与当前模型一致」从而决定 stamp/迁移分支。
 
 # alembic baseline revision（alembic/versions/*_baseline.py 的 revision id）。
-# upgrade=建全部 75 表（== Base.metadata.create_all），downgrade=drop 全部。
+# upgrade=建全部 76 表（== Base.metadata.create_all），downgrade=drop 全部。
 BASELINE_REVISION = "77da8251e66d"
 
 REQUIRED_TABLES = {
     "runtime_state",
+    "agent_runtime_agent_state",
     "audit_event",
     "capability_call",
     "anchor_outbox",
@@ -94,6 +95,13 @@ REQUIRED_TABLES = {
     "requirement_history",
     "requirement_submission",
 }
+
+# 这些表是 baseline revision 之后新增的 forward migrations。存量库若尚未被
+# alembic 纳管，允许先按 baseline 表集合判断并 stamp，再由 upgrade head 补建。
+POST_BASELINE_TABLES = {
+    "agent_runtime_agent_state",
+}
+
 REQUIRED_COLUMNS = {
     "capability_call": {"call_ref", "tenant_id", "skill_id", "role_code", "status", "input_json", "output_json"},
     "catalog_model": {"model_code", "model_schema_json"},
@@ -144,6 +152,7 @@ REQUIRED_COLUMNS = {
     "delivery_attempt": {"attempt_code", "delivery_code", "attempt_kind", "state", "payload_json"},
     "delivery_execution_evidence": {"evidence_ref", "delivery_code", "attempt_code", "result_status", "sanitized_payload_json"},
     "exchange_metric_projection": {"metric_scope", "delivery_code", "exchange_count", "success_count", "failed_count", "summary_json"},
+    "agent_runtime_agent_state": {"tenant_id", "agent_id", "enabled", "allowed_roles_json", "updated_by", "reason"},
 }
 
 def _resolve_alembic_paths() -> tuple[Path, Path]:
@@ -222,7 +231,7 @@ def _current_db_revision() -> str | None:
 
 
 def _schema_matches_baseline() -> bool:
-    """存量库 schema 是否与当前模型一致（REQUIRED_TABLES/COLUMNS 全满足）。
+    """存量库 schema 是否与 baseline 模型一致（baseline REQUIRED_TABLES/COLUMNS 全满足）。
 
     一致 → 可安全 stamp baseline（零 DDL）；不一致 → 真漂移，需迁移而非 stamp。
     """
@@ -230,9 +239,12 @@ def _schema_matches_baseline() -> bool:
     try:
         inspector = inspect(engine)
         tables = set(inspector.get_table_names())
-        if not REQUIRED_TABLES.issubset(tables):
+        baseline_required_tables = REQUIRED_TABLES - POST_BASELINE_TABLES
+        if not baseline_required_tables.issubset(tables):
             return False
         for table_name, required_columns in REQUIRED_COLUMNS.items():
+            if table_name in POST_BASELINE_TABLES:
+                continue
             columns = {column["name"] for column in inspector.get_columns(table_name)}
             if not required_columns.issubset(columns):
                 return False
@@ -279,7 +291,7 @@ def stamp_baseline_if_legacy() -> bool:
 def upgrade() -> None:
     """建表入口（保留旧名兼容历史调用）。空库直接 run_migrations。
 
-    历史上 upgrade() = create_all；现收口到 alembic（upgrade head 对空库等价建全部 75 表）。
+    历史上 upgrade() = create_all；现收口到 alembic（upgrade head 对空库等价建全部 76 表）。
     """
     run_migrations()
 
@@ -313,7 +325,7 @@ def ensure_runtime_schema() -> None:
 
     分支：
       - 有 alembic_version → run_migrations()（幂等 upgrade head，续迁）；
-      - 无版本表 + 空库     → run_migrations()（建全部 75 表）；
+      - 无版本表 + 空库     → run_migrations()（建全部 76 表）；
       - 无版本表 + 有数据 + schema 与模型一致（存量库）→ stamp baseline（零 DDL、保数据）后 upgrade head；
       - 无版本表 + 有数据 + schema 真漂移 → 生产模式 raise SchemaDriftError 拒启（绝不 DROP）；
         非生产模式同样 raise（开发者应显式 ALLOW_SCHEMA_RESET 走 reset，或补迁移），不再静默 DROP。

@@ -28,7 +28,7 @@ from zw_brain.command.brain import (
 from zw_brain.command.runtime import get_service
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.governance_projection import ActorMatchError
-from zw_brain.shared.auth_context import auth_context_from_claims, reset_auth_context, set_auth_context
+from zw_brain.shared.auth_context import auth_context_from_claims, get_auth_context, reset_auth_context, set_auth_context
 from zw_brain.shared.auth_session import (
     CSRF_HEADER_NAME,
     SESSION_COOKIE_NAME,
@@ -517,7 +517,10 @@ class RestHandler(BaseHTTPRequestHandler):
             self._json(200 if webui_ok else 503, body)
             return
         if path == "/api/agent-runtime/agents":
-            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_agents(claims))
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_agents(parsed, claims))
+            return
+        if path == "/api/agent-runtime/diagnostics":
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_diagnostics(parsed, claims))
             return
         if path == "/api/agent-runtime/status":
             self._json(200, _agent_runtime_bridge().runtime_status())
@@ -580,6 +583,12 @@ class RestHandler(BaseHTTPRequestHandler):
         if path.startswith("/api/skills/"):
             self._with_authenticated_request(lambda claims: self._handle_api_skill_post(parsed, claims))
             return
+        if path == "/api/agent-runtime/reload":
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_reload(claims))
+            return
+        if path.startswith("/api/agent-runtime/agents/") and path.endswith("/state"):
+            self._with_authenticated_request(lambda claims: self._handle_agent_runtime_agent_state(path, claims))
+            return
         if path == "/api/agent-runtime/tasks":
             self._with_authenticated_request(lambda claims: self._handle_agent_runtime_task_post(parsed, claims))
             return
@@ -590,9 +599,79 @@ class RestHandler(BaseHTTPRequestHandler):
         self.close_connection = True  # POST body 未消费，防 keep-alive 残留字节毒化下一请求
         self._json(404, {"error": "not_found", "path": parsed.path})
 
-    def _handle_agent_runtime_agents(self, _claims: dict[str, Any]) -> None:
+    def _handle_agent_runtime_agents(self, parsed: Any, _claims: dict[str, Any]) -> None:
         try:
-            self._json(200, {"agents": _agent_runtime_bridge().list_builtin_agents()})
+            requested_role = (parse_qs(parsed.query).get("role") or [""])[-1]
+            role = self._current_product_role(requested_role)
+            if not role:
+                self._json(403, {"error": "no_product_role_for_identity"})
+                return
+            self._json(200, {"agents": _agent_runtime_bridge().list_builtin_agents(role=role)})
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_agent_runtime_agent_state(self, path: str, _claims: dict[str, Any]) -> None:
+        bridge = _agent_runtime_bridge()
+        try:
+            payload = self._read_json_body()
+            if not isinstance(payload, dict):
+                self._json(400, {"error": "bad_request", "detail": "request body must be a JSON object"})
+                return
+            if not self._require_platform_operator(str(payload.get("role") or "")):
+                return
+            parts = path.strip("/").split("/")
+            if len(parts) != 5 or parts[:3] != ["api", "agent-runtime", "agents"] or parts[-1] != "state":
+                self._json(400, {"error": "invalid_agent_state_path"})
+                return
+            enabled = bool(payload["enabled"]) if "enabled" in payload else True
+            raw_roles = payload.get("allowed_roles")
+            if raw_roles is not None and not isinstance(raw_roles, list):
+                self._json(400, {"error": "bad_request", "detail": "allowed_roles must be a list"})
+                return
+            allowed_roles = [str(item) for item in raw_roles] if raw_roles is not None else None
+            actor = self._current_actor_name()
+            result = bridge.update_agent_state(
+                agent_id=parts[-2],
+                enabled=enabled,
+                allowed_roles=allowed_roles,
+                updated_by=actor,
+                reason=str(payload.get("reason") or "").strip() or None,
+            )
+            self._json(200, {"agent": result})
+        except bridge.AgentRuntimeNotFoundError as exc:
+            self._json(404, {"error": "agent_not_found", "detail": str(exc)})
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_agent_runtime_reload(self, _claims: dict[str, Any]) -> None:
+        bridge = _agent_runtime_bridge()
+        try:
+            payload = self._read_json_body()
+            requested_role = str(payload.get("role") or "") if isinstance(payload, dict) else ""
+            if not self._require_platform_operator(requested_role):
+                return
+            self._json(200, bridge.reload_agents())
+        except bridge.AgentRuntimeNotEnabledError as exc:
+            self._json(503, {"error": "agent_runtime_disabled", "detail": str(exc)})
+        except bridge.AgentRuntimePermissionError as exc:
+            self._json(
+                502,
+                {
+                    "error": "agent_runtime_admin_permission_denied",
+                    "detail": str(exc),
+                    "hint": "检查 AgentRuntime trusted_gateway 签名密钥和 zw-brain 服务 principal scopes。",
+                },
+            )
+        except Exception as exc:  # noqa: BLE001
+            self._handle_error(exc)
+
+    def _handle_agent_runtime_diagnostics(self, parsed: Any, _claims: dict[str, Any]) -> None:
+        bridge = _agent_runtime_bridge()
+        try:
+            requested_role = (parse_qs(parsed.query).get("role") or [""])[-1]
+            if not self._require_platform_operator(requested_role):
+                return
+            self._json(200, bridge.runtime_diagnostics())
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
@@ -657,6 +736,10 @@ class RestHandler(BaseHTTPRequestHandler):
             self._json(503, {"error": "agent_runtime_disabled", "detail": str(exc)})
         except bridge.AgentRuntimeNotFoundError as exc:
             self._json(404, {"error": "agent_not_found", "detail": str(exc)})
+        except bridge.AgentRuntimeDisabledByOpsError as exc:
+            self._json(403, {"error": "agent_disabled", "detail": str(exc)})
+        except AccessDeniedError as exc:
+            self._json(403, {"error": "access_denied", "detail": str(exc)})
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
 
@@ -799,6 +882,27 @@ class RestHandler(BaseHTTPRequestHandler):
                 return
             payload = self._apply_verified_identity_role(payload, skill_id=skill_id)
         self._json(200, get_service().invoke_skill(skill_id, payload))
+
+    def _current_product_role(self, requested_role: str = "") -> str:
+        session = self._get_cookie_session()
+        if session is not None:
+            payload = {"role": requested_role} if requested_role else {}
+            trusted = self._trusted_skill_payload(session, payload)
+            return str(trusted.get("role") or "")
+        return self._role_from_verified_identity(requested_role)
+
+    def _require_platform_operator(self, requested_role: str = "") -> bool:
+        if self._current_product_role(requested_role) == "ROLE_SYSTEM":
+            return True
+        self._json(403, {"error": "platform_operator_required"})
+        return False
+
+    @staticmethod
+    def _current_actor_name() -> str | None:
+        ctx = get_auth_context()
+        if ctx is None:
+            return None
+        return str(ctx.username or ctx.subject or "").strip() or None
 
     def _apply_verified_identity_role(self, payload: dict[str, Any], *, skill_id: str | None = None) -> dict[str, Any]:
         """Stamp the identity-derived authorization role into a no-cookie-session payload.

@@ -12,6 +12,7 @@ def test_start_local_fails_closed_when_independent_agent_runtime_lacks_inference
     assert "AGENT_RUNTIME_DEFAULT_MODEL" in script
     assert "OPENAI_COMPATIBLE_BASE_URL" in script
     assert "OPENAI_COMPATIBLE_API_KEY" in script
+    assert "AGENT_RUNTIME_GATEWAY_SIGNING_SECRET" in script
     assert "OPENAI_API_KEY" not in script
     assert "ZW_BRAIN_INFERENCE_" not in script
     service_block = script.find('if [[ "$AR_LOCAL_SWITCH" == "http" ]]; then')

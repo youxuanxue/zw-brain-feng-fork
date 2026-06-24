@@ -3,7 +3,7 @@
 
 D30 (2026-05-24) 决策：AgentRuntime runtime 触发式落地，validate / doctor 工具链
 在 T1（首个真实外部 Agent 接入）触发当日 land。当前 agents/ 下已有内置 Agent
-样例（如 zw_search_helper），D33.b (2026-05-28) 把 validate 接入 preflight，作
+样例（如 a_zw_search_helper），D33.b (2026-05-28) 把 validate 接入 preflight，作
 为持续 CI 守卫：保证已存在的 AGENT.yaml + capabilities.json bundle 一直处于
 有效状态（schema_version 合法 / trust_level 合法 / model.provider 走集团推理
 平台 / permissions.scopes 不触禁区 / capability_tools 引用的 slug 存在等）。

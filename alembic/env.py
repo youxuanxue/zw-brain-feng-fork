@@ -4,7 +4,7 @@ target_metadata = Base.metadata（zw_brain.shared.db.Base）；URL 取
 zw_brain.shared.db.get_database_url()（ZW_BRAIN_DATABASE_URL 注入），
 绝不从 alembic.ini 读硬编码连接串（配置走环境变量）。offline + online 都配。
 
-注意：导入 zw_brain.domain.models 是**必需副作用** —— 它把全部 75 张表注册到
+注意：导入 zw_brain.domain.models 是**必需副作用** —— 它把全部 76 张表注册到
 Base.metadata，否则 autogenerate / create_all 只看到空 metadata。
 
 后端 PG-only：alembic 直接对 PostgreSQL 跑原生 ALTER，不需要 SQLite 的 batch 重建模式。

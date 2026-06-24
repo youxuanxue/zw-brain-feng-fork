@@ -1,0 +1,351 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 权限合规自查副驾只读能力
+  description: 权限合规自查副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/governance.access_matrix:
+    post:
+      operationId: governance_access_matrix
+      summary: 谁能访问什么（角色能力矩阵）
+      description: 只读派生 角色→能力 授权矩阵（来源 policy.PERMISSION_ROLES 单一事实源）+ 固定角色目录（role_codes），供身份治理可审计性查看，不做任何菜单授权写。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      type: object
+                  capabilities:
+                    type: array
+                    items:
+                      type: object
+  /api/skills/governance.actor.list:
+    post:
+      operationId: governance_actor_list
+      summary: 用户与角色清单
+      description: 列出本租户的身份 actor（用户）及其有效角色绑定、IAF 认领状态、停用状态，供身份治理管理面检索（按机构/角色/状态/关键字过滤）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                q:
+                  type: string
+                org_filter:
+                  type: string
+                role_code:
+                  type: string
+                status:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant_id:
+                    type: string
+                  total:
+                    type: integer
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  summary:
+                    type: object
+  /api/skills/audit.event.query:
+    post:
+      operationId: audit_event_query
+      summary: 查询审计事件
+      description: 按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload
+        字段需通过专用 evidence chain 二次申请）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actor:
+                  type: string
+                  description: 按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'
+                skill_id:
+                  type: string
+                  description: 按 capability skill_id 精确匹配
+                tenant_id:
+                  type: string
+                  description: 租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）
+                audit_class:
+                  type: string
+                  enum:
+                  - write-critical
+                  - write-normal
+                  - read-sensitive
+                  description: 按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize
+                since:
+                  type: string
+                  format: date-time
+                  description: 起始时间（ISO8601 含时区）
+                until:
+                  type: string
+                  format: date-time
+                  description: 截止时间（ISO8601 含时区）
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 200
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - summary
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - request_id
+                      - actor
+                      - skill_id
+                      - tenant_id
+                      - audit_class
+                      - event_type
+                      - phase
+                      - occurred_at
+                      properties:
+                        request_id:
+                          type: string
+                        actor:
+                          type: string
+                        skill_id:
+                          type: string
+                        tenant_id:
+                          type: string
+                        audit_class:
+                          type: string
+                        event_type:
+                          type: string
+                        phase:
+                          type: string
+                        occurred_at:
+                          type: string
+                          format: date-time
+                  summary:
+                    type: object
+                    required:
+                    - total
+                    - by_audit_class
+                    - by_skill
+                    - by_actor
+                    properties:
+                      total:
+                        type: integer
+                      by_audit_class:
+                        type: object
+                      by_skill:
+                        type: object
+                      by_actor:
+                        type: object
+                      first_occurred_at:
+                        type:
+                        - string
+                        - 'null'
+                      last_occurred_at:
+                        type:
+                        - string
+                        - 'null'
+  /api/skills/audit.event.statistics:
+    post:
+      operationId: audit_event_statistics
+      summary: 审计事件统计聚合
+      description: 按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计
+        panel。只读，单租户 sd-default 强过滤。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bucket:
+                  type: string
+                  enum:
+                  - hour
+                  - day
+                  - week
+                  - month
+                  default: day
+                  description: 时间桶粒度
+                dimension:
+                  type: string
+                  enum:
+                  - actor
+                  - skill_id
+                  - audit_class
+                  - tenant_id
+                  default: audit_class
+                  description: 聚合维度
+                tenant_id:
+                  type: string
+                  description: 租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                  default: 1000
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - bucket
+                - dimension
+                - buckets
+                - totals
+                properties:
+                  bucket:
+                    type: string
+                  dimension:
+                    type: string
+                  buckets:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - bucket_key
+                      - by_dimension
+                      - total
+                      properties:
+                        bucket_key:
+                          type: string
+                        by_dimension:
+                          type: object
+                        total:
+                          type: integer
+                  totals:
+                    type: object
+                  scanned:
+                    type: integer
+  /api/skills/audit.event.accountability:
+    post:
+      operationId: audit_event_accountability
+      summary: 审计事件追责反查
+      description: 按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段
+        hash 化）；不返回原始 payload 全文。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - actor
+              properties:
+                actor:
+                  type: string
+                  minLength: 1
+                tenant_id:
+                  type: string
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 100
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - actor
+                - denied_chains
+                - total
+                properties:
+                  actor:
+                    type: string
+                  denied_chains:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - request_id
+                      - skill_id
+                      - denied_at
+                      - events
+                      properties:
+                        request_id:
+                          type: string
+                        skill_id:
+                          type: string
+                        denied_at:
+                          type: string
+                          format: date-time
+                        events:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                            - phase
+                            - occurred_at
+                            - sanitized_payload
+                            properties:
+                              phase:
+                                type: string
+                              occurred_at:
+                                type: string
+                                format: date-time
+                              sanitized_payload:
+                                type: object
+                  total:
+                    type: integer

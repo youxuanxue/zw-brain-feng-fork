@@ -51,7 +51,7 @@
 1. **§8.5 禁区表逐字对齐**（权威源 architecture.md 行858-862）：①"写审计"→"**审计总线（含统一审计聚合）**"；②canonical 核心状态机**不是 3 个而是 7 个**——`CatalogModel / Catalog / Resource / Application / ApprovalTask / DeliveryTask / ObjectionCase`（§9.2）。v0 只列 (Application/Approval/Delivery) 会让 C3 判据基准错列，放过本该砍的写操作（如 `catalog.entry.create` 写 Catalog 发布态、`objection.case.*` 写 ObjectionCase 态）；③补回第 3 项"**关键写操作的确认与问责边界**"——这正是"最终落库由角色拍板"的权威出处。
 2. **`approval.case` 是不存在的裸 slug**：真实注册的是 `approval.case.decide`（裁决/写/§8.5 禁区前缀）与 `approval.view`（查看/读）。③ application-tracker 是只读跟踪副驾，**必须用 `approval.view`，绝不能 expand 到 `approval.case.decide`**。→ 立规则：**只读副驾的 `skill_id` 必须是 `query`/`view`/`list` 类；任何 `.decide`/`.review`/`.submit` 出现在只读 agent，review 必报 finding。**
 3. **`trust_level` 是两个同名异义字段**（t1-readiness §3.1 称"本预案最重要的 contract 边界"）：**package 级**（enum `baseline/reviewed/restricted/revoked`，由 `package.trust_level.update` 写）vs **AGENT.yaml Registry 级** `metadata.trust_level`（enum `platform/verified/untrusted`）。运维员"trust_level 升降"指 package 级；A 类内置 agent 声明的是 Registry 级 `platform`；B 类外部 agent Registry 上限是 `verified`。
-4. **`exposes_chat`/`exposes_a2a` 是逐 agent 开关**，不是统一样板：`zw_platform_guide`(chat:true/a2a:false 顶级问答)、`zw_search_helper`(chat:false/a2a:false 页内嵌)。`chat`=是否进 `GET /agents` 顶级选择；`a2a` 默认 false，仅链式协作才 true。**别给每个 A 类副驾无意开 A2A。**
+4. **`exposes_chat`/`exposes_a2a` 是逐 agent 开关**，不是统一样板：`a_zw_platform_guide`(chat:true/a2a:false 顶级问答)、`a_zw_search_helper`(chat:false/a2a:false 页内嵌)。`chat`=是否进 `GET /agents` 顶级选择；`a2a` 默认 false，仅链式协作才 true。**别给每个 A 类副驾无意开 A2A。**
 5. **可执行工具的承载来源已随 D68 改写**：`capability_tools`/`skill_id` 仍可留在 `capabilities.json` sidecar 做 zw-brain 侧展示、权限过滤和守卫输入，但不再负责把工具注入运行时。AgentRuntime 真正可执行的是 `AGENT.yaml tools[]` 里的 `kind:api` 声明，且每个工具必须有本地 OpenAPI spec 的同名 `operationId`；preflight/单测已把 sidecar↔AGENT.yaml↔OpenAPI 三者一致性钉住。
 6. **B 类外部接入＝"规范就位、运行时触发式实施"**（§8.6 + t1-readiness §1）：D68 后 Registry 4 字段、`validate`/`doctor` 校验和 preflight 段30 已落地为 T1 工具链；但真正外部第三方 Agent 接入仍需按首次真实需求走隔离实例、凭据和验收闭环。当前 A2A 是 AgentRuntime 内核**本地 agent 间调用**，**不是给外部系统直连 zw-brain Capability 的公网 API**。→ B 类任何"外部独立 agent 即插即用"的措辞仍是假面，须改为"触发 T1 后按工具链接入"。
 
@@ -74,7 +74,7 @@
 
 > **本期只建造 A①**；②–㉑ 全部冻结到 A① 在 P2 资源发现页演示 + 被业务方签收之后逐个解冻。聚焦＞覆盖。
 
-**A①（本期唯一可签收交付）· `data-discovery-copilot`（升级现存 `zw-search-helper`）**
+**A①（本期唯一可签收交付）· `data-discovery-copilot`（升级现存 `a-zw-search-helper`）**
 J1 用数方找数首步 · 痛点：搜索反复/术语对不上 · 能力：`search.intent.parse`+`data.search`+`catalog.browse`+`catalog.entry.query`（全 live+a2a 只读）·
 `exposes_chat:false`（页内嵌副驾）· 形态：意图解析 + 可行性评分 + TOP-N 推荐 + 术语对齐。**它跑通即证明 `AGENT.yaml kind:api + OpenAPI 回调 + capabilities.json 元数据` 这套承载端到端可交付——是后续所有 A 类乃至 B 类共用底座的地基。**
 
@@ -97,19 +97,19 @@ J1 用数方找数首步 · 痛点：搜索反复/术语对不上 · 能力：`s
 
 | 智能体 | 领域 | 承载 | 消费的真实共享数据（地面） |
 | --- | --- | --- | --- |
-| **★ legal-person-credit-profiler 法人信用画像核验** | 企业/法人 | external_api | 法人库群体画像 `bzk_frk_app_qthx`（失信/黑名单/经营异常/纳税信用等级/参保数/注册资本…）+ `corporation_statistic` 行业基准 + 已编目企业登记服务 |
-| material-waiver-verifier 材料免提交核验编排 | 民生 | external_a2a | 政务服务事项 `data_item`+材料 `data_item_material`+共享资源 |
-| onestop-guide-copilot 一件事一次办导办 | 民生 | builtin-api | `data_item`/事项 FLOW + 材料共享 |
-| dual-random-targeting-engine 双随机靶向抽查名单 | 监管 | external_a2a | 法人画像 + 处罚/信用标签 |
-| social-org-watchdog 社会组织监管异常预警 | 监管 | external_a2a | 社会组织登记 + 法人异常标签 |
-| hazard-source-fusion-briefer 重大危险源研判 | 公共安全 | external_a2a | 重大危险源基本信息 + 跨部门画像 |
-| safety-permit-compliance-checker 安全生产许可证体检 | 公共安全 | external_api | 安全生产许可/环境隐患排查类已编目资源 |
-| regional-econ-pulse 区域经济运行月度研判 | 经济 | external_a2a | 历年 GDP + 纳税 + 法人统计 |
-| industry-chain-insight 产业链/规上企业洞察 | 经济 | external_a2a | 法人统计画像 + 行业分布 |
-| gdp-tax-linkage 区域 GDP–税收联动洞察 | 经济 | external_a2a | GDP + 纳税信用/规模 |
-| parking-onemap-service-agent 停车一张图 | 城市治理 | external_a2a | 停车场信息 + 车辆状态 |
-| parking-file-integrity-checker 停车文件完整性核验 | 城市治理 | external_a2a | 停车文件资源 + 对账字段 |
-| traffic-eng-exchange-recon-agent 交通工程竣工对账 | 城市治理 | external_a2a | 市政交通工程竣工验收信息 + 交换对账 |
+| **★ b-legal-person-credit-profiler 法人信用画像核验** | 企业/法人 | external_api | 法人库群体画像 `bzk_frk_app_qthx`（失信/黑名单/经营异常/纳税信用等级/参保数/注册资本…）+ `corporation_statistic` 行业基准 + 已编目企业登记服务 |
+| b-material-waiver-verifier 材料免提交核验编排 | 民生 | external_a2a | 政务服务事项 `data_item`+材料 `data_item_material`+共享资源 |
+| b-onestop-guide-copilot 一件事一次办导办 | 民生 | builtin-api | `data_item`/事项 FLOW + 材料共享 |
+| b-dual-random-targeting-engine 双随机靶向抽查名单 | 监管 | external_a2a | 法人画像 + 处罚/信用标签 |
+| b-social-org-watchdog 社会组织监管异常预警 | 监管 | external_a2a | 社会组织登记 + 法人异常标签 |
+| b-hazard-source-fusion-briefer 重大危险源研判 | 公共安全 | external_a2a | 重大危险源基本信息 + 跨部门画像 |
+| b-safety-permit-compliance-checker 安全生产许可证体检 | 公共安全 | external_api | 安全生产许可/环境隐患排查类已编目资源 |
+| b-regional-econ-pulse 区域经济运行月度研判 | 经济 | external_a2a | 历年 GDP + 纳税 + 法人统计 |
+| b-industry-chain-insight 产业链/规上企业洞察 | 经济 | external_a2a | 法人统计画像 + 行业分布 |
+| b-gdp-tax-linkage 区域 GDP–税收联动洞察 | 经济 | external_a2a | GDP + 纳税信用/规模 |
+| b-parking-onemap-service-agent 停车一张图 | 城市治理 | external_a2a | 停车场信息 + 车辆状态 |
+| b-parking-file-integrity-checker 停车文件完整性核验 | 城市治理 | external_a2a | 停车文件资源 + 对账字段 |
+| b-traffic-eng-exchange-recon-agent 交通工程竣工对账 | 城市治理 | external_a2a | 市政交通工程竣工验收信息 + 交换对账 |
 
 ### 5.2 需平台新建后端（`net_new≠none`，5 个，本期推迟为"需新增能力"立项）
 
@@ -126,7 +126,7 @@ J1 用数方找数首步 · 痛点：搜索反复/术语对不上 · 能力：`s
 ## 6. 本期收敛结论（建造清单）
 
 - **A①** `data-discovery-copilot`：做到**能在 P2 资源发现页演示 + 被业务方签收**。本期唯一可签收的运行时交付。
-- **B 试点** `legal-person-credit-profiler`（`net_new=none`）：只走通一条"外部用数方注册 app → `application.resource.submit` → `approval.review_decide` → `credential.issue` → `credential.query` 取凭据 → 经消费面调 `data.search`/`delivery.view` 消费已编目法人画像"的**授权链路可行性证明**。
+- **B 试点** `b-legal-person-credit-profiler`（`net_new=none`）：只走通一条"外部用数方注册 app → `application.resource.submit` → `approval.review_decide` → `credential.issue` → `credential.query` 取凭据 → 经消费面调 `data.search`/`delivery.view` 消费已编目法人画像"的**授权链路可行性证明**。
   - **前置闸**：先确认这是否**隐性触发 T1**。若是 → 本期 Wave 1 **仅含 A①**，B 试点退为"规范 + T1 重估"立项（不动运行时）。
 - **判据修订（非交付但必须先做）**：§2 的 6 处地面事实错误先改对——判据不准则下面每个 agent 的安全形态判定都不可靠。
 - **配比**：本期"真正做"= 1 条 A 链 + 至多 1 条 B 链；A ~17 + B ~10+ 候选退为"签收后解冻"的候选池。
@@ -137,7 +137,7 @@ J1 用数方找数首步 · 痛点：搜索反复/术语对不上 · 能力：`s
 ## 7. 待你拍板（协同定版钩子）
 
 1. **接受"本期建造 1–2 个"的聚焦吗？** 还是你要本期就铺更多（若铺 B 类，须接受 T1 实装成本先进来）？
-2. **B 试点选 `legal-person-credit-profiler` 吗？** 还是换 5.1 里另一个 `net_new=none` 的（如双随机靶向、区域经济研判）？
+2. **B 试点选 `b-legal-person-credit-profiler` 吗？** 还是换 5.1 里另一个 `net_new=none` 的（如双随机靶向、区域经济研判）？
 3. **B 试点是否接受"先验 T1 触发、可能退为纯立项"** 的前置闸？
 4. **A 类设计清单（~20）是否照 §4 的分层冻结**，还是要调整解冻顺序 / 增删？
 5. **5.2 的 5 个"需新建后端"候选**，要不要现在就把其中哪个的数据服务立项（让它从 B 候选池升为真能落地）？

@@ -13,8 +13,8 @@
 
 | 智能体 | 形态 | 改动 | 工具（全只读） |
 | --- | --- | --- | --- |
-| **A① `zw-search-helper`**（就地升级，**保留 id**） | embedded builtin, `trust_level=platform`, `exposes_chat=false` | 改 2 文件：`AGENT.yaml`(指令升级为 意图→检索→可行性评分→TOP-N→术语对齐) + `capabilities.json`(加 `catalog.browse`/`catalog.entry.query`，并把 `data.search` 对齐真实契约 `{query,page}`) | `search.intent.parse` · `data.search` · `catalog.browse` · `catalog.entry.query` |
-| **B 试点 `legal-person-credit-profiler`**（新增，**embedded → 不触发 T1**） | embedded builtin, `trust_level=platform`, `exposes_chat=false` | 新建 2 文件 `AGENT.yaml` + `capabilities.json` | `data.search` · `catalog.entry.query` · `metadata.catalog_item.query` |
+| **A① `a-zw-search-helper`**（就地升级，ID 按 A 类前缀规范化） | embedded builtin, `trust_level=platform`, `exposes_chat=false` | 改 2 文件：`AGENT.yaml`(指令升级为 意图→检索→可行性评分→TOP-N→术语对齐) + `capabilities.json`(加 `catalog.browse`/`catalog.entry.query`，并把 `data.search` 对齐真实契约 `{query,page}`) | `search.intent.parse` · `data.search` · `catalog.browse` · `catalog.entry.query` |
+| **B 试点 `b-legal-person-credit-profiler`**（新增，**embedded → 不触发 T1**） | embedded builtin, `trust_level=platform`, `exposes_chat=false` | 新建 2 文件 `AGENT.yaml` + `capabilities.json` | `data.search` · `catalog.entry.query` · `metadata.catalog_item.query` |
 
 **为何 B 试点不触发 T1**：T1 的触发锚点是"真实**外部**第三方 agent 经 A2A/公网 API 接入并经 §8.4 注册流水线"，不是"消费了什么数据"。B 试点做成 zw-brain 自己 owner、随仓发布、经 Embedded Runtime 的 sidecar 注入既有 live 只读能力的 builtin agent，与现存 2 个 agent 同构，完全不经外部注册流水线 → 不触发 T1。external 凭据链（`application.resource.submit→approval.review_decide→credential.issue→credential.query`）是 **T1 触发后的演进路径**，本期不实装。
 
@@ -49,8 +49,8 @@
 
 用主仓 `.env` 的真实推理凭据（网关 = **公网 Volcengine Ark** `https://ark.cn-beijing.volces.com/api/v3`，模型 `glm-4-7-251222`），以 `embedded_single_tenant` profile（真实 LLM 核，非 fake）对两 agent 跑真实 Task。D68 后该模型出口已收敛到独立 AgentRuntime 服务侧，zw-brain REST 不再持有推理 SDK/env：
 
-- **A① `zw-search-helper`** → `completed`。真实 GLM-4 **自主编排** `search_intent_parse → data_search ×3 → catalog_browse ×2 → catalog_entry_query ×3`，合成出**真实 TOP-N 推荐**（列出"企业年报信息""山东省企业登记基本信息"含目录编码）+ **术语对齐提示**（"企业纳税"暂无对应条目，建议替代）+ **追问建议**——正是 §4 设计承诺的页内嵌副驾体验。
-- **B 试点 `legal-person-credit-profiler`** → `completed`。LLM 调 13 个工具（失信/经营异常/纳税信用/黑名单/参保/注册资本/行政处罚…），检索未命中相关条目时**诚实拒绝幻觉**："我只能引用检索/查询工具真实返回的字段，不编造未编目的标签或评分"——§8.5 + honesty 文化的活体现，agent **不造假信用分**。
+- **A① `a-zw-search-helper`** → `completed`。真实 GLM-4 **自主编排** `search_intent_parse → data_search ×3 → catalog_browse ×2 → catalog_entry_query ×3`，合成出**真实 TOP-N 推荐**（列出"企业年报信息""山东省企业登记基本信息"含目录编码）+ **术语对齐提示**（"企业纳税"暂无对应条目，建议替代）+ **追问建议**——正是 §4 设计承诺的页内嵌副驾体验。
+- **B 试点 `b-legal-person-credit-profiler`** → `completed`。LLM 调 13 个工具（失信/经营异常/纳税信用/黑名单/参保/注册资本/行政处罚…），检索未命中相关条目时**诚实拒绝幻觉**："我只能引用检索/查询工具真实返回的字段，不编造未编目的标签或评分"——§8.5 + honesty 文化的活体现，agent **不造假信用分**。
 
 **抓到并修复的真实 bug（fake/mock/直接 call_tool 都漏掉，唯 live LLM 暴露）**：
 `zw_brain/command/handlers/j1/data_search.py:79` 用 `int(payload.get("page", 1))` —— 默认只在键**缺失**时回落；而 LLM 工具编排惯常给可选字段填**显式 null**（`page: null`，键存在值为 None），导致 `int(None)` 崩 `DynamicToolExecutionError`。修为 `int(payload.get("page") or 1)`，对齐全仓既有惯例（`request.py`/`recommendation_suggest.py`/`direct_access.py`/`audit.py` 同款 `or` 写法；data_search 是唯一漏网）。回归测试 `test_a1_data_search_tolerates_llm_null_page` 钉死。**这是"对真实客户的端到端验收"相对"工程师 happy-path 测试"的核心价值**——LLM 的 null 填充是真实生产输入，happy-path 测不到。
@@ -64,10 +64,10 @@
 ## 5. 改动面（git status，仅以下，无 old/dev-rules 污染）
 
 ```
- M agents/zw_search_helper/AGENT.yaml
- M agents/zw_search_helper/capabilities.json
+ M agents/a_zw_search_helper/AGENT.yaml
+ M agents/a_zw_search_helper/capabilities.json
  M zw_brain/command/handlers/j1/data_search.py   # live 演示抓到的 null-page 崩，修为 or-idiom
-?? agents/legal_person_credit_profiler/{AGENT.yaml,capabilities.json}
+?? agents/b_legal_person_credit_profiler/{AGENT.yaml,capabilities.json}
 ?? docs/scenario-agents/{scenario-agents-design-v0.md,scenario-agents-design-v1.md,wave1-pilot-acceptance.md}
 ?? tests/test_scenario_agents_pilot_e2e.py          # tier-3a 工具执行 e2e
 ?? tests/test_scenario_agents_runtime_e2e.py        # tier-3b 运行时生命周期 e2e

@@ -1,0 +1,416 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 审计调查副驾只读能力
+  description: 审计调查副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/audit.event.query:
+    post:
+      operationId: audit_event_query
+      summary: 查询审计事件
+      description: 按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload
+        字段需通过专用 evidence chain 二次申请）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actor:
+                  type: string
+                  description: 按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'
+                skill_id:
+                  type: string
+                  description: 按 capability skill_id 精确匹配
+                tenant_id:
+                  type: string
+                  description: 租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）
+                audit_class:
+                  type: string
+                  enum:
+                  - write-critical
+                  - write-normal
+                  - read-sensitive
+                  description: 按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize
+                since:
+                  type: string
+                  format: date-time
+                  description: 起始时间（ISO8601 含时区）
+                until:
+                  type: string
+                  format: date-time
+                  description: 截止时间（ISO8601 含时区）
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 200
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - summary
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - request_id
+                      - actor
+                      - skill_id
+                      - tenant_id
+                      - audit_class
+                      - event_type
+                      - phase
+                      - occurred_at
+                      properties:
+                        request_id:
+                          type: string
+                        actor:
+                          type: string
+                        skill_id:
+                          type: string
+                        tenant_id:
+                          type: string
+                        audit_class:
+                          type: string
+                        event_type:
+                          type: string
+                        phase:
+                          type: string
+                        occurred_at:
+                          type: string
+                          format: date-time
+                  summary:
+                    type: object
+                    required:
+                    - total
+                    - by_audit_class
+                    - by_skill
+                    - by_actor
+                    properties:
+                      total:
+                        type: integer
+                      by_audit_class:
+                        type: object
+                      by_skill:
+                        type: object
+                      by_actor:
+                        type: object
+                      first_occurred_at:
+                        type:
+                        - string
+                        - 'null'
+                      last_occurred_at:
+                        type:
+                        - string
+                        - 'null'
+  /api/skills/audit.event.statistics:
+    post:
+      operationId: audit_event_statistics
+      summary: 审计事件统计聚合
+      description: 按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计
+        panel。只读，单租户 sd-default 强过滤。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bucket:
+                  type: string
+                  enum:
+                  - hour
+                  - day
+                  - week
+                  - month
+                  default: day
+                  description: 时间桶粒度
+                dimension:
+                  type: string
+                  enum:
+                  - actor
+                  - skill_id
+                  - audit_class
+                  - tenant_id
+                  default: audit_class
+                  description: 聚合维度
+                tenant_id:
+                  type: string
+                  description: 租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                  default: 1000
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - bucket
+                - dimension
+                - buckets
+                - totals
+                properties:
+                  bucket:
+                    type: string
+                  dimension:
+                    type: string
+                  buckets:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - bucket_key
+                      - by_dimension
+                      - total
+                      properties:
+                        bucket_key:
+                          type: string
+                        by_dimension:
+                          type: object
+                        total:
+                          type: integer
+                  totals:
+                    type: object
+                  scanned:
+                    type: integer
+  /api/skills/audit.event.anomaly:
+    post:
+      operationId: audit_event_anomaly
+      summary: 审计事件异常 Top-N 扫描
+      description: Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied
+        request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                top_n:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                min_failure_count:
+                  type: integer
+                  minimum: 2
+                  default: 3
+                  description: high-failure-rate 规则的最低失败次数阈值
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - anomalies
+                - scanned
+                properties:
+                  anomalies:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - rule
+                      - severity
+                      - actor
+                      - evidence_request_ids
+                      - summary
+                      properties:
+                        rule:
+                          type: string
+                          enum:
+                          - cross-tenant-read
+                          - high-failure-rate
+                          - repeated-denied
+                        severity:
+                          type: string
+                          enum:
+                          - low
+                          - medium
+                          - high
+                        actor:
+                          type: string
+                        skill_id:
+                          type: string
+                        tenant_id:
+                          type: string
+                        evidence_request_ids:
+                          type: array
+                          items:
+                            type: string
+                        occurrence_count:
+                          type: integer
+                        summary:
+                          type: string
+                  scanned:
+                    type: integer
+  /api/skills/audit.event.accountability:
+    post:
+      operationId: audit_event_accountability
+      summary: 审计事件追责反查
+      description: 按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段
+        hash 化）；不返回原始 payload 全文。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - actor
+              properties:
+                actor:
+                  type: string
+                  minLength: 1
+                tenant_id:
+                  type: string
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 100
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - actor
+                - denied_chains
+                - total
+                properties:
+                  actor:
+                    type: string
+                  denied_chains:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - request_id
+                      - skill_id
+                      - denied_at
+                      - events
+                      properties:
+                        request_id:
+                          type: string
+                        skill_id:
+                          type: string
+                        denied_at:
+                          type: string
+                          format: date-time
+                        events:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                            - phase
+                            - occurred_at
+                            - sanitized_payload
+                            properties:
+                              phase:
+                                type: string
+                              occurred_at:
+                                type: string
+                                format: date-time
+                              sanitized_payload:
+                                type: object
+                  total:
+                    type: integer
+  /api/skills/assistant.investigation_summary:
+    post:
+      operationId: assistant_investigation_summary
+      summary: 调查摘要助手
+      description: 把 B1.1 statistics / anomaly / accountability panel 输出脱敏后生成本地规则调查摘要；不覆盖原始审计证据，只提供阅读辅助。actor/skill_id/request_id
+        等敏感字段 hash 化，zw-brain 主进程不持有推理平台 SDK/env。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - request_id
+              - panel
+              properties:
+                request_id:
+                  type: string
+                  minLength: 1
+                  description: 原 panel 调用 request_id；调推理时强制透传以串审计 trail（D4）
+                panel:
+                  type: string
+                  enum:
+                  - statistics
+                  - anomaly
+                  - accountability
+                  description: 上游 panel 类型
+                panel_payload:
+                  type: object
+                  description: panel 原始输出（statistics buckets / anomaly list / accountability chains 之一）
+                tenant_id:
+                  type: string
+                max_tokens:
+                  type: integer
+                  minimum: 64
+                  maximum: 4096
+                  default: 800
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - summary
+                - model
+                - sanitized_input_digest
+                properties:
+                  summary:
+                    type: string
+                  model:
+                    type: string
+                  sanitized_input_digest:
+                    type: string
+                    description: SHA1 of sanitized panel payload；可校验脱敏函数稳定性
+                  usage:
+                    type: object

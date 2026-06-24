@@ -36,6 +36,7 @@ services:
       OPENAI_COMPATIBLE_BASE_URL: ${OPENAI_COMPATIBLE_BASE_URL:-}
       OPENAI_COMPATIBLE_API_KEY: ${OPENAI_COMPATIBLE_API_KEY:-}
       AGENT_RUNTIME_DEFAULT_MODEL: ${AGENT_RUNTIME_DEFAULT_MODEL:-}
+      AGENT_RUNTIME_GATEWAY_SIGNING_SECRET: ${AGENT_RUNTIME_GATEWAY_SIGNING_SECRET:-zw-brain-local-agent-runtime-gateway-secret}
       # AR 内 agent 经 kind:api 回调 zw-brain（compose 内服务名）；entrypoint 渲染进 *.openapi.yaml servers
       ZW_BRAIN_REST_BASE_URL: http://zw-brain:8800
     volumes:
@@ -49,7 +50,7 @@ services:
       retries: 12
     networks:
       - zw-brain-net
-    # dev/demo：用 agent-runtime.dev.yaml（auth none）。生产用默认 CMD（agent-runtime.yaml / trusted_gateway）。
+    # dev/demo：用 agent-runtime.dev.yaml（轻量内存存储 + trusted_gateway）；生产用默认 CMD（agent-runtime.yaml / trusted_gateway）。
     command: ["agent-runtime", "serve", "--config", "/app/agent-runtime.dev.yaml", "--product", "--host", "0.0.0.0", "--port", "8001"]
 
   # D68 单一模型：zw-brain REST（含 WebUI），经 HTTP 驱动 agent-runtime；与 AR 共读同一 agents/。
@@ -75,7 +76,8 @@ services:
       ZW_BRAIN_DATABASE_URL: postgresql+psycopg://zw_brain:zw_brain@postgres:5432/zw_brain
       ZW_BRAIN_AGENT_RUNTIME_MODE: http
       ZW_BRAIN_AGENT_RUNTIME_ENABLED: "1"
-      ZW_BRAIN_AGENT_RUNTIME_URL: http://agent-runtime:8001
+      ZW_BRAIN_AGENT_RUNTIME_URL: http://agent-runtime:8001   # 经服务名驱动独立 AR
+      AGENT_RUNTIME_GATEWAY_SIGNING_SECRET: ${AGENT_RUNTIME_GATEWAY_SIGNING_SECRET:-zw-brain-local-agent-runtime-gateway-secret}
       ZW_BRAIN_REST_HOST: 0.0.0.0
       ZW_BRAIN_REST_PORT: "8800"
       # dev/demo 免登录（覆盖镜像默认 DEPLOY_MODE=prod 的 M5 fail-closed）；生产删掉这三行 + 配真 IAF。

@@ -17,9 +17,12 @@ from typing import Any
 from zw_brain.shared.agent_runtime.config import is_agent_runtime_enabled
 from zw_brain.shared.agent_runtime.http_client import (
     poll_agent_task_http,
+    reload_agents_http,
     reset_client,
     resume_agent_task_http,
     run_agent_task_http,
+    runtime_diagnostics_http,
+    runtime_health_http,
     start_agent_task_background_http,
 )
 
@@ -72,10 +75,25 @@ def resume_agent_task(
     return resume_agent_task_http(task_id=task_id, input_data=input_data, brain=brain)
 
 
+def runtime_health() -> dict[str, Any]:
+    return runtime_health_http()
+
+
+def reload_agents() -> dict[str, Any]:
+    return reload_agents_http()
+
+
+def runtime_diagnostics() -> dict[str, Any]:
+    return runtime_diagnostics_http()
+
+
 __all__ = [
     "reset_agent_runtime",
     "run_agent_task_sync",
     "start_agent_task_background",
     "poll_agent_task",
     "resume_agent_task",
+    "runtime_health",
+    "reload_agents",
+    "runtime_diagnostics",
 ]

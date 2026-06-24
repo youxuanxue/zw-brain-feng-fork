@@ -6,8 +6,7 @@ poll + 404→AgentRuntimeNotFoundError + 纯 HTTP 路径零 SDK 依赖（import 
 真链路（zw-brain REST→独立 AR→agent→结果 + 进程隔离）见 spike 报告 §实测结果。
 """
 
-from __future__ import annotations
-
+import base64
 import json
 
 import pytest
@@ -54,7 +53,7 @@ def _install(monkeypatch, client):
 
 def test_run_blocking_polls_to_completed(monkeypatch):
     _install(monkeypatch, _FakeClient(completes_after=2, final="推荐结果"))
-    r = http_client.run_agent_task_http(agent_id="zw-search-helper", user_input="找数", metadata={"caller_role": "ROLE_ORGAN_OPERATER"})
+    r = http_client.run_agent_task_http(agent_id="a-zw-search-helper", user_input="找数", metadata={"caller_role": "ROLE_ORGAN_OPERATER"})
     assert r["status"] == "completed"
     assert r["final_output"] == "推荐结果"
     assert r["session_id"] == "sess-1" and r["task_id"] == "task-1"
@@ -101,6 +100,16 @@ def test_http_client_has_no_sdk_dependency():
     assert "from agent_runtime" not in src and "import agent_runtime\n" not in src
 
 
+def test_trusted_gateway_headers_include_admin_runtime(monkeypatch):
+    monkeypatch.setenv("AGENT_RUNTIME_GATEWAY_SIGNING_SECRET", "dev-secret")
+    headers = http_client._trusted_gateway_headers()  # noqa: SLF001 - guards AR service-to-service auth contract
+
+    assert headers["X-Runtime-Principal-Signature"].startswith("sha256=")
+    principal = json.loads(base64.b64decode(headers["X-Runtime-Principal"]).decode("utf-8"))
+    assert principal["principal_type"] == "operator"
+    assert "admin:runtime" in principal["scopes"]
+
+
 def test_service_dispatches_to_http(monkeypatch):
     """service.py facade 全部委派到 http_client（单一模型，无 in-process RuntimeService）。"""
     monkeypatch.setenv("ZW_BRAIN_AGENT_RUNTIME_ENABLED", "1")
@@ -112,8 +121,8 @@ def test_service_dispatches_to_http(monkeypatch):
         service, "run_agent_task_http",
         lambda **kw: called.update(kw) or {"session_id": "s", "task_id": "t", "status": "completed", "final_output": "ok"},
     )
-    out = service.run_agent_task_sync(agent_id="zw-search-helper", user_input="hi", metadata={})
-    assert out["status"] == "completed" and called["agent_id"] == "zw-search-helper"
+    out = service.run_agent_task_sync(agent_id="a-zw-search-helper", user_input="hi", metadata={})
+    assert out["status"] == "completed" and called["agent_id"] == "a-zw-search-helper"
 
 
 def test_bridge_task_metadata_does_not_leak_trusted_session_objects():

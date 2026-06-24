@@ -34,7 +34,7 @@ PERMISSION_ROLES = {
     "data.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # F6 P2 搜索上下文助手 — 同 data.search read 权限
     "search.intent.parse.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    # 平台文档问答（内置 zw-platform-guide Agent）
+    # 平台文档问答（内置 a-zw-platform-guide Agent）
     "platform.docs.search.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
     "platform.docs.read.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"},
     # F7 P3 申请草拟助手 — 申请人侧 read（草稿阶段建议）。0605 复审：业务运营员退申请人
