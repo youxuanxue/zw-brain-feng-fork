@@ -1056,8 +1056,22 @@ class RestHandler(BaseHTTPRequestHandler):
                     )
                 else:
                     client = IafOidcClient()
-                    authorization = f"Bearer {session.access_token}"
-                    client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
+                    if _AUTH_SESSION_STORE.should_refresh(session):
+                        try:
+                            session = self._refresh_cookie_session(session, client)
+                        except IafOidcError:
+                            # If the current token is still accepted, keep serving the request.
+                            # A hard 401 below will force-refresh once more and then fail closed.
+                            pass
+                    try:
+                        authorization = f"Bearer {session.access_token}"
+                        client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
+                    except IafOidcTokenHealthError as exc:
+                        if exc.status_code != 401 or not session.refresh_token:
+                            raise
+                        session = self._refresh_cookie_session(session, client)
+                        authorization = f"Bearer {session.access_token}"
+                        client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
                     claims = _verify_access_token_with_refresh(client, session.access_token)
                     context_token = self._bind_auth(claims, client_id=client.config.client_id)
                 try:
@@ -1091,6 +1105,24 @@ class RestHandler(BaseHTTPRequestHandler):
                 reset_auth_context(context_token)
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
+
+    def _refresh_cookie_session(self, session: AuthSession, client: IafOidcClient) -> AuthSession:
+        if not session.refresh_token:
+            raise IafOidcTokenHealthError(401, "refresh token missing")
+        try:
+            token_payload = client.refresh_access_token(refresh_token=session.refresh_token, transport=_IAF_TRANSPORT or _default_transport)
+        except IafOidcError as exc:
+            if "HTTP 401" in str(exc):
+                _AUTH_SESSION_STORE.delete(session.session_id)
+                raise IafOidcTokenHealthError(401, "refresh token invalid or expired") from exc
+            raise
+        claims = session.claims
+        if str(token_payload.get("id_token") or ""):
+            claims = self._claims_from_token_payload(client, token_payload, expected_nonce=None)
+        updated = _AUTH_SESSION_STORE.update_tokens(session.session_id, token_payload=token_payload, claims=claims)
+        if updated is None:
+            raise IafOidcTokenHealthError(401, "session expired")
+        return updated
 
     def _method_requires_csrf(self) -> bool:
         return str(self.command or "").upper() in {"POST", "PUT", "PATCH", "DELETE"}
@@ -1268,6 +1300,7 @@ class RestHandler(BaseHTTPRequestHandler):
         return _verify_access_token_with_refresh(client, access_token)
 
     def _handle_iaf_refresh(self) -> None:
+        session: AuthSession | None = None
         try:
             session = self._get_cookie_session()
             if session is None:
@@ -1296,11 +1329,25 @@ class RestHandler(BaseHTTPRequestHandler):
             self._respond_with_session(updated)
         except IafOidcError as exc:
             if "HTTP 401" in str(exc):
-                self._json(401, {"error": "iaf_auth_error", "detail": "refresh token invalid or expired"})
+                if session is not None:
+                    _AUTH_SESSION_STORE.delete(session.session_id)
+                self._json_with_cleared_session_cookie(
+                    401,
+                    {"error": "iaf_auth_error", "detail": "refresh token invalid or expired"},
+                )
                 return
             self._handle_error(exc)
         except Exception as exc:  # noqa: BLE001
             self._handle_error(exc)
+
+    def _json_with_cleared_session_cookie(self, status: int, body: dict[str, Any]) -> None:
+        payload = json.dumps(body, ensure_ascii=False).encode("utf-8")
+        self.send_response(status)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(payload)))
+        self._clear_session_cookie()
+        self.end_headers()
+        self.wfile.write(payload)
 
     def _sync_actor_from_claims(self, claims: dict[str, Any]) -> dict[str, Any]:
         # IAM-initiated first-login projection is a system-origin write, not a ROLE_BUSIAUDIT user action;

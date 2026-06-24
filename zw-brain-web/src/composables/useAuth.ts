@@ -32,6 +32,7 @@ const PRODUCT_ROLE_CODES = [
 let _refreshTimer: number | null = null;
 let _broadcastChannel: BroadcastChannel | null = null;
 let _bootstrapInFlight: Promise<AuthSnapshot | null> | null = null;
+let _sessionProbeInFlight: Promise<AuthSnapshot | null> | null = null;
 
 export interface AuthUser {
   subject: string;
@@ -175,6 +176,15 @@ async function _readCurrentSession(): Promise<AuthSnapshot | null> {
   if (resp.status === 401) return null;
   const data = await _readJson(resp);
   return _writeSnapshot(data);
+}
+
+async function _probeCurrentSession(): Promise<AuthSnapshot | null> {
+  if (!_sessionProbeInFlight) {
+    _sessionProbeInFlight = _readCurrentSession().finally(() => {
+      _sessionProbeInFlight = null;
+    });
+  }
+  return _sessionProbeInFlight;
 }
 
 export async function startLogin(): Promise<void> {
@@ -430,7 +440,13 @@ export async function authFetch(input: string, init?: RequestInit): Promise<Resp
     delete options.signal;
   }
   const resp = await fetch(input, options);
-  if (resp.status === 401 && snapshot?.authenticated) _clearSnapshot();
+  if (resp.status === 401 && snapshot?.authenticated) {
+    const session = await _probeCurrentSession().catch(() => null);
+    if (!session?.authenticated) {
+      _clearSnapshot();
+      _stopRefreshTimer();
+    }
+  }
   return resp;
 }
 

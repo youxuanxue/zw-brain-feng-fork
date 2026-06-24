@@ -2,17 +2,25 @@
 
 from __future__ import annotations
 
+import json
 from tempfile import TemporaryDirectory
+from urllib.parse import parse_qs
 
 from tests._iaf_rest_http import (
+    HttpRequest,
+    HttpResponse,
     KeyFixture,
     bootstrap_iaf_runtime,
     cookie_cleared,
     establish_session,
+    extract_cookie,
     http_request,
     run_server,
+    seed_identity_bindings,
     stop_server,
+    valid_claims,
 )
+from zw_brain.entry.rest.server import configure_iaf_auth_runtime
 from zw_brain.shared.auth_session import CSRF_HEADER_NAME, SESSION_COOKIE_NAME
 
 
@@ -103,6 +111,235 @@ def test_invalid_session_cookie_returns_401_on_api() -> None:
             assert status == 401, body
             assert isinstance(body, dict)
             assert body.get("error") in {"iaf_auth_error", "iaf_token_health_error"}
+        finally:
+            stop_server(server, thread)
+
+
+def test_cookie_api_refreshes_expired_access_token_before_business_reads() -> None:
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+        keys = KeyFixture()
+        server, thread, port = run_server()
+        try:
+            status, _, login_body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/",
+            )
+            assert status == 200
+            nonce = login_body["nonce"]  # type: ignore[index]
+            state = login_body["state"]  # type: ignore[index]
+
+            issued_tokens: list[str] = []
+            refresh_count = 0
+
+            def mint(suffix: str) -> str:
+                claims = valid_claims(nonce=nonce)
+                claims["jti"] = suffix
+                token = keys.encode(claims)
+                issued_tokens.append(token)
+                return token
+
+            def transport(request: HttpRequest) -> HttpResponse:
+                nonlocal refresh_count
+                if request.method == "POST":
+                    form = parse_qs(request.body.decode("utf-8"))
+                    if form.get("grant_type") == ["refresh_token"]:
+                        refresh_count += 1
+                        refreshed = mint("refreshed")
+                        return HttpResponse(
+                            status_code=200,
+                            body=json.dumps(
+                                {
+                                    "access_token": refreshed,
+                                    "refresh_token": "rt-fixture",
+                                    "id_token": refreshed,
+                                    "expires_in": 300,
+                                    "refresh_expires_in": 3600,
+                                }
+                            ).encode(),
+                            headers={},
+                        )
+                    initial = mint("initial")
+                    return HttpResponse(
+                        status_code=200,
+                        body=json.dumps(
+                            {
+                                "access_token": initial,
+                                "refresh_token": "rt-fixture",
+                                "id_token": initial,
+                                "expires_in": 300,
+                                "refresh_expires_in": 3600,
+                            }
+                        ).encode(),
+                        headers={},
+                    )
+                if request.url.endswith("/v1/token-healthz"):
+                    auth = request.headers.get("Authorization", "")
+                    current = auth.split(" ", 1)[1] if " " in auth else ""
+                    if current == issued_tokens[0]:
+                        return HttpResponse(status_code=401, body=b"{}", headers={})
+                    return HttpResponse(status_code=200, body=b"{}", headers={})
+                return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode(), headers={})
+
+            configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
+            status, headers, token_body = http_request(
+                "POST",
+                f"http://127.0.0.1:{port}/auth/iaf/token",
+                body={"code": "c", "state": state},
+            )
+            assert status == 200, token_body
+            session_id = extract_cookie(headers.get("set-cookie", ""), SESSION_COOKIE_NAME)
+            seed_identity_bindings("trusted-user", ["ROLE_ORGAN_OPERATER"])
+
+            status, _, body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
+                headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_id}"},
+            )
+            assert status == 200, body
+            assert refresh_count == 1
+        finally:
+            stop_server(server, thread)
+
+
+def test_cookie_api_drops_session_when_refresh_token_is_invalid() -> None:
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+        keys = KeyFixture()
+        server, thread, port = run_server()
+        try:
+            status, _, login_body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/",
+            )
+            assert status == 200
+            nonce = login_body["nonce"]  # type: ignore[index]
+            state = login_body["state"]  # type: ignore[index]
+
+            issued_tokens: list[str] = []
+
+            def mint() -> str:
+                token = keys.encode(valid_claims(nonce=nonce))
+                issued_tokens.append(token)
+                return token
+
+            def transport(request: HttpRequest) -> HttpResponse:
+                if request.method == "POST":
+                    form = parse_qs(request.body.decode("utf-8"))
+                    if form.get("grant_type") == ["refresh_token"]:
+                        return HttpResponse(status_code=401, body=b"{}", headers={})
+                    token = mint()
+                    return HttpResponse(
+                        status_code=200,
+                        body=json.dumps(
+                            {
+                                "access_token": token,
+                                "refresh_token": "rt-expired",
+                                "id_token": token,
+                                "expires_in": 300,
+                                "refresh_expires_in": 3600,
+                            }
+                        ).encode(),
+                        headers={},
+                    )
+                if request.url.endswith("/v1/token-healthz"):
+                    auth = request.headers.get("Authorization", "")
+                    current = auth.split(" ", 1)[1] if " " in auth else ""
+                    if current == issued_tokens[0]:
+                        return HttpResponse(status_code=401, body=b"{}", headers={})
+                    return HttpResponse(status_code=200, body=b"{}", headers={})
+                return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode(), headers={})
+
+            configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
+            status, headers, token_body = http_request(
+                "POST",
+                f"http://127.0.0.1:{port}/auth/iaf/token",
+                body={"code": "c", "state": state},
+            )
+            assert status == 200, token_body
+            session_id = extract_cookie(headers.get("set-cookie", ""), SESSION_COOKIE_NAME)
+            seed_identity_bindings("trusted-user", ["ROLE_ORGAN_OPERATER"])
+
+            status, _, body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/api/snapshot?role=ROLE_ORGAN_OPERATER",
+                headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_id}"},
+            )
+            assert status == 401, body
+            assert isinstance(body, dict) and body.get("error") == "iaf_token_health_error"
+
+            status, _, session_body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/session",
+                headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_id}"},
+            )
+            assert status == 401, session_body
+            assert isinstance(session_body, dict) and session_body.get("error") == "session_missing"
+        finally:
+            stop_server(server, thread)
+
+
+def test_refresh_with_invalid_refresh_token_clears_session_cookie() -> None:
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+        keys = KeyFixture()
+        server, thread, port = run_server()
+        try:
+            status, _, login_body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/login?redirect_uri=http://127.0.0.1:{port}/",
+            )
+            assert status == 200
+            nonce = login_body["nonce"]  # type: ignore[index]
+            state = login_body["state"]  # type: ignore[index]
+
+            def transport(request: HttpRequest) -> HttpResponse:
+                if request.method == "POST":
+                    form = parse_qs(request.body.decode("utf-8"))
+                    if form.get("grant_type") == ["refresh_token"]:
+                        return HttpResponse(status_code=401, body=b"{}", headers={})
+                    token = keys.encode(valid_claims(nonce=nonce))
+                    return HttpResponse(
+                        status_code=200,
+                        body=json.dumps(
+                            {
+                                "access_token": token,
+                                "refresh_token": "rt-expired",
+                                "id_token": token,
+                                "expires_in": 300,
+                                "refresh_expires_in": 3600,
+                            }
+                        ).encode(),
+                        headers={},
+                    )
+                return HttpResponse(status_code=200, body=json.dumps(keys.jwks).encode(), headers={})
+
+            configure_iaf_auth_runtime(transport=transport, jwks=keys.jwks)
+            status, headers, token_body = http_request(
+                "POST",
+                f"http://127.0.0.1:{port}/auth/iaf/token",
+                body={"code": "c", "state": state},
+            )
+            assert status == 200, token_body
+            session_id = extract_cookie(headers.get("set-cookie", ""), SESSION_COOKIE_NAME)
+            csrf = str(token_body["csrf_token"])  # type: ignore[index]
+
+            status, refresh_headers, body = http_request(
+                "POST",
+                f"http://127.0.0.1:{port}/auth/iaf/refresh",
+                headers={
+                    "Cookie": f"{SESSION_COOKIE_NAME}={session_id}",
+                    CSRF_HEADER_NAME: csrf,
+                },
+                body={},
+            )
+            assert status == 401, body
+            assert cookie_cleared(refresh_headers.get("set-cookie", ""), SESSION_COOKIE_NAME)
+
+            status, _, session_body = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/session",
+                headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_id}"},
+            )
+            assert status == 401, session_body
+            assert isinstance(session_body, dict) and session_body.get("error") == "session_missing"
         finally:
             stop_server(server, thread)
 
