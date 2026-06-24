@@ -104,4 +104,5 @@ markers = [
   "legacy_migration_acceptance: one-time real legacy dump migration acceptance; requires old/10示例数据 and is excluded from default pytest",
   "browser_e2e: real browser end-to-end validation; requires local Chrome/DevTools and is excluded from default pytest",
   "slow_infra: long-running infra tests (wheel build/install, customer-export bundles, installed-wheel smokes) — skipped on PR, run on push-to-main",
+  "no_db: pure unit tests that must not touch PostgreSQL; conftest skips per-test DB clone and fail-closes DB access",
 ]

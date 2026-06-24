@@ -39,12 +39,10 @@ OPERATER = "ROLE_ORGAN_OPERATER"
 def temp_db():
     """Fresh, migrated per-test DB. The autouse conftest fixture supplies an isolated
     empty PostgreSQL clone; here we just ensure runtime tables are present."""
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
     yield
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
 
 
 def _seed() -> None:

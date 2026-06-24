@@ -51,8 +51,7 @@ def db_brain():
     from zw_brain.shared import db as db_module
     from zw_brain.shared.migrate import ensure_runtime_schema
 
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
 
     from zw_brain.shared.database_store import DatabaseStore
@@ -68,8 +67,7 @@ def db_brain():
         tenant_id=TENANT,
     )
     yield BrainService(state_store=StateStore(database_store=store))
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
 
 
 # ── §A bulk reads: deepcopy isolation ──────────────────────────────────────
@@ -89,6 +87,7 @@ def test_requests_list_all_returns_deepcopy(db_brain: BrainService) -> None:
     assert "__view_sentinel" not in (rec.payload_json or {})
 
 
+@pytest.mark.no_db
 def test_packages_list_all_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     listed = views.packages.list_all()
     if not listed:
@@ -99,6 +98,7 @@ def test_packages_list_all_returns_deepcopy(brain: BrainService, views: ReadView
     )
 
 
+@pytest.mark.no_db
 def test_provider_get_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     provider = views.provider.get()
     provider["__view_sentinel"] = "x"
@@ -107,6 +107,7 @@ def test_provider_get_returns_deepcopy(brain: BrainService, views: ReadViews) ->
     )
 
 
+@pytest.mark.no_db
 def test_discovery_get_resources_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     resources = views.discovery.get_resources()
     if not resources:
@@ -118,6 +119,7 @@ def test_discovery_get_resources_returns_deepcopy(brain: BrainService, views: Re
     )
 
 
+@pytest.mark.no_db
 def test_discovery_get_recall_dictionary_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     """R-007 sweep target — data_search.py now reads recall dict via this view."""
     recall = views.discovery.get_recall_dictionary()
@@ -128,6 +130,7 @@ def test_discovery_get_recall_dictionary_returns_deepcopy(brain: BrainService, v
     )
 
 
+@pytest.mark.no_db
 def test_resources_list_api_resources_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     """R-007 sweep target — data_search.py now reads API resource list via this view."""
     items = views.resources.list_api_resources()
@@ -159,6 +162,7 @@ def test_requests_find_by_id_returns_live_reference(db_brain: BrainService) -> N
     )
 
 
+@pytest.mark.no_db
 def test_packages_find_by_id_returns_live_reference(brain: BrainService, views: ReadViews) -> None:
     packages = brain._snapshot["capability_packages"]
     if not packages:
@@ -197,30 +201,35 @@ def test_delivery_find_by_request_id_returns_live_or_none(db_brain: BrainService
 # ── §C NotFoundError contract ──────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_requests_find_by_id_raises_on_miss(brain: BrainService, views: ReadViews) -> None:
     """RequestsView.find_by_id (Action E: deps.services.request.by_id) raises NotFoundError."""
     with pytest.raises(NotFoundError):
         views.requests.find_by_id("REQ-DOES-NOT-EXIST")
 
 
+@pytest.mark.no_db
 def test_packages_find_by_id_raises_on_miss(brain: BrainService, views: ReadViews) -> None:
     """PackagesView.find_by_id (Action E: inline snapshot scan) raises NotFoundError."""
     with pytest.raises(NotFoundError):
         views.packages.find_by_id("PKG-DOES-NOT-EXIST")
 
 
+@pytest.mark.no_db
 def test_delivery_find_by_id_raises_on_miss(brain: BrainService, views: ReadViews) -> None:
     """DeliveryView.find_by_id (Action E: deps.services.delivery.by_id) raises NotFoundError."""
     with pytest.raises(NotFoundError):
         views.delivery.find_by_id("DLV-DOES-NOT-EXIST")
 
 
+@pytest.mark.no_db
 def test_get_api_resource_returns_none_on_miss(brain: BrainService, views: ReadViews) -> None:
     """ResourcesView.get_api_resource returns None on miss (does not raise)."""
     result = views.resources.get_api_resource("API-DOES-NOT-EXIST")
     assert result is None
 
 
+@pytest.mark.no_db
 def test_get_dispute_by_id_returns_none_on_miss(brain: BrainService, views: ReadViews) -> None:
     """DisputesView.get_dispute_by_id returns None on miss (does not raise)."""
     result = views.disputes.get_dispute_by_id("DSP-DOES-NOT-EXIST")
@@ -230,6 +239,7 @@ def test_get_dispute_by_id_returns_none_on_miss(brain: BrainService, views: Read
 # ── §D get_*_by_id deepcopy semantics (R-010 rename guard) ────────────────
 
 
+@pytest.mark.no_db
 def test_disputes_get_dispute_by_id_returns_deepcopy_not_live(
     brain: BrainService, views: ReadViews
 ) -> None:
@@ -257,6 +267,7 @@ def test_disputes_get_dispute_by_id_returns_deepcopy_not_live(
     )
 
 
+@pytest.mark.no_db
 def test_resources_get_api_resource_returns_deepcopy_not_live(
     brain: BrainService, views: ReadViews
 ) -> None:
@@ -290,6 +301,7 @@ def test_resources_get_api_resource_returns_deepcopy_not_live(
 # ── §D ReadViews frozen + facet coverage ───────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_read_views_is_frozen() -> None:
     """ReadViews itself is @dataclass(frozen=True) — facet handles must not mutate."""
     assert ReadViews.__dataclass_params__.frozen, (
@@ -297,6 +309,7 @@ def test_read_views_is_frozen() -> None:
     )
 
 
+@pytest.mark.no_db
 def test_read_views_exposes_all_facets(views: ReadViews) -> None:
     """ReadViews facet 集合钉死（Action D：approvals 视图因零消费者删除——
     审批卡读取走 services.request.approval_by_id + enrich_approvals_snapshot）。"""

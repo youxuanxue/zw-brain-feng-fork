@@ -141,6 +141,7 @@ def test_s3_jsonrpc_unconfirmed_write_returns_structured_pending(mcp_env, monkey
     assert resp["result"]["isError"] is False
 
 
+@pytest.mark.no_db
 def test_s3_tool_description_carries_confirmation_marker() -> None:
     """The generated MCP descriptor for a hcr tool advertises 'Requires user confirmation'."""
     import json
@@ -186,6 +187,7 @@ def test_s4_tool_not_found_distinct_from_internal_error(mcp_env) -> None:
 # ─── S5 — exposure filter: non-mcp capability invisible + tool_not_found ──────
 
 
+@pytest.mark.no_db
 def test_s5_non_mcp_capability_absent_from_tool_list() -> None:
     from zw_brain.entry.mcp.server import list_tools
 

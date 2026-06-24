@@ -10,6 +10,8 @@ import pytest
 from scripts import import_loggedin_users, provision_iam_users, update_user_roles
 from zw_brain.domain.role_codes import BUSINESS_ROLE_CODES
 
+pytestmark = pytest.mark.no_db
+
 
 def test_provision_failure_records_strip_passwords(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     csv_path = tmp_path / "users.csv"

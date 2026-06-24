@@ -39,14 +39,12 @@ ORG_B = "360002222211"         # 别家机构
 def temp_db():
     """Fresh, migrated per-test DB. The autouse conftest fixture already supplies an
     isolated empty PostgreSQL clone; here we just ensure runtime tables are present."""
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
     try:
         yield
     finally:
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+        db_module.reset_engine_cache()
 
 
 def _seed() -> None:

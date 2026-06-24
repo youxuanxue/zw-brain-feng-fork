@@ -4,8 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 ROUTER = REPO_ROOT / "zw-brain-web" / "src" / "router" / "index.ts"
+
+pytestmark = pytest.mark.no_db
 
 P5_LIVE_ROUTES: tuple[tuple[str, str], ...] = (
     ("/provider/inbox/field-decision", "P5FieldDecisionInbox"),

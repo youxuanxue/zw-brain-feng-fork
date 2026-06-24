@@ -11,6 +11,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "generate_full_scan_exemptions.py"
 
+pytestmark = pytest.mark.no_db
+
 
 CODE_WITH_EXEMPTIONS = '''\
 """sample module with full-scan-ok exemptions."""

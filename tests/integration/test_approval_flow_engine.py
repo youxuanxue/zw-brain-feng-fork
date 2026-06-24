@@ -263,6 +263,7 @@ def test_commit_via_skill_dispatch_returns_ok_and_audit_id(session):
     assert payload["committed_at"] is not None
 
 
+@pytest.mark.no_db
 def test_manifest_registered_and_validates() -> None:
     """commit manifest 通过 validate_manifest 且 config_change_class=live。"""
     from zw_brain.capability_registry.runtime import load_manifests

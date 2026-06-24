@@ -15,6 +15,8 @@ from zw_brain.shared.auth_session import (
     validate_session_store_for_deploy,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 def _sample_payload() -> dict[str, Any]:
     return {

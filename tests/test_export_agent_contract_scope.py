@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.export_agent_contract import discover_skills, is_live
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -11,6 +13,8 @@ AGENT_CARD_PATH = REPO_ROOT / "zw_brain" / "entry" / "a2a" / "agent_card.json"
 RUNTIME_BINDINGS_PATH = REPO_ROOT / "zw_brain" / "entry" / "a2a" / "tools" / "runtime_bindings.json"
 MCP_TOOLS_DIR = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools"
 DOC_PATH = REPO_ROOT / "docs" / "agent_integration.md"
+
+pytestmark = pytest.mark.no_db
 
 
 def _non_live_skill_ids() -> set[str]:

@@ -38,12 +38,10 @@ TENANT = "sd-default"
 @pytest.fixture()
 def temp_db() -> None:
     """空 schema、无参考数据注入 —— enrich 真空起点（conftest autouse 已供隔离空 PG 克隆）。"""
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
     yield None
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
 
 
 @pytest.fixture()

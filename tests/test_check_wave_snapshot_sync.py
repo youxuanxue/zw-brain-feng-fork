@@ -11,6 +11,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "check_wave_snapshot_sync.py"
 
+pytestmark = pytest.mark.no_db
+
 
 ARCH_DOC_GOOD = """\
 # arch

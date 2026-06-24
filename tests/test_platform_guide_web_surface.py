@@ -13,7 +13,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parents[1]
+
+pytestmark = pytest.mark.no_db
 
 
 def _extract_ask_fetch_body(src: str) -> str:

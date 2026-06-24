@@ -25,6 +25,7 @@ RETIRED_FICTIONAL_NAMES = ("周处长", "刘主任", "高主任", "林督查")
 
 # ─── seed 防回潮 ─────────────────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_seed_workbench_carries_no_greeting() -> None:
     seed = json.loads((REPO_ROOT / "zw_brain" / "domain" / "seed_snapshot.json").read_text(encoding="utf-8"))
     for role, bucket in seed["workbench"].items():
@@ -33,12 +34,14 @@ def test_seed_workbench_carries_no_greeting() -> None:
 
 # ─── _session_greeting 单元 ──────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_session_greeting_uses_display_name_when_present() -> None:
     greeting = _session_greeting({"actor_snapshot": {"display_name": "张三"}})
     assert greeting.startswith("张三，")
     assert greeting.removeprefix("张三，") in TIME_GREETINGS
 
 
+@pytest.mark.no_db
 def test_session_greeting_falls_back_honestly_without_identity() -> None:
     # in-process / 离线：无 actor_snapshot 或无 display_name → 纯时段问候，不捏造。
     for payload in ({}, {"actor_snapshot": {}}, {"actor_snapshot": {"display_name": "  "}}, {"actor_snapshot": None}):

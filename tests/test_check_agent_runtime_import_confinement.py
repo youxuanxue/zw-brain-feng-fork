@@ -12,8 +12,12 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "check_agent_runtime_import_confinement.py"
+
+pytestmark = pytest.mark.no_db
 
 
 def _load_module():

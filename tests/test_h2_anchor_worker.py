@@ -151,6 +151,7 @@ def test_stale_lease_is_reclaimable() -> None:
         assert store.claim_anchor_outbox(content_hash, lease_seconds=0) is True
 
 
+@pytest.mark.no_db
 def test_audit_bus_still_fail_closed() -> None:
     """D4 upper-half invariant: a failing audit sink must raise AuditWriteError —
     the H2 anchor change must not have softened the synchronous audit bus."""

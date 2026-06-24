@@ -50,6 +50,7 @@ def _run_cli(args: list[str]) -> tuple[int, str, str]:
     return code, out.getvalue(), err.getvalue()
 
 
+@pytest.mark.no_db
 def test_cli_list_returns_many_skills() -> None:
     code, out, err = _run_cli(["--list"])
     assert code == 0
@@ -58,6 +59,7 @@ def test_cli_list_returns_many_skills() -> None:
     assert "(source: commands.generated.json)" in err
 
 
+@pytest.mark.no_db
 def test_cli_list_prefix_filter() -> None:
     code, out, _ = _run_cli(["--list", "workbench"])
     assert code == 0
@@ -66,6 +68,7 @@ def test_cli_list_prefix_filter() -> None:
     assert all(sid.startswith("workbench") for sid in skill_ids)
 
 
+@pytest.mark.no_db
 def test_cli_describe_known_skill() -> None:
     code, out, _ = _run_cli(["--describe", "workbench.view"])
     assert code == 0
@@ -73,6 +76,7 @@ def test_cli_describe_known_skill() -> None:
     assert "invoke example:" in out
 
 
+@pytest.mark.no_db
 def test_cli_unknown_skill_exits_2() -> None:
     code, _, err = _run_cli(["bogus.skill.id"])
     from zw_brain.entry.cli.main import EXIT_UNKNOWN_SKILL
@@ -81,6 +85,7 @@ def test_cli_unknown_skill_exits_2() -> None:
     assert "unknown skill_id" in err
 
 
+@pytest.mark.no_db
 def test_cli_bad_payload_exits_3() -> None:
     code, _, err = _run_cli(["workbench.view", "--payload", "not json"])
     from zw_brain.entry.cli.main import EXIT_BAD_PAYLOAD
@@ -98,6 +103,7 @@ def test_cli_invoke_workbench_view_real_data(monkeypatch: pytest.MonkeyPatch) ->
     assert "todos" in payload
 
 
+@pytest.mark.no_db
 def test_cli_invoke_injects_sticky_confirmed(monkeypatch: pytest.MonkeyPatch) -> None:
     """R-002 regression guard: CLI must inject `confirmed: true` so write skills
     aren't rejected by policy.py:386 human_confirmation_required gate."""
@@ -126,6 +132,7 @@ def test_cli_invoke_injects_sticky_confirmed(monkeypatch: pytest.MonkeyPatch) ->
 # ─── MCP (zw_brain.entry.mcp.server) ────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_mcp_list_tools_returns_descriptors() -> None:
     from zw_brain.entry.mcp.server import list_tools
 
@@ -168,6 +175,7 @@ def test_mcp_client_smoke_stdio_subprocess() -> None:
     assert "5 capability calls succeeded" in proc.stdout or "→ 200" in proc.stdout
 
 
+@pytest.mark.no_db
 def test_mcp_handle_tools_list_jsonrpc() -> None:
     from zw_brain.entry.mcp.server import _handle_tools_list
 
@@ -178,6 +186,7 @@ def test_mcp_handle_tools_list_jsonrpc() -> None:
     assert len(resp["result"]["tools"]) > 20
 
 
+@pytest.mark.no_db
 def test_mcp_handle_tools_call_unknown_returns_error() -> None:
     from zw_brain.entry.mcp.server import _handle_tools_call
 
@@ -190,6 +199,7 @@ def test_mcp_handle_tools_call_unknown_returns_error() -> None:
 # ─── A2A (zw_brain.entry.a2a.server) ────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_a2a_agent_card_loadable() -> None:
     from zw_brain.entry.a2a.server import get_agent_card
 
@@ -198,6 +208,7 @@ def test_a2a_agent_card_loadable() -> None:
     assert "skills" in card
 
 
+@pytest.mark.no_db
 def test_a2a_runtime_bindings_loadable() -> None:
     from zw_brain.entry.a2a.server import get_runtime_bindings
 
@@ -216,6 +227,7 @@ def test_a2a_invoke_real_skill(monkeypatch: pytest.MonkeyPatch) -> None:
     assert "greeting" in result["result"]
 
 
+@pytest.mark.no_db
 def test_a2a_serve_refuses_without_dev_bypass(monkeypatch: pytest.MonkeyPatch) -> None:
     """R-001 regression guard: A2A daemon must refuse to start without dev IAM bypass +
     ACK, since it has no per-request auth check."""

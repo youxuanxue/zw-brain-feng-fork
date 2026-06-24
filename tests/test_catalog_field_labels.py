@@ -6,7 +6,11 @@
 
 from __future__ import annotations
 
+import pytest
+
 from zw_brain.domain.services.catalog_service import _readable_domain, _resource_format_label
+
+pytestmark = pytest.mark.no_db
 
 
 def test_format_exact_code():

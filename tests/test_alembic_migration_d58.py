@@ -21,12 +21,12 @@ from __future__ import annotations
 import os
 import uuid
 
-import psycopg
 import pytest
 from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.engine import make_url
 
 import zw_brain.domain.models  # noqa: F401 — 注册全部 ORM 表到 Base.metadata
+from tests._pg_admin import drop_database, maintenance_connect
 from zw_brain.shared import db as _db
 from zw_brain.shared.db import Base, reset_engine_cache
 from zw_brain.shared.migrate import (
@@ -39,20 +39,6 @@ from zw_brain.shared.migrate import (
 )
 
 
-def _maintenance_connect(server_url) -> psycopg.Connection:
-    """Autocommit conn to the maintenance DB for CREATE/DROP DATABASE (same
-    resolution as conftest: reuse the server DSN, optional maintenance-db name)."""
-    maint_db = os.environ.get("ZW_BRAIN_TEST_PG_MAINTENANCE_DB", "postgres")
-    return psycopg.connect(
-        host=server_url.host,
-        port=server_url.port,
-        user=server_url.username,
-        password=server_url.password,
-        dbname=maint_db,
-        autocommit=True,
-    )
-
-
 @pytest.fixture
 def isolated_db(monkeypatch: pytest.MonkeyPatch) -> str:
     """全新空 PG 库的 DB URL（每测独立 CREATE→DROP、引擎缓存清掉）。
@@ -62,8 +48,8 @@ def isolated_db(monkeypatch: pytest.MonkeyPatch) -> str:
     """
     server_url = make_url(os.environ.get("ZW_BRAIN_DATABASE_URL") or _db.DEFAULT_PG_URL)
     db_name = f"zw_d58_{uuid.uuid4().hex}"
-    maint = _maintenance_connect(server_url)
-    maint.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
+    maint = maintenance_connect(server_url)
+    drop_database(maint, db_name)
     maint.execute(f'CREATE DATABASE "{db_name}" OWNER "{server_url.username}"')
     url = server_url.set(database=db_name).render_as_string(hide_password=False)
     # conftest's autouse _isolate_db_env runs *before* this fixture and creates
@@ -76,7 +62,7 @@ def isolated_db(monkeypatch: pytest.MonkeyPatch) -> str:
         yield url
     finally:
         reset_engine_cache()
-        maint.execute(f'DROP DATABASE IF EXISTS "{db_name}" WITH (FORCE)')
+        drop_database(maint, db_name)
         maint.close()
 
 

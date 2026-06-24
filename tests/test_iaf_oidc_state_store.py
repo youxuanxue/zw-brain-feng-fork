@@ -8,6 +8,8 @@ import pytest
 
 from zw_brain.shared.iaf_oidc import IafOidcStateError, IafOidcStateStore
 
+pytestmark = pytest.mark.no_db
+
 
 def test_get_leaves_state_for_retry_until_discard() -> None:
     store = IafOidcStateStore()

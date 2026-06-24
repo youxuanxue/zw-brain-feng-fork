@@ -303,6 +303,7 @@ def test_exposure_matrix_cross_tenant_denied(brain_with_audit) -> None:
 # ---------------------------------------------------------------------------
 
 
+@pytest.mark.no_db
 def test_validate_package_lifecycle_transition_allows_known() -> None:
     from zw_brain.capability_registry.runtime import validate_package_lifecycle_transition
 
@@ -315,6 +316,7 @@ def test_validate_package_lifecycle_transition_allows_known() -> None:
     validate_package_lifecycle_transition("active", "active")
 
 
+@pytest.mark.no_db
 def test_validate_package_lifecycle_transition_rejects_illegal() -> None:
     from zw_brain.capability_registry.runtime import validate_package_lifecycle_transition
 
@@ -326,6 +328,7 @@ def test_validate_package_lifecycle_transition_rejects_illegal() -> None:
         validate_package_lifecycle_transition("unknown-state", "active")
 
 
+@pytest.mark.no_db
 def test_package_trust_levels_enum_stable() -> None:
     from zw_brain.capability_registry.runtime import package_trust_levels
 

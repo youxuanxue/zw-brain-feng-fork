@@ -20,8 +20,12 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 _ROOT = Path(__file__).resolve().parents[1]
 _NAV_TS = _ROOT / "zw-brain-web" / "src" / "config" / "productShellNav.ts"
+
+pytestmark = pytest.mark.no_db
 
 # 矩阵式 spec（每行 = 一个 {role, hash, ...} 断言「该角色应能渲染该页」）。
 _MATRIX_SPECS = [

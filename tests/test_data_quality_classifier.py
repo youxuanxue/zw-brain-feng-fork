@@ -14,6 +14,8 @@ from zw_brain.domain.data_quality import (
     is_dirty_purpose,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 @pytest.mark.parametrize(
     "raw,expected",

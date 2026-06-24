@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import re
 
+import pytest
+
 from zw_brain.command.brain import BrainService
 from zw_brain.shared.state_store import StateStore
 
@@ -27,6 +29,7 @@ def _db_brain() -> BrainService:
     return BrainService(state_store=StateStore(database_store=DatabaseStore()))
 
 
+@pytest.mark.no_db
 def test_request_status_text_maps_delivery_states() -> None:
     brain = _brain()
     approved = {"status": "approved"}

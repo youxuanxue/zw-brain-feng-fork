@@ -33,6 +33,8 @@ import yaml
 REPO = Path(__file__).resolve().parent.parent
 FIXTURE_YAML = REPO / "tests" / "fixtures" / "legacy_smoke.yaml"
 
+pytestmark = pytest.mark.no_db
+
 
 def _load_legacy_smoke_fixture() -> list[dict[str, Any]]:
     """加载 legacy_smoke.yaml；缺失 → 跳过整套（CI / fresh checkout 容错）"""

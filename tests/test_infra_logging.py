@@ -41,6 +41,7 @@ def fresh_logger():
 # ── setup_logging ──────────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_setup_logging_idempotent_and_writes_jsonl(tmp_path, monkeypatch, fresh_logger):
     monkeypatch.setenv("ZW_BRAIN_LOG_DIR", str(tmp_path))
     monkeypatch.setenv("ZW_BRAIN_LOG_LEVEL", "INFO")
@@ -65,6 +66,7 @@ def test_setup_logging_idempotent_and_writes_jsonl(tmp_path, monkeypatch, fresh_
     assert row["message"] == "hello jsonl"
 
 
+@pytest.mark.no_db
 def test_setup_logging_degrades_when_dir_unwritable(tmp_path, monkeypatch, fresh_logger):
     blocked = tmp_path / "occupied"
     blocked.write_text("not a directory", encoding="utf-8")
@@ -75,6 +77,7 @@ def test_setup_logging_degrades_when_dir_unwritable(tmp_path, monkeypatch, fresh
     assert not any(isinstance(h, RotatingFileHandler) for h in fresh_logger.handlers)
 
 
+@pytest.mark.no_db
 def test_setup_logging_does_not_touch_root_logger(tmp_path, monkeypatch, fresh_logger):
     monkeypatch.setenv("ZW_BRAIN_LOG_DIR", str(tmp_path))
     root_handlers_before = list(logging.getLogger().handlers)
@@ -86,6 +89,7 @@ def test_setup_logging_does_not_touch_root_logger(tmp_path, monkeypatch, fresh_l
 # ── context / formatter ────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_bind_request_context_generates_and_validates():
     tokens = bind_request_context(None, entry="rest")
     try:
@@ -117,6 +121,7 @@ def _format_one(record_factory) -> dict:
     return json.loads(formatter.format(record))
 
 
+@pytest.mark.no_db
 def test_json_formatter_carries_request_id_actor_and_exc():
     tokens = bind_request_context("trace-fmt-001", entry="rest")
     set_log_actor("alice")
@@ -139,12 +144,14 @@ def test_json_formatter_carries_request_id_actor_and_exc():
     assert "Traceback" in row["exc"]
 
 
+@pytest.mark.no_db
 def test_new_request_id_distinct_from_business_ids():
     rid = new_request_id()
     assert rid.startswith("req-")
     assert not rid.startswith(("REQ-", "AE-"))
 
 
+@pytest.mark.no_db
 def test_human_formatter_folds_newlines_in_message_and_extras():
     """console 一事件一行：message 与 extras（如前端上报的 stack）的换行都必须折叠，
     否则恶意多行文本可在 console 流上伪造日志行（JSON 文件侧由 json.dumps 转义兜底）。"""
@@ -163,6 +170,7 @@ def test_human_formatter_folds_newlines_in_message_and_extras():
 # ── redaction 红线 ─────────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_redaction_masks_secret_token_phone_idcard():
     sample = {
         "api_key": "AK-VERY-SECRET",
@@ -187,6 +195,7 @@ def test_redaction_masks_secret_token_phone_idcard():
     assert "AK-VERY-SECRET" not in json.dumps(out)
 
 
+@pytest.mark.no_db
 def test_redaction_truncates_and_caps_depth():
     assert redact("x" * 5000, max_str=100).endswith("...(truncated)")
     deep: dict = {"k": "v"}
@@ -296,6 +305,7 @@ def _stub_handler_for_error() -> tuple:
     return handler, captured
 
 
+@pytest.mark.no_db
 def test_handle_error_5xx_logs_stack_response_unchanged(capture_zw_logs):
     handler, captured = _stub_handler_for_error()
     try:
@@ -310,6 +320,7 @@ def test_handle_error_5xx_logs_stack_response_unchanged(capture_zw_logs):
     assert "kaboom-probe" in str(row.exc_info[1])
 
 
+@pytest.mark.no_db
 def test_handle_error_expected_rejection_logs_info_no_stack(capture_zw_logs):
     from zw_brain.command.brain import NotFoundError
 
@@ -337,6 +348,7 @@ def _fake_pctx(skill_id: str = "probe.capability", *, is_write: bool = False):
     return pctx
 
 
+@pytest.mark.no_db
 def test_capability_log_middleware_records_ok(capture_zw_logs):
     from zw_brain.command.pipeline import CapabilityLogMiddleware
 
@@ -350,6 +362,7 @@ def test_capability_log_middleware_records_ok(capture_zw_logs):
     assert isinstance(row.duration_ms, float)
 
 
+@pytest.mark.no_db
 def test_capability_log_middleware_logs_error_and_reraises(capture_zw_logs):
     from zw_brain.command.pipeline import CapabilityLogMiddleware
 
@@ -363,6 +376,7 @@ def test_capability_log_middleware_logs_error_and_reraises(capture_zw_logs):
     assert row.is_write is True
 
 
+@pytest.mark.no_db
 def test_audit_failure_still_raises_with_logging_installed(capture_zw_logs):
     """段 7a 回归锚：审计写失败的熔断 raise 穿过日志中间件，绝不被降级成日志。"""
     from zw_brain.command.pipeline import CapabilityLogMiddleware
@@ -377,6 +391,7 @@ def test_audit_failure_still_raises_with_logging_installed(capture_zw_logs):
     assert row.outcome == "error:AuditWriteError"  # 只旁观记录，控制流照常熔断
 
 
+@pytest.mark.no_db
 def test_middleware_order_guard_passes():
     import subprocess
     from pathlib import Path

@@ -27,8 +27,7 @@ def brain(monkeypatch):
     monkeypatch.setenv("ZW_BRAIN_DEV_IAM_BYPASS_ACK", "development-only")
     monkeypatch.delenv("ZW_BRAIN_DEPLOY_MODE", raising=False)
     from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
+    _db.reset_engine_cache()
     import zw_brain.shared.audit as audit_bus
     from zw_brain.command.brain import BrainService
     from zw_brain.shared.database_store import DatabaseStore
@@ -43,8 +42,7 @@ def brain(monkeypatch):
     svc = BrainService(state_store=StateStore(database_store=store))
     yield svc
     audit_bus.clear_sink()
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
+    _db.reset_engine_cache()
 
 
 def _inject_grantable_task(brain, *, task_id: str, application_code: str) -> None:

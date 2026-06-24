@@ -29,6 +29,7 @@ def _fresh_proxy() -> _UIStateProxy:
     return _UIStateProxy({"discoveryQuery": "q", "brainOutage": False})
 
 
+@pytest.mark.no_db
 def test_proxy_role_defaults_to_context_default() -> None:
     token = set_current_role(DEFAULT_ROLE)
     try:
@@ -41,6 +42,7 @@ def test_proxy_role_defaults_to_context_default() -> None:
         reset_current_role(token)
 
 
+@pytest.mark.no_db
 def test_proxy_role_write_routes_to_contextvar() -> None:
     proxy = _fresh_proxy()
     proxy["role"] = "ROLE_BUSIAUDIT"
@@ -48,6 +50,7 @@ def test_proxy_role_write_routes_to_contextvar() -> None:
     assert get_current_role() == "ROLE_BUSIAUDIT"
 
 
+@pytest.mark.no_db
 def test_proxy_non_role_keys_stay_on_backing_dict() -> None:
     proxy = _fresh_proxy()
     proxy["brainOutage"] = True
@@ -56,6 +59,7 @@ def test_proxy_non_role_keys_stay_on_backing_dict() -> None:
     assert "role" not in proxy._backing  # invariant locked by preflight gate
 
 
+@pytest.mark.no_db
 def test_proxy_mapping_protocol() -> None:
     proxy = _fresh_proxy()
     assert set(proxy) == {"role", "discoveryQuery", "brainOutage"}
@@ -66,6 +70,7 @@ def test_proxy_mapping_protocol() -> None:
     assert materialized["brainOutage"] is False
 
 
+@pytest.mark.no_db
 def test_dict_materialization_reflects_current_contextvar() -> None:
     proxy = _fresh_proxy()
     proxy["role"] = "ROLE_SECURITY_AUDIT"
@@ -79,6 +84,7 @@ def temp_db() -> None:
     ensure_runtime_schema()
 
 
+@pytest.mark.no_db
 def test_persistable_view_excludes_per_request_role() -> None:
     """role is per-request (ContextVar) — must not leak into durable storage."""
     proxy = _fresh_proxy()
@@ -108,6 +114,7 @@ def test_persist_excludes_per_request_role_from_db(temp_db: None) -> None:
     assert persisted_ui_state["brainOutage"] is False
 
 
+@pytest.mark.no_db
 def test_role_isolated_across_threads() -> None:
     """N threads set distinct roles concurrently; each must read back its own."""
     proxy = _fresh_proxy()
@@ -129,6 +136,7 @@ def test_role_isolated_across_threads() -> None:
     assert observed == {r: r for r in roles}, "role bled across threads"
 
 
+@pytest.mark.no_db
 def test_role_isolated_across_asyncio_tasks() -> None:
     proxy = _fresh_proxy()
 

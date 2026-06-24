@@ -186,6 +186,7 @@ def test_delete_parent_cascades_children_b_class() -> None:
         assert orphans == [], f"删包后应无孤儿 topic_package_item，实得 {len(orphans)}"
 
 
+@pytest.mark.no_db
 def test_metadata_fk_floor() -> None:
     """FK 回潮断言：metadata FK 列数 ≥ 已落地边数（A 类 12 + B 类 5×2 复合 = 22）。"""
     fk_cols = [fk for t in Base.metadata.tables.values() for fk in t.foreign_keys]
@@ -278,6 +279,7 @@ def test_orphan_guard_detects_dangling_catalog_ref() -> None:
 
 # --- M4 缺陷 4 ref 完整性·悬挂引用诚实信号（只读派生，不写库） -----------------
 
+@pytest.mark.no_db
 def test_effective_ref_status_dangling_signal() -> None:
     """catalog_entry 引用未录入主表 → effective_ref_status=dangling（纯函数）。"""
     from zw_brain.domain.serializers.topic_package import (
@@ -296,6 +298,7 @@ def test_effective_ref_status_dangling_signal() -> None:
     assert effective_ref_status("catalog_entry", "cat-missing", "active", present_catalog_codes=None) == "active"
 
 
+@pytest.mark.no_db
 def test_topic_item_to_dict_surfaces_dangling() -> None:
     """topic_item_to_dict 带 present_catalog_codes 时悬挂 item 降级 + ref_resolvable=False。"""
     from zw_brain.domain.models import TopicPackageItemRecord

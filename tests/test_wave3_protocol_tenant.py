@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 import zw_brain.shared.audit as audit_bus
 from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService
@@ -17,6 +19,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 MCP_TOOLS_DIR = REPO_ROOT / "zw_brain" / "entry" / "mcp" / "tools"
 
 
+@pytest.mark.no_db
 def test_wave3_mcp_hardening_live_skills_match_openapi_and_tool_files() -> None:
     """mcp-hardening.feature: MCP tool 列表与 OpenAPI capability 一致（live skills）。"""
     from scripts.export_agent_contract import build_rest_openapi, discover_skills
@@ -72,6 +75,7 @@ def test_wave3_multi_tenant_policy_catalog_entries_isolated() -> None:
     assert len(yn_hits) == 1 and yn_hits[0].catalog_code == "CAT-YN-ONLY"
 
 
+@pytest.mark.no_db
 def test_wave3_observability_cost_quota_no_in_repo_alerting() -> None:
     """observability-cost-quota.feature 负向：zw-brain 不内嵌 alertmanager/告警规则（监控外置）。"""
     for rel_dir in ("zw_brain", "scripts"):

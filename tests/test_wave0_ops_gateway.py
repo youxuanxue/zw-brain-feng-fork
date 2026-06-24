@@ -156,6 +156,7 @@ def test_same_instance_id_upserts_in_place(brain: BrainService) -> None:
 # ──────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_stale_heartbeat_pure_function_derives_offline() -> None:
     now = datetime(2026, 5, 29, 12, 0, 0, tzinfo=UTC)
     fresh = now - timedelta(seconds=DEFAULT_GATEWAY_STALE_SECONDS - 1)

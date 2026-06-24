@@ -577,6 +577,7 @@ def test_suggest_against_5_real_dsp_require_history_hits_at_least_one(session, c
     assert hit_rate >= 0.2, f"hit-rate {hit_rate:.2%} < 20% baseline"
 
 
+@pytest.mark.no_db
 def test_manifests_registered_and_validate() -> None:
     from zw_brain.capability_registry.runtime import load_manifests
 

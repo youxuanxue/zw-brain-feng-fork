@@ -13,8 +13,12 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from zw_brain.command import sync
 from zw_brain.command.demo_state_sync import upsert_todo
+
+pytestmark = pytest.mark.no_db
 
 
 def _empty_snapshot() -> dict[str, Any]:

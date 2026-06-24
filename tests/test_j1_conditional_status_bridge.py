@@ -42,8 +42,7 @@ ORG_PROVIDER = "ORG-B-MARKET-REG"
 def brain():
     """Fresh brain on the conftest-supplied isolated empty PG clone
     （同 test_wave0_j1_approval_conditional_runtime 模式）。"""
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
 
     import zw_brain.shared.audit as audit_bus
@@ -55,8 +54,7 @@ def brain():
     audit_bus.configure_sink(ds.append_audit_event)
     ss = StateStore(database_store=ds)
     yield BrainService(state_store=ss)
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
 
 
 def _inject_resource(brain: Any, rid: str, share_type: str) -> None:

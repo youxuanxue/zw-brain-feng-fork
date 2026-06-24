@@ -147,6 +147,7 @@ def test_iam_account_missing_still_claims() -> None:
     assert record.status == "active"
 
 
+@pytest.mark.no_db
 def test_resolve_trusted_role_rejects_disabled_snapshot() -> None:
     with pytest.raises(DomainAccessDeniedError):
         resolve_trusted_role(

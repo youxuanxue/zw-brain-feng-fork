@@ -82,8 +82,7 @@ def bootstrap_iaf_runtime(tmp: str) -> Iterator[None]:
     os.environ["ZW_BRAIN_IAF_CLIENT_ID"] = "zw-brain"
     os.environ.pop("ZW_BRAIN_DEV_IAM_BYPASS", None)
     os.environ.pop("ZW_BRAIN_DEV_IAM_BYPASS_ACK", None)
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     try:
         ensure_runtime_schema()
         database_store = DatabaseStore()
@@ -97,8 +96,7 @@ def bootstrap_iaf_runtime(tmp: str) -> Iterator[None]:
                 os.environ.pop(key, None)
             else:
                 os.environ[key] = value
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+        db_module.reset_engine_cache()
 
 
 def free_port() -> int:

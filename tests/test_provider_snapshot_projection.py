@@ -8,6 +8,7 @@ import uuid
 import pytest
 from sqlalchemy.engine import make_url
 
+from tests._pg_admin import drop_database
 from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixture)
 from tests._trusted_payload import actor_snapshot, invoke_trusted
 from zw_brain.command.brain import BrainService
@@ -62,7 +63,7 @@ def temp_db(_pg_template) -> str:
     """
     template, server_url, maint = _pg_template
     clone = f"zw_provproj_{uuid.uuid4().hex}"
-    maint.execute(f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)')
+    drop_database(maint, clone)
     maint.execute(f'CREATE DATABASE "{clone}" TEMPLATE "{template}"')
     saved_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
     saved_realistic = os.environ.get("ZW_BRAIN_TEST_REALISTIC_DB")
@@ -97,7 +98,7 @@ def temp_db(_pg_template) -> str:
             os.environ["ZW_BRAIN_DATABASE_URL"] = saved_url
         if saved_realistic is not None:
             os.environ["ZW_BRAIN_TEST_REALISTIC_DB"] = saved_realistic
-        maint.execute(f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)')
+        drop_database(maint, clone)
 
 
 @pytest.fixture()
@@ -291,6 +292,7 @@ def test_operater_snapshot_redacts_disputes(brain: BrainService) -> None:
     assert snap.get("disputes") == []
 
 
+@pytest.mark.no_db
 def test_redact_empty_provider_includes_inbox_keys() -> None:
     from zw_brain.domain.web_snapshot_redaction import _EMPTY_PROVIDER
 

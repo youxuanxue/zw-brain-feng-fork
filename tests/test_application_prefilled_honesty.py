@@ -17,7 +17,11 @@
 """
 from __future__ import annotations
 
+import pytest
+
 from zw_brain.domain.services.application_service import ApplicationService
+
+pytestmark = pytest.mark.no_db
 
 # 这些方法是纯函数（不触 self.brain），可直接构造做纯单测，无需 seed DB。
 SVC = ApplicationService(brain=None)  # type: ignore[arg-type]

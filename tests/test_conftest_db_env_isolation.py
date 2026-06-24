@@ -30,7 +30,11 @@ from __future__ import annotations
 
 import os
 
+import psycopg
+import pytest
+
 from zw_brain.shared import db as _db
+from zw_brain.shared.audit.store import AuditStore
 
 # Neutral throwaway canary — any env key works; the contract under test is
 # os.environ snapshot/restore by the conftest autouse fixture.
@@ -70,3 +74,19 @@ def test_engine_cache_reset_around_each_test() -> None:
         f"engine cache not reset before this test (size={len(cache)}); the "
         "conftest autouse fixture's pre-test reset_engine_cache() regressed."
     )
+
+
+@pytest.mark.no_db
+def test_no_db_marker_fails_closed_on_database_access() -> None:
+    with pytest.raises(BaseException, match="no_db test attempted to access PostgreSQL") as first:
+        _db.get_database_url()
+    assert not isinstance(first.value, Exception)
+    with pytest.raises(BaseException, match="no_db test attempted to access PostgreSQL") as second:
+        _db.create_session_factory()
+    assert not isinstance(second.value, Exception)
+    with pytest.raises(BaseException, match="no_db test attempted to access PostgreSQL") as third:
+        AuditStore()
+    assert not isinstance(third.value, Exception)
+    with pytest.raises(BaseException, match="no_db test attempted to access PostgreSQL") as fourth:
+        psycopg.connect("postgresql://127.0.0.1/postgres")
+    assert not isinstance(fourth.value, Exception)

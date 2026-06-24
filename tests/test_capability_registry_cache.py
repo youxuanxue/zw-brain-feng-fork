@@ -18,6 +18,8 @@ import pytest
 from zw_brain.capability_registry import runtime
 from zw_brain.capability_registry.runtime import get_manifest, load_manifests
 
+pytestmark = pytest.mark.no_db
+
 
 @pytest.fixture(autouse=True)
 def _isolate_manifest_cache():

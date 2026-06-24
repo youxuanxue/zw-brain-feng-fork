@@ -13,11 +13,15 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+import pytest
+
 from zw_brain.domain.services.delivery_service import (
     _delivery_fallback_name,
     delivery_record_hidden_from_consumer,
     delivery_record_is_retired_origin,
 )
+
+pytestmark = pytest.mark.no_db
 
 
 @dataclass

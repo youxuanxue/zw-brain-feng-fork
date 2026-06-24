@@ -26,6 +26,8 @@ from zw_brain.shared.runtime_config import (
     get_iaf_insecure_tls_enabled,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 def _ctx(role_codes: tuple[str, ...]) -> AuthContext:
     return AuthContext(

@@ -27,6 +27,8 @@ from zw_brain.shared.national.provisioning import (
     NationalChannelState,
 )
 
+pytestmark = pytest.mark.no_db
+
 _SKILL = "adapter.national.application.submit"
 
 

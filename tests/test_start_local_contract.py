@@ -2,7 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
+
+pytestmark = pytest.mark.no_db
 
 
 def test_start_local_fails_closed_when_independent_agent_runtime_lacks_inference_env():

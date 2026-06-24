@@ -13,8 +13,12 @@ import re
 import sys
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parent.parent
 SCRIPTS = REPO / "scripts"
+
+pytestmark = pytest.mark.no_db
 
 # 元守卫裸 import guard_lib（约定 scripts/ 在 path）——加载前置 scripts/ 到 sys.path。
 if str(SCRIPTS) not in sys.path:

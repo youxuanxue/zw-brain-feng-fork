@@ -10,7 +10,11 @@ from __future__ import annotations
 
 import os
 
+import pytest
+
 from zw_brain.entry.rest import server
+
+pytestmark = pytest.mark.no_db
 
 ORG_A = "11370000MB284651XL"
 ORG_B = "360002222211"

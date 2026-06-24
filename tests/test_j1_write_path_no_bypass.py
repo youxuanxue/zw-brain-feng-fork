@@ -39,8 +39,7 @@ TENANT = "sd-default"
 
 @pytest.fixture()
 def brain():
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
 
     import zw_brain.shared.audit as audit_bus
@@ -52,8 +51,7 @@ def brain():
     audit_bus.configure_sink(ds.append_audit_event)
     ss = StateStore(database_store=ds)
     yield BrainService(state_store=ss)
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
 
 
 # --- direct-seed helpers (runtime cards = payload 无 'kind') -------------------

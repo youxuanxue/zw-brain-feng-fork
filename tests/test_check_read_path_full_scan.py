@@ -12,6 +12,8 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPT = REPO_ROOT / "scripts" / "check_read_path_full_scan.py"
 
+pytestmark = pytest.mark.no_db
+
 
 # 三类样例文件 ── 模拟 zw_brain/domain/repositories/ 下的真实读路径形态
 VIOLATION_PR113 = '''\

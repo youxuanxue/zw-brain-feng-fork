@@ -2,10 +2,14 @@
 
 from __future__ import annotations
 
+import pytest
+
 from zw_brain.adapters.legacy.mappers.basesubject import BasesubjectMapper
 from zw_brain.adapters.legacy.mappers.catalog_metadata import CatalogMetadataMapper
 from zw_brain.adapters.legacy.mappers.graph_lineage import GraphLineageMapper
 from zw_brain.adapters.legacy.runner import LegacyImportRunner
+
+pytestmark = pytest.mark.no_db
 
 
 def test_mappers_for_dsp_metaresource_includes_catalog_and_graph_lineage() -> None:

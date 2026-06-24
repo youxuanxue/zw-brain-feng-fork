@@ -14,6 +14,8 @@ from zw_brain.capability_registry.runtime import (
     validate_manifest,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 def _base_manifest(**overrides):
     manifest = {

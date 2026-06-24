@@ -10,6 +10,8 @@ from zw_brain.domain.policy import (
     resolve_role,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 def test_resolve_role_rejects_unknown_role() -> None:
     with pytest.raises(DomainAccessDeniedError):

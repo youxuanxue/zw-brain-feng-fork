@@ -9,6 +9,8 @@ from __future__ import annotations
 
 from tempfile import TemporaryDirectory
 
+import pytest
+
 from tests._iaf_rest_http import (
     bootstrap_iaf_runtime,
     http_request,
@@ -18,6 +20,7 @@ from tests._iaf_rest_http import (
 from zw_brain.entry.rest.server import _strip_app_prefix
 
 
+@pytest.mark.no_db
 class TestStripAppPrefix:
     def test_strips_prefixed_path(self) -> None:
         assert _strip_app_prefix("/zw-brain/health") == "/health"
@@ -35,6 +38,7 @@ class TestStripAppPrefix:
         assert _strip_app_prefix("/zw-brainfoo") == "/zw-brainfoo"
 
 
+@pytest.mark.no_db
 def test_health_routes_with_and_without_prefix() -> None:
     # /health 在前缀剥离两条路径下都路由到同一 handler。状态码与 status 取决于 WebUI shell
     # 是否就绪（built bundle 在 → 200/ok；缺失 → 503/degraded），故这里只断不变量形状，不再
@@ -51,6 +55,7 @@ def test_health_routes_with_and_without_prefix() -> None:
         stop_server(server, thread)
 
 
+@pytest.mark.no_db
 def test_unknown_adjacent_prefix_is_not_routed() -> None:
     server, thread, port = run_server()
     try:

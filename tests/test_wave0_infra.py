@@ -16,6 +16,8 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
+pytestmark = pytest.mark.no_db
+
 
 # ======================================================================
 # infra-contract-projection —— 单一契约 → 五消费面投影一致

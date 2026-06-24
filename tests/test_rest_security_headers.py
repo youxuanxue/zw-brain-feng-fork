@@ -44,6 +44,7 @@ def rest_server():
 
 # ── 单元：helper 单一事实源 ──────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_security_headers_hsts_only_on_https() -> None:
     plain = dict(security_headers(is_https=False))
     https = dict(security_headers(is_https=True))
@@ -54,6 +55,7 @@ def test_security_headers_hsts_only_on_https() -> None:
         assert name in plain and name in https
 
 
+@pytest.mark.no_db
 def test_csp_is_strict_not_security_theater() -> None:
     """CSP 必须真严格：script-src 'self' 且不含 unsafe-inline/unsafe-eval（否则形同虚设）。"""
     csp = dict(security_headers(is_https=False))["Content-Security-Policy"]
@@ -69,6 +71,7 @@ def test_csp_is_strict_not_security_theater() -> None:
 
 # ── 集成：真实 REST 服务 ─────────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_server_banner_has_no_python_version(rest_server: int) -> None:
     conn = http.client.HTTPConnection("127.0.0.1", rest_server, timeout=5)
     conn.request("GET", "/health")
@@ -79,6 +82,7 @@ def test_server_banner_has_no_python_version(rest_server: int) -> None:
     assert "Python/" not in (server or "")  # 不泄漏运行时版本
 
 
+@pytest.mark.no_db
 def test_security_headers_present_on_json_response(rest_server: int) -> None:
     conn = http.client.HTTPConnection("127.0.0.1", rest_server, timeout=5)
     conn.request("GET", "/health")
@@ -90,6 +94,7 @@ def test_security_headers_present_on_json_response(rest_server: int) -> None:
     assert resp.getheader("Strict-Transport-Security") is None
 
 
+@pytest.mark.no_db
 def test_hsts_present_behind_tls_proxy(rest_server: int) -> None:
     conn = http.client.HTTPConnection("127.0.0.1", rest_server, timeout=5)
     conn.request("GET", "/health", headers={"X-Forwarded-Proto": "https"})
@@ -98,6 +103,7 @@ def test_hsts_present_behind_tls_proxy(rest_server: int) -> None:
     assert resp.getheader("Strict-Transport-Security")
 
 
+@pytest.mark.no_db
 def test_error_responses_are_also_hardened(rest_server: int) -> None:
     """404（及 stdlib 错误页）也必须去版本化 + 带安全头，不能漏网。"""
     conn = http.client.HTTPConnection("127.0.0.1", rest_server, timeout=5)
@@ -111,6 +117,7 @@ def test_error_responses_are_also_hardened(rest_server: int) -> None:
 
 # ── A2A handler 同样去版本化 banner ──────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_a2a_handler_suppresses_version_banner() -> None:
     from zw_brain.entry.a2a.server import _A2AHandler
 

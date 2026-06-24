@@ -12,7 +12,11 @@ in this list — it's an internal middleware scratchpad.
 """
 from __future__ import annotations
 
+import pytest
+
 from zw_brain.command.deps import HandlerDeps, Repos, SkillContext
+
+pytestmark = pytest.mark.no_db
 
 
 def test_handler_deps_frozen() -> None:

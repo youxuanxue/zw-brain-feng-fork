@@ -297,6 +297,7 @@ def test_store_non_serializable_payload_raises(store: AuditStore) -> None:
         (None, "read-sensitive"),
     ],
 )
+@pytest.mark.no_db
 def test_normalize_audit_class_mapping(raw, expected) -> None:
     assert normalize_audit_class(raw) == expected
 

@@ -25,6 +25,8 @@ from zw_brain.shared.agent_runtime.manifest_checks import (  # noqa: E402
     validate_agent_bundle,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 # ── validate：用户 Q3 两个测试主体（平台指南 + AR main/hello agent）+ 外部参考样本 ──
 @pytest.mark.parametrize(

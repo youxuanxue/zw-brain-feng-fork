@@ -348,6 +348,7 @@ def test_illegal_transition_double_dept_review(brain):
     assert _status(code) == STATUS_GRANTED
 
 
+@pytest.mark.no_db
 def test_state_machine_legal_transition_table_matches_baseline():
     """状态机合法迁移表与 .feature 末尾回归场景表一致（纯函数断言，无 DB）。
 

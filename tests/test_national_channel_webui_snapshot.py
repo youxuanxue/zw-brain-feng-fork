@@ -23,6 +23,8 @@ from zw_brain.shared.national.provisioning import (
     ENV_SID_MAP,
 )
 
+pytestmark = pytest.mark.no_db
+
 
 @pytest.fixture()
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:

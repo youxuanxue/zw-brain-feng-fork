@@ -5,6 +5,8 @@
 纯函数级，不依赖 DB。
 """
 
+import pytest
+
 from zw_brain.domain.lifecycle_timeline import (
     catalog_lifecycle_timeline,
     lifecycle_sideline_note,
@@ -12,6 +14,8 @@ from zw_brain.domain.lifecycle_timeline import (
     objection_timeline,
     resource_lifecycle_timeline,
 )
+
+pytestmark = pytest.mark.no_db
 
 
 def _current(steps: list[dict]) -> dict:

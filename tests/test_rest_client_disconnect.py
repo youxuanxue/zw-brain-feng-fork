@@ -13,6 +13,8 @@ import pytest
 
 from zw_brain.entry.rest.server import RestHandler
 
+pytestmark = pytest.mark.no_db
+
 
 def _bare_handler() -> RestHandler:
     # 绕开 socket __init__：只测 handle_one_request 的边界捕获逻辑。

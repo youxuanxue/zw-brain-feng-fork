@@ -4,6 +4,8 @@
 """
 from __future__ import annotations
 
+import pytest
+
 from zw_brain.domain.services.field_derivation import (
     SOURCE_AI,
     SOURCE_DERIVED,
@@ -36,6 +38,7 @@ class _FakeReference:
 REF = _FakeReference()
 
 
+@pytest.mark.no_db
 def test_select_organ_derives_name_and_region() -> None:
     """选机构 → 带出 机构名 + 所属区划码 + 区划名（带出核心，级联一次完成）。"""
     values, prov = derive({"organ_code": "11370000MB284651XL"}, {}, reference=REF, tenant_id="sd-default")
@@ -47,6 +50,7 @@ def test_select_organ_derives_name_and_region() -> None:
         assert prov[f]["locked"] is False
 
 
+@pytest.mark.no_db
 def test_change_region_directly_rederives_name() -> None:
     """人不经机构、直选区划码 → 派生区划名；区划码本身是 human（保留）。"""
     values, prov = derive(
@@ -60,6 +64,7 @@ def test_change_region_directly_rederives_name() -> None:
     assert prov["region_code"]["source"] == SOURCE_HUMAN  # 人直选的码不被动
 
 
+@pytest.mark.no_db
 def test_derivation_overrides_human_value_on_derived_target() -> None:
     """派生权威：选机构后，机构带出的区划覆盖人此前手填的区划（不受人锁约束）。"""
     values, prov = derive(
@@ -73,6 +78,7 @@ def test_derivation_overrides_human_value_on_derived_target() -> None:
     assert prov["region_code"]["source"] == SOURCE_DERIVED  # 派生夺回所有权
 
 
+@pytest.mark.no_db
 def test_human_field_untouched_by_derivation() -> None:
     """派生只动它声明的 target；无关 human 字段（purpose）原样不动。"""
     values, prov = derive(
@@ -85,6 +91,7 @@ def test_human_field_untouched_by_derivation() -> None:
     assert prov["purpose"]["source"] == SOURCE_HUMAN
 
 
+@pytest.mark.no_db
 def test_empty_trigger_clears_derived_but_protects_human() -> None:
     """清空机构 → 回收曾派生的字段；但人直选的 region_code 不被清。"""
     # 先选机构得到一组派生值
@@ -108,6 +115,7 @@ def test_empty_trigger_clears_derived_but_protects_human() -> None:
     assert v2["region_name"] == "济南市"  # 仍据 human 的区划码派生名称
 
 
+@pytest.mark.no_db
 def test_unknown_organ_does_not_fabricate() -> None:
     """未知机构码 → 不捏造，派生字段清空（诚实，D11）。"""
     values, prov = derive({"organ_code": "NOSUCHORG"}, {}, reference=REF, tenant_id="sd-default")
@@ -118,6 +126,7 @@ def test_unknown_organ_does_not_fabricate() -> None:
 
 # ---- orchestrate_fill：身份带出 + 派生 + AI 建议（只填空、不覆盖人填） ----
 
+@pytest.mark.no_db
 def test_orchestrate_fill_ai_fills_empty_only() -> None:
     values, prov = orchestrate_fill(
         {"purpose": "", "use_reason": "人已填的理由"},
@@ -134,6 +143,7 @@ def test_orchestrate_fill_ai_fills_empty_only() -> None:
     assert prov["use_reason"]["source"] == SOURCE_HUMAN
 
 
+@pytest.mark.no_db
 def test_orchestrate_fill_identity_bring_out() -> None:
     values, prov = orchestrate_fill(
         {"purpose": "x"},
@@ -146,6 +156,7 @@ def test_orchestrate_fill_identity_bring_out() -> None:
     assert prov["applicant_org"]["source"] == SOURCE_DERIVED
 
 
+@pytest.mark.no_db
 def test_orchestrate_fill_ai_never_overrides_derived() -> None:
     # use_region 同时是 AI 可建议字段；若已被派生占据则 AI 不得覆盖
     values, prov = orchestrate_fill(
@@ -159,6 +170,7 @@ def test_orchestrate_fill_ai_never_overrides_derived() -> None:
     assert prov["region_name"]["source"] == SOURCE_DERIVED
 
 
+@pytest.mark.no_db
 def test_apply_human_edit_locks_against_reautofill() -> None:
     # 人改 purpose → 锁定；再跑 orchestrate_fill 的 AI 不再覆盖
     values, prov = orchestrate_fill({"purpose": ""}, {}, reference=REF, tenant_id="sd-default",
@@ -174,6 +186,7 @@ def test_apply_human_edit_locks_against_reautofill() -> None:
     assert values["purpose"] == "人最终定稿"
 
 
+@pytest.mark.no_db
 def test_apply_human_edit_on_trigger_rederives() -> None:
     # 人改 organ_code（trigger）→ region 重派生
     values, prov = apply_human_edit({}, {}, "organ_code", "11370000MB284651XL", actor="u",
@@ -187,8 +200,6 @@ def test_apply_human_edit_on_trigger_rederives() -> None:
 # ---- 真数据集成：ReferenceService + derive 在真导入库上跑通 ----
 from pathlib import Path  # noqa: E402
 from tempfile import TemporaryDirectory  # noqa: E402
-
-import pytest  # noqa: E402
 
 _REPO_ROOT = Path(__file__).resolve().parent.parent
 _REAL_DUMP = _REPO_ROOT / "old/10示例数据/dump-dsp_bsp-202604271139.sql"

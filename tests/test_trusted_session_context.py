@@ -24,6 +24,7 @@ from zw_brain.shared.iaf_oidc import HttpRequest, HttpResponse
 from zw_brain.shared.session_context import apply_runtime_context, build_trusted_skill_payload, resolve_trusted_role
 
 
+@pytest.mark.no_db
 def test_resolve_trusted_role_rejects_escalation() -> None:
     snapshot = {
         "role_codes": ["ROLE_ORGAN_OPERATER"],
@@ -64,6 +65,7 @@ def test_cookie_session_rejects_privilege_escalation_in_skill_body() -> None:
             stop_server(server, thread)
 
 
+@pytest.mark.no_db
 def test_apply_runtime_context_allows_empty_product_roles_for_session_bootstrap() -> None:
     snapshot = {
         "subject": "iaf-user-no-roles",
@@ -78,6 +80,7 @@ def test_apply_runtime_context_allows_empty_product_roles_for_session_bootstrap(
         resolve_trusted_role({"role": "ROLE_ORGAN_OPERATER"}, actor_snapshot=enriched)
 
 
+@pytest.mark.no_db
 def test_build_trusted_skill_payload_rejects_client_role_escalation() -> None:
     snapshot = {
         "tenant_id": "sd-default",
@@ -145,6 +148,7 @@ def test_bearer_path_rejects_smuggled_trusted_session_context_key() -> None:
             stop_server(server, thread)
 
 
+@pytest.mark.no_db
 def test_is_trusted_session_payload_only_accepts_server_sentinel() -> None:
     """R-201 单元：is_trusted_session_payload 必须做 `is` 比较，不能 truthy 检查。"""
     from zw_brain.shared.session_context import (
@@ -170,6 +174,7 @@ def test_is_trusted_session_payload_only_accepts_server_sentinel() -> None:
     assert not is_trusted_session_payload(rebuilt_via_json)
 
 
+@pytest.mark.no_db
 def test_safe_json_strips_trust_sentinel_so_audit_writes_succeed() -> None:
     from zw_brain.shared.sanitization import safe_json
     from zw_brain.shared.session_context import TRUSTED_SESSION_CONTEXT_KEY, build_trusted_skill_payload

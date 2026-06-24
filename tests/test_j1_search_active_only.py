@@ -26,6 +26,8 @@ from zw_brain.command.brain import BrainService
 from zw_brain.command.handlers.j1.data_search import search_resources
 from zw_brain.domain.discovery_snapshot_projection import DISCOVERABLE_STATUSES
 
+pytestmark = pytest.mark.no_db
+
 # 唯一查询令牌：注入的测试资源标题都含它，确保搜索结果只命中本测试资源、不被
 # 种子库其它资源干扰（种子 api_resources 标题不含此令牌）。
 _TOKEN = "活态过滤测试XZ9"

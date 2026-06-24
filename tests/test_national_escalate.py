@@ -28,6 +28,8 @@ from zw_brain.shared.national.provisioning import (
 
 _CAP = "application.escalate_national"
 
+pytestmark = pytest.mark.no_db
+
 
 @pytest.fixture()
 def _clean_env(monkeypatch: pytest.MonkeyPatch) -> None:

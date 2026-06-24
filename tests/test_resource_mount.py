@@ -38,12 +38,10 @@ MANAGER = "ROLE_ORGAN_MANAGER"
 def temp_db():
     """Fresh, migrated per-test DB. The autouse conftest fixture supplies an isolated
     empty PostgreSQL clone; here we just ensure runtime tables are present."""
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
     yield
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
 
 
 def _seed_catalogs() -> None:
@@ -366,6 +364,7 @@ _TS_FIELD_DICT = REPO_ROOT / "zw-brain-web" / "src" / "lib" / "catalogCompileFie
 _TS_SCHEMA_READER = REPO_ROOT / "zw-brain-web" / "src" / "composables" / "useResourceSchema.ts"
 
 
+@pytest.mark.no_db
 def test_field_metadata_write_read_keys_aligned() -> None:
     """后端写端字典 = 前端写端 payload 键 ⊆ 前端读端消费键，三方逐键同名。
 
@@ -390,6 +389,7 @@ def test_field_metadata_write_read_keys_aligned() -> None:
     assert not missing, f"读端 normalizeSchemaColumns 未消费写端键：{sorted(missing)}"
 
 
+@pytest.mark.no_db
 def test_b2_field_metadata_debt_closed() -> None:
     """债 b2-field-metadata-10col 现算关闭 + 回潮守卫：10 列承载缩水即红。"""
     import importlib.util

@@ -11,6 +11,8 @@ import pytest
 from zw_brain.shared.national import provisioning as prov
 from zw_brain.shared.national.provisioning import NationalChannelState
 
+pytestmark = pytest.mark.no_db
+
 
 def _clear_env(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (

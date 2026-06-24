@@ -42,6 +42,7 @@ def isolated_runtime():
 # ─── MCP serve_stdio ────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 @pytest.mark.parametrize("mode", ["prod", "production", "PROD", "Production"])
 def test_mcp_serve_refuses_in_prod_with_bypass(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
     """MCP daemon must refuse to start (exit 2) under a prod deploy mode with bypass env,
@@ -76,6 +77,7 @@ def test_mcp_serve_ok_in_non_prod(monkeypatch: pytest.MonkeyPatch) -> None:
 # ─── CLI in-process invoke ──────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 @pytest.mark.parametrize("mode", ["prod", "production"])
 def test_cli_inprocess_refuses_in_prod_with_bypass(monkeypatch: pytest.MonkeyPatch, mode: str) -> None:
     """CLI in-process invoke must fail closed (non-zero) under a prod deploy mode with

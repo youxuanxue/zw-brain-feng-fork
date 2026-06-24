@@ -32,6 +32,7 @@ def temp_db() -> None:
 # ---- 走查器：状态机 + 2 级审核复用 -----------------------------------------
 
 
+@pytest.mark.no_db
 def test_review_steps_reuse_approval_flow_walker() -> None:
     """复用 approval_flow_walker 走查 → 业务部门→主管部门 有序 2 步。"""
     steps = walker.review_step_specs()
@@ -39,17 +40,20 @@ def test_review_steps_reuse_approval_flow_walker() -> None:
     assert [s["step_no"] for s in steps] == [1, 2]
 
 
+@pytest.mark.no_db
 def test_compile_happy_path_transitions() -> None:
     walker.validate_transition(walker.DRAFT, walker.PENDING_BUSINESS_REVIEW)
     assert walker.next_review_status(walker.PENDING_BUSINESS_REVIEW, approve=True) == walker.PENDING_SUPERVISOR_REVIEW
     assert walker.next_review_status(walker.PENDING_SUPERVISOR_REVIEW, approve=True) == walker.PUBLISHED
 
 
+@pytest.mark.no_db
 def test_review_reject_rolls_back() -> None:
     assert walker.next_review_status(walker.PENDING_BUSINESS_REVIEW, approve=False) == walker.DRAFT
     assert walker.next_review_status(walker.PENDING_SUPERVISOR_REVIEW, approve=False) == walker.PENDING_BUSINESS_REVIEW
 
 
+@pytest.mark.no_db
 def test_history_revision_and_revoke_chains() -> None:
     # 历史目录处理：变更链
     walker.validate_transition(walker.PUBLISHED, walker.REVISION_DRAFT)
@@ -60,6 +64,7 @@ def test_history_revision_and_revoke_chains() -> None:
     assert walker.next_review_status(walker.PENDING_REVOKE_REVIEW, approve=True) == walker.REVOKED
 
 
+@pytest.mark.no_db
 def test_illegal_transition_rejected() -> None:
     with pytest.raises(walker.NationalExtElemTransitionError):
         walker.validate_transition(walker.DRAFT, walker.PUBLISHED)  # 不能跳过审核
@@ -136,6 +141,7 @@ def test_compile_never_writes_data_catalog(temp_db: None) -> None:
     assert nat == 1
 
 
+@pytest.mark.no_db
 def test_table_isolation_distinct_from_catalog() -> None:
     """两套表硬隔离：编制任务/基本要素表名与政务目录主线表名不重叠。"""
     from zw_brain.domain.models import (

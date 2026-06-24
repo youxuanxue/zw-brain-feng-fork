@@ -8,7 +8,12 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parent.parent
+
+pytestmark = pytest.mark.no_db
+
 _spec = importlib.util.spec_from_file_location(
     "check_webui_capability_rendered", REPO / "scripts" / "check_webui_capability_rendered.py"
 )

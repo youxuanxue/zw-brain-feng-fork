@@ -273,6 +273,7 @@ _TS_DICT = REPO_ROOT / "zw-brain-web" / "src" / "lib" / "catalogCompileFields.ts
 _TS_FIELD_RE = re.compile(r"\{\s*key:\s*'([^']+)',\s*label:\s*'([^']+)',\s*rule:\s*'([^']+)'\s*\}")
 
 
+@pytest.mark.no_db
 def test_frontend_backend_required_dict_aligned():
     """前端字典（口径权威 BASIC_INFO_FIELDS）与后端镜像 _INLINE_BASIC_REQUIRED_FIELDS 逐项相等.
 

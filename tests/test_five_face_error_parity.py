@@ -45,6 +45,7 @@ from zw_brain.shared.surface_errors import classify_domain_error
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_classifier_is_single_source_of_truth() -> None:
     """Every face derives its status/code from this one map — assert the map itself."""
     access = classify_domain_error(AccessDeniedError("x"))
@@ -118,6 +119,7 @@ def _rest_project(exc: Exception) -> _CapturedJson:
     return captured
 
 
+@pytest.mark.no_db
 def test_rest_projects_domain_errors_not_500() -> None:
     access = _rest_project(AccessDeniedError("denied"))
     assert access.status == 403, access.body
@@ -163,6 +165,7 @@ def test_rest_projects_domain_errors_not_500() -> None:
 # ─────────────────────────────────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_mcp_projects_domain_errors_not_internal() -> None:
     from zw_brain.entry.mcp.server import _structured_invocation_error
 
@@ -208,8 +211,7 @@ def a2a_wire(monkeypatch: pytest.MonkeyPatch):
     from zw_brain.command import runtime as cmd_runtime
     from zw_brain.shared import db as db_module
 
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     from zw_brain.shared.migrate import ensure_runtime_schema
 
     ensure_runtime_schema()
@@ -223,8 +225,7 @@ def a2a_wire(monkeypatch: pytest.MonkeyPatch):
     finally:
         stop_a2a_server(server, thread)
         cmd_runtime._service = None
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+        db_module.reset_engine_cache()
 
 
 # A live, A2A-exposed read capability with no required input — its surface check

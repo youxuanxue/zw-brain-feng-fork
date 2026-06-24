@@ -29,8 +29,7 @@ def temp_store():
     per-test PostgreSQL clone; this fixture just wires the store/runtime tables.
     """
     from zw_brain.shared import db as _db
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
+    _db.reset_engine_cache()
     from zw_brain.shared.database_store import DatabaseStore
     from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -38,8 +37,7 @@ def temp_store():
     store.initialize()
     ensure_runtime_schema()  # creates runtime tables (audit_event / capability_call)
     yield store
-    with _db._CACHE_LOCK:
-        _db._ENGINE_CACHE.clear()
+    _db.reset_engine_cache()
 
 
 _WHITELISTED = "governance.iam_overview"

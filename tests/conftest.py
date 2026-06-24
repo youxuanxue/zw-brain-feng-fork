@@ -71,12 +71,15 @@ This is purely test infrastructure: no Mocks, no assertion changes.
 from __future__ import annotations
 
 import os
+import sys
 import uuid
+from collections.abc import Iterator
 
 import psycopg
 import pytest
 from sqlalchemy.engine import URL, make_url
 
+from tests._pg_admin import drop_database, maintenance_connect
 from zw_brain.shared import audit as _audit_bus
 from zw_brain.shared import db as _db
 from zw_brain.shared.audit import store as _audit_store
@@ -100,6 +103,15 @@ class _NullCtx:
 
     def __exit__(self, *_exc: object) -> bool:  # pragma: no cover
         return False
+
+
+class NoDbAccessError(BaseException):
+    """Raised when a ``no_db`` test attempts to reach PostgreSQL.
+
+    This intentionally bypasses broad ``except Exception`` blocks in contract
+    probes, so accidental DB access still fails the test instead of being
+    swallowed as an expected runtime error.
+    """
 
 
 def _reset_engine_cache() -> None:
@@ -212,26 +224,35 @@ def _server_url() -> URL:
     return make_url(raw)
 
 
-def _maintenance_connect(server_url: URL) -> psycopg.Connection:
-    """Autocommit connection to the maintenance DB for CREATE/DROP DATABASE.
-
-    Autocommit is mandatory: CREATE/DROP DATABASE cannot run inside a
-    transaction block.
-    """
-    maint_db = os.environ.get(_MAINTENANCE_DB_ENV) or "postgres"
-    return psycopg.connect(
-        host=server_url.host,
-        port=server_url.port,
-        user=server_url.username,
-        password=server_url.password,
-        dbname=maint_db,
-        autocommit=True,
+def _forbid_db_access(*_args: object, **_kwargs: object) -> None:
+    raise NoDbAccessError(
+        "pytest no_db test attempted to access PostgreSQL. "
+        "Remove @pytest.mark.no_db or use a DB-backed test fixture."
     )
 
 
-def _drop_database(maint: psycopg.Connection, name: str) -> None:
-    """DROP a database, terminating any lingering connections (PG 16 FORCE)."""
-    maint.execute(f'DROP DATABASE IF EXISTS "{name}" WITH (FORCE)')
+def _patch_loaded_db_access_aliases(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    get_database_url: object,
+    create_session_factory: object,
+) -> None:
+    """Fail-close direct imports such as ``from shared.db import get_database_url``.
+
+    Some runtime modules bind DB helpers at import time. A no_db test that
+    accidentally drives one of those paths must still fail locally instead of
+    trying to open PostgreSQL through a stale function alias.
+    """
+    for module_name, module in tuple(sys.modules.items()):
+        if module is None or not module_name.startswith("zw_brain."):
+            continue
+        namespace = getattr(module, "__dict__", None)
+        if not namespace:
+            continue
+        if namespace.get("get_database_url") is get_database_url:
+            monkeypatch.setattr(module, "get_database_url", _forbid_db_access)
+        if namespace.get("create_session_factory") is create_session_factory:
+            monkeypatch.setattr(module, "create_session_factory", _forbid_db_access)
 
 
 @pytest.fixture(scope="session")
@@ -241,8 +262,8 @@ def _pg_template() -> tuple[str, URL, psycopg.Connection]:
     """
     server_url = _server_url()
     template = f"zw_tmpl_{uuid.uuid4().hex}"
-    maint = _maintenance_connect(server_url)
-    _drop_database(maint, template)  # paranoia: never inherit a stale template
+    maint = maintenance_connect(server_url)
+    drop_database(maint, template)  # paranoia: never inherit a stale template
     maint.execute(f'CREATE DATABASE "{template}" OWNER "{server_url.username}"')
 
     # Migrate the template against itself, then dispose the engine so the
@@ -268,24 +289,54 @@ def _pg_template() -> tuple[str, URL, psycopg.Connection]:
     try:
         yield template, server_url, maint
     finally:
-        _drop_database(maint, template)
+        drop_database(maint, template)
         maint.close()
 
 
 @pytest.fixture(autouse=True)
-def _isolate_db_env(_pg_template: tuple[str, URL, psycopg.Connection]):
+def _isolate_db_env(request: pytest.FixtureRequest) -> Iterator[None]:
     """Autouse, function-scoped: per-test PG clone + env/cache/audit isolation.
 
     See the module docstring for the full rationale, the deferral contract for
     explicit ``ZW_BRAIN_DB_PATH`` pinning, and the composition guarantee with the
     isolation regression lock.
     """
-    template, server_url, maint = _pg_template
     # A leaked engine/audit connection from a prior test must not bleed in.
     _reset_engine_cache()
     _reset_audit_globals()
-    _configure_durable_test_sink()
     env_snapshot = dict(os.environ)
+
+    if request.node.get_closest_marker("no_db"):
+        monkeypatch: pytest.MonkeyPatch = request.getfixturevalue("monkeypatch")
+        original_get_database_url = _db.get_database_url
+        original_create_session_factory = _db.create_session_factory
+        monkeypatch.setenv(
+            _SERVER_URL_ENV,
+            "postgresql+psycopg://pytest_no_db:pytest_no_db@127.0.0.1:1/pytest_no_db_forbidden",
+        )
+        monkeypatch.setattr(_db, "get_database_url", _forbid_db_access)
+        monkeypatch.setattr(_db, "create_session_factory", _forbid_db_access)
+        monkeypatch.setattr(_db, "_build_engine", _forbid_db_access)
+        monkeypatch.setattr(_audit_store, "get_database_url", _forbid_db_access)
+        monkeypatch.setattr(psycopg, "connect", _forbid_db_access)
+        store_mod = sys.modules.get("zw_brain.shared.database_store")
+        if store_mod is not None:
+            monkeypatch.setattr(store_mod, "create_session_factory", _forbid_db_access)
+        _patch_loaded_db_access_aliases(
+            monkeypatch,
+            get_database_url=original_get_database_url,
+            create_session_factory=original_create_session_factory,
+        )
+        try:
+            yield
+        finally:
+            _reset_engine_cache()
+            _reset_audit_globals()
+            _restore_env(env_snapshot)
+        return
+
+    _configure_durable_test_sink()
+    template, server_url, maint = request.getfixturevalue("_pg_template")
 
     # Deferral: a module-scoped realistic-data fixture (tests/_pg_realistic.py
     # realistic_pg_module) already cloned the realistic template and pinned
@@ -321,4 +372,4 @@ def _isolate_db_env(_pg_template: tuple[str, URL, psycopg.Connection]):
         _reset_engine_cache()
         _reset_audit_globals()
         _restore_env(env_snapshot)
-        _drop_database(maint, clone)
+        drop_database(maint, clone)

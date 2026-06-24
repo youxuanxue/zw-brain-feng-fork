@@ -31,6 +31,7 @@ def _run_server(port: int) -> ThreadingRestServer:
     return server
 
 
+@pytest.mark.no_db
 @pytest.mark.skipif(not DIST_INDEX.is_file(), reason="zw-brain-web/dist-vite missing; run npm run build")
 def test_web_public_root_prefers_dist_vite() -> None:
     root = _web_root()
@@ -63,6 +64,7 @@ def test_rest_serves_built_index_and_js_under_prefix() -> None:
         server.shutdown()
 
 
+@pytest.mark.no_db
 def test_health_degraded_503_when_shell_missing(monkeypatch: pytest.MonkeyPatch) -> None:
     # 回归：当 SPA shell（index.html）缺失时，/health 必须诚实报 503 + status=degraded +
     # webui:false，而不是旧的 false-green 200/"ok"（import 期 pin 的 WEB_PUBLIC_ROOT 让
@@ -83,6 +85,7 @@ def test_health_degraded_503_when_shell_missing(monkeypatch: pytest.MonkeyPatch)
         server.shutdown()
 
 
+@pytest.mark.no_db
 def test_router_hash_history_uses_vite_base_prefix() -> None:
     # 反代前缀部署：hash 路由的 base 必须取 import.meta.env.BASE_URL（/zw-brain/），
     # 否则 createWebHashHistory() 退回 '/'，SPA 跳转后丢掉 /zw-brain/ 段
@@ -93,6 +96,7 @@ def test_router_hash_history_uses_vite_base_prefix() -> None:
     )
 
 
+@pytest.mark.no_db
 def test_validate_webui_shell_refuses_boot_in_prod_when_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -104,6 +108,7 @@ def test_validate_webui_shell_refuses_boot_in_prod_when_missing(
         rest_server._validate_webui_shell()
 
 
+@pytest.mark.no_db
 def test_validate_webui_shell_logs_but_boots_in_dev_when_missing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -113,6 +118,7 @@ def test_validate_webui_shell_logs_but_boots_in_dev_when_missing(
     rest_server._validate_webui_shell()  # 不抛即通过
 
 
+@pytest.mark.no_db
 def test_validate_webui_shell_noop_when_present(monkeypatch: pytest.MonkeyPatch) -> None:
     # shell 在位：无论部署模式都静默放行（即便误判 prod 也不应拒启）。
     monkeypatch.setattr(rest_server, "_webui_index_readable", lambda: True)
@@ -120,6 +126,7 @@ def test_validate_webui_shell_noop_when_present(monkeypatch: pytest.MonkeyPatch)
     rest_server._validate_webui_shell()  # 不抛即通过
 
 
+@pytest.mark.no_db
 def test_rest_main_ensures_schema_before_anchor_worker(monkeypatch: pytest.MonkeyPatch) -> None:
     events: list[str] = []
 

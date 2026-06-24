@@ -7,7 +7,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 NAV_TS = Path(__file__).resolve().parents[1] / "zw-brain-web" / "src" / "config" / "productShellNav.ts"
+
+pytestmark = pytest.mark.no_db
 
 
 def _roles_for_key(key: str) -> set[str]:

@@ -17,7 +17,11 @@ from __future__ import annotations
 
 from typing import Any
 
+import pytest
+
 from zw_brain.domain.discovery_snapshot_projection import enrich_delivery_tasks_snapshot
+
+pytestmark = pytest.mark.no_db
 
 
 class _StubRequestService:

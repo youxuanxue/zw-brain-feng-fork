@@ -40,6 +40,7 @@ import psycopg
 import pytest
 from sqlalchemy.engine import make_url
 
+from tests._pg_admin import drop_database, maintenance_connect
 from zw_brain.shared import db as _db
 
 # Persistent template DB built by scripts/build_realistic_pg_template (legacy
@@ -50,19 +51,6 @@ REALISTIC_TEMPLATE_DB = os.environ.get("ZW_BRAIN_TEST_REALISTIC_TEMPLATE", "zw_r
 def _server_url():
     """Server URL the test PG lives on (same resolution as conftest)."""
     return make_url(os.environ.get("ZW_BRAIN_DATABASE_URL") or _db.DEFAULT_PG_URL)
-
-
-def _maintenance_connect(server_url) -> psycopg.Connection:
-    """Autocommit conn to the maintenance DB for CREATE/DROP/▸exists checks."""
-    maint_db = os.environ.get("ZW_BRAIN_TEST_PG_MAINTENANCE_DB", "postgres")
-    return psycopg.connect(
-        host=server_url.host,
-        port=server_url.port,
-        user=server_url.username,
-        password=server_url.password,
-        dbname=maint_db,
-        autocommit=True,
-    )
 
 
 def _template_exists(maint: psycopg.Connection, name: str) -> bool:
@@ -79,7 +67,7 @@ def realistic_pg_module() -> Iterator[str]:
     the old per-module ``shutil.copy(SEED_DB, SHADOW_DB)`` shadow database.
     """
     server_url = _server_url()
-    maint = _maintenance_connect(server_url)
+    maint = maintenance_connect(server_url)
     try:
         if not _template_exists(maint, REALISTIC_TEMPLATE_DB):
             pytest.skip(
@@ -88,7 +76,7 @@ def realistic_pg_module() -> Iterator[str]:
                 "the legacy dump corpus skips these real-data tests)"
             )
         clone = f"zw_real_{uuid.uuid4().hex}"
-        maint.execute(f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)')
+        drop_database(maint, clone)
         maint.execute(f'CREATE DATABASE "{clone}" TEMPLATE "{REALISTIC_TEMPLATE_DB}"')
         saved_url = os.environ.get("ZW_BRAIN_DATABASE_URL")
         saved_default = _db.DEFAULT_PG_URL
@@ -110,6 +98,6 @@ def realistic_pg_module() -> Iterator[str]:
                 os.environ.pop("ZW_BRAIN_DATABASE_URL", None)
             else:
                 os.environ["ZW_BRAIN_DATABASE_URL"] = saved_url
-            maint.execute(f'DROP DATABASE IF EXISTS "{clone}" WITH (FORCE)')
+            drop_database(maint, clone)
     finally:
         maint.close()

@@ -5,7 +5,11 @@
 每个运行时 status 的当前段 + holder 钉死，防再回潮。纯函数级，不依赖 DB。
 """
 
+import pytest
+
 from zw_brain.domain.services.request_service import RequestService
+
+pytestmark = pytest.mark.no_db
 
 _REQ = {"id": "R", "providerOrgName": "省大数据局"}
 

@@ -35,12 +35,14 @@ def _make_stats(dump: str) -> ImportStats:
     return ImportStats(schema="dsp_bsp", dump_path=Path(dump))
 
 
+@pytest.mark.no_db
 def test_add_issue_rejects_unknown_severity() -> None:
     stats = _make_stats("dump-dsp_bsp-x.sql")
     with pytest.raises(ValueError, match="severity"):
         stats.add_issue("x", "y", "z", severity="banana")  # type: ignore[arg-type]
 
 
+@pytest.mark.no_db
 def test_add_issue_records_severity_field() -> None:
     stats = _make_stats("dump-dsp_bsp-x.sql")
     stats.add_issue("missing_manifest", "pub_user_role", "", severity="warn")

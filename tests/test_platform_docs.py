@@ -5,6 +5,8 @@ import pytest
 
 from zw_brain.shared import platform_docs
 
+pytestmark = pytest.mark.no_db
+
 
 @pytest.fixture
 def docs_root(tmp_path, monkeypatch: pytest.MonkeyPatch) -> None:

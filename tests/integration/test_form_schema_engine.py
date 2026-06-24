@@ -380,6 +380,7 @@ def test_to_json_schema_emits_valid_draft07(session):
     assert set(schema["required"]) == {"applicant_name", "apply_date"}
 
 
+@pytest.mark.no_db
 def test_manifest_registered_and_validates() -> None:
     from zw_brain.capability_registry.runtime import load_manifests
 

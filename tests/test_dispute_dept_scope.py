@@ -24,14 +24,12 @@ ORG_B = "36010000876"         # 无关机构
 def temp_db() -> None:
     """conftest autouse fixture supplies an isolated empty PG clone; just ensure
     schema + reset the engine cache around the test（与 M2 解析器单测同一范式）。"""
-    with db_module._CACHE_LOCK:
-        db_module._ENGINE_CACHE.clear()
+    db_module.reset_engine_cache()
     ensure_runtime_schema()
     try:
         yield None
     finally:
-        with db_module._CACHE_LOCK:
-            db_module._ENGINE_CACHE.clear()
+        db_module.reset_engine_cache()
 
 
 def _seed_cases() -> dict[str, str]:

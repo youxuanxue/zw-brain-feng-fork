@@ -5,7 +5,11 @@ with_lifecycle_label 只在携带 lifecycle_status 时补 label（不污染无�
 """
 from __future__ import annotations
 
+import pytest
+
 from zw_brain.domain.resource_lifecycle import lifecycle_label, with_lifecycle_label
+
+pytestmark = pytest.mark.no_db
 
 
 def test_active_is_published_not_reusable() -> None:

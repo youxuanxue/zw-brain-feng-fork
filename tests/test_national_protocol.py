@@ -26,6 +26,8 @@ from zw_brain.shared.national.provisioning import NationalProvisioning
 from zw_brain.shared.national.return_codes import NationalResponse, parse_response
 from zw_brain.shared.national.signing import sign_request
 
+pytestmark = pytest.mark.no_db
+
 
 def _prov() -> NationalProvisioning:
     return NationalProvisioning(

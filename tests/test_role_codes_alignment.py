@@ -17,7 +17,11 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
+
 REPO = Path(__file__).resolve().parent.parent
+
+pytestmark = pytest.mark.no_db
 
 
 def _load_module(path: Path, name: str):

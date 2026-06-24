@@ -59,6 +59,7 @@ def test_wheel_build_and_install_smoke() -> None:
         import psycopg
         from sqlalchemy.engine import make_url
 
+        from tests._pg_admin import drop_database
         from zw_brain.shared.db import DEFAULT_PG_URL
 
         server = make_url(os.environ.get("ZW_BRAIN_DATABASE_URL") or DEFAULT_PG_URL)
@@ -109,6 +110,6 @@ def test_wheel_build_and_install_smoke() -> None:
             assert "One-shot legacy dump migration" in migrate.stdout
         finally:
             try:
-                maint.execute(f'DROP DATABASE IF EXISTS "{pkg_db}" WITH (FORCE)')
+                drop_database(maint, pkg_db)
             finally:
                 maint.close()

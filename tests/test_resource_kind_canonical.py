@@ -11,6 +11,8 @@ import pytest
 
 from zw_brain.domain.resource_kind import canonical_resource_kind
 
+pytestmark = pytest.mark.no_db
+
 
 @pytest.mark.parametrize(
     ("raw", "expected"),

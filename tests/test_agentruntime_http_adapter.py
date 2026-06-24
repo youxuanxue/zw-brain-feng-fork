@@ -14,6 +14,8 @@ import pytest
 from zw_brain.shared.agent_runtime import http_client
 from zw_brain.shared.agent_runtime.errors import AgentRuntimeNotFoundError
 
+pytestmark = pytest.mark.no_db
+
 
 class _FakeClient:
     """模拟 AR REST：start 返回 running，N 次 get 后变 completed。"""

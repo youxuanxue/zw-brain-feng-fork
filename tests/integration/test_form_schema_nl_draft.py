@@ -26,6 +26,7 @@ def session():
 # Tier 1 deterministic
 # ──────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_generate_draft_payload_deterministic_7_field_form():
     from zw_brain.domain.form_schema_nl_draft import generate_draft_payload
 
@@ -40,6 +41,7 @@ def test_generate_draft_payload_deterministic_7_field_form():
     assert meta["field_count"] == 7
 
 
+@pytest.mark.no_db
 def test_generate_draft_payload_recognizes_common_field_names():
     from zw_brain.domain.form_schema_nl_draft import generate_draft_payload
 
@@ -70,6 +72,7 @@ def test_generate_draft_payload_recognizes_common_field_names():
 # deterministic-only：zw-brain 不持有推理 SDK/env
 # ──────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_generate_draft_payload_uses_deterministic_without_inference(monkeypatch):
     import zw_brain.domain.form_schema_nl_draft as nl
 
@@ -329,6 +332,7 @@ def test_sichuan_7_field_e2e_one_sentence_to_live():
     assert {"form_schema.nl_draft", "form_schema.promote_to_preview", "form_schema.commit"} <= skills_seen
 
 
+@pytest.mark.no_db
 def test_manifest_load_passes() -> None:
     from zw_brain.capability_registry.runtime import load_manifests
 

@@ -6,8 +6,12 @@ from __future__ import annotations
 
 import inspect
 
+import pytest
+
 from zw_brain.entry.rest.server import RestHandler
 from zw_brain.shared.auth_context import AuthContext, reset_auth_context, set_auth_context
+
+pytestmark = pytest.mark.no_db
 
 
 def _auth_ctx(role_codes: tuple[str, ...]) -> AuthContext:

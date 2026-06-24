@@ -5,7 +5,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+pytestmark = pytest.mark.no_db
 
 # wave-2/3 要求 ≥3 feature；wave-4 飞轮反模式 #8 拆分后仅留 1 个机械测 feature（其余 SLI 看板转 docs/customer-readiness/wave4-cutoff-criteria.md）
 _WAVE_DIRS_MIN3 = (

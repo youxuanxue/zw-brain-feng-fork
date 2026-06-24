@@ -40,6 +40,7 @@ from feature_status_lib import (  # noqa: E402
         (2, "", "fail"),  # 退非零、无汇总仍 fail
     ],
 )
+@pytest.mark.no_db
 def test_classify_pytest_vacuous_skip_not_green(rc, out, expect):
     assert _classify_pytest(rc, out)[0] == expect
 
@@ -73,17 +74,20 @@ def test_real_pytest_module_classifies_pass(monkeypatch):
         (1, "2 failed\n3 passed (5s)", "fail"),
     ],
 )
+@pytest.mark.no_db
 def test_classify_e2e_vacuous_skip_not_green(rc, out, expect):
     assert _classify_e2e(rc, out)[0] == expect
 
 
 # ---------------------------------------------------------------- R-009 salt
+@pytest.mark.no_db
 def test_salt_files_all_exist():
     """全局盐文件列表里每个文件都须真实存在——列表登记了不存在的文件即配置漂移。"""
     missing = [s for s in GLOBAL_SALT_FILES if not (REPO / s).is_file()]
     assert not missing, f"GLOBAL_SALT_FILES 登记了不存在的文件：{missing}"
 
 
+@pytest.mark.no_db
 def test_fingerprint_includes_shared_salt(tmp_path, monkeypatch):
     """改任一共享盐文件内容 → 同一 feature 的指纹必变（否则弱化 helper 能在指纹'新鲜'下保绿）。"""
     import feature_status_lib as lib

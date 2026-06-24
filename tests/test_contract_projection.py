@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+
 from scripts.export_agent_contract import (
     build_a2a_card,
     build_mcp_tool_descriptor,
@@ -17,6 +19,7 @@ from zw_brain.command.brain import BrainService, UnknownSkillError
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+@pytest.mark.no_db
 def test_generated_a2a_card_and_runtime_bindings_cover_registered_skills(monkeypatch) -> None:
     monkeypatch.delenv("ZW_BRAIN_REST_BASE_URL", raising=False)
     monkeypatch.delenv("ZW_BRAIN_REST_PORT", raising=False)
@@ -41,6 +44,7 @@ def test_generated_a2a_card_and_runtime_bindings_cover_registered_skills(monkeyp
     assert all(item["endpoint"].startswith("http://127.0.0.1:8800/api/skills/") for item in bindings)
 
 
+@pytest.mark.no_db
 def test_generated_a2a_endpoint_follows_rest_base_url_override(monkeypatch) -> None:
     monkeypatch.setenv("ZW_BRAIN_REST_BASE_URL", "https://brain.example.internal:9443/")
 
@@ -56,6 +60,7 @@ def test_generated_a2a_endpoint_follows_rest_base_url_override(monkeypatch) -> N
     assert any(item["endpoint"] == "https://brain.example.internal:9443/api/skills/request.create" for item in bindings)
 
 
+@pytest.mark.no_db
 def test_tenant_policy_evaluate_contract_is_shared_across_five_surfaces() -> None:
     skills = {item["skill_id"]: item for item in discover_skills() if "error" not in item}
     skill = skills["tenant.policy.evaluate"]
@@ -69,6 +74,7 @@ def test_tenant_policy_evaluate_contract_is_shared_across_five_surfaces() -> Non
         assert name in result_props
 
 
+@pytest.mark.no_db
 def test_governance_iam_overview_contract_is_shared_across_five_surfaces() -> None:
     skills = {item["skill_id"]: item for item in discover_skills() if "error" not in item}
     skill = skills["governance.iam_overview"]
@@ -82,6 +88,7 @@ def test_governance_iam_overview_contract_is_shared_across_five_surfaces() -> No
         assert name in output_props
 
 
+@pytest.mark.no_db
 def test_generated_mcp_descriptors_cover_mcp_compatible_skills() -> None:
     skills = [item for item in discover_skills() if "error" not in item]
     mcp_skills = [item for item in skills if is_surface_enabled(item, "mcp")]
@@ -93,6 +100,7 @@ def test_generated_mcp_descriptors_cover_mcp_compatible_skills() -> None:
     assert "approval.review_decide" not in descriptors
 
 
+@pytest.mark.no_db
 def test_generated_runtime_bindings_file_is_valid_json() -> None:
     path = REPO_ROOT / "zw_brain" / "entry" / "a2a" / "tools" / "runtime_bindings.json"
     data = json.loads(path.read_text(encoding="utf-8"))
@@ -100,6 +108,7 @@ def test_generated_runtime_bindings_file_is_valid_json() -> None:
     assert any(item["tool_name"] == "request.create" for item in data)
 
 
+@pytest.mark.no_db
 def test_registry_projection_metadata_matches_openapi_mcp_and_a2a() -> None:
     skills = {item["skill_id"]: item for item in discover_skills() if "error" not in item}
     openapi = build_rest_openapi(list(skills.values()))
@@ -159,6 +168,7 @@ def test_registry_projection_metadata_matches_openapi_mcp_and_a2a() -> None:
             assert skill_id not in a2a_bindings, skill_id
 
 
+@pytest.mark.no_db
 def test_webui_uses_registry_gateways_only() -> None:
     # F3 vite 接管后旧 vanilla bundle 退役；本测试同步迁到 src/composables 校验：
     #   (1) skill 调用必须走 /api/skills/<id> （即 registry gateway）；
@@ -199,6 +209,7 @@ def test_webui_uses_registry_gateways_only() -> None:
     )
 
 
+@pytest.mark.no_db
 def test_external_capability_contracts_are_registered_but_not_direct_surfaces() -> None:
     skills = [item for item in discover_skills() if "error" not in item]
     external_skills = [item for item in skills if item.get("execution_binding") == "external_capability"]
@@ -266,6 +277,7 @@ def test_registered_builtin_contracts_are_brain_service_routed() -> None:
     assert missing == []
 
 
+@pytest.mark.no_db
 def test_registered_skill_permissions_are_assigned_to_roles() -> None:
     """live skill 的 permissions 必须被至少一个 role 持有；
     deferred:wave-N / external 状态不进任何 surface 投影，无 role 绑定刚性需求。"""
@@ -333,6 +345,7 @@ def test_external_capability_contracts_are_not_brain_service_invokable() -> None
         raise AssertionError("external capability contracts must not be direct BrainService writes")
 
 
+@pytest.mark.no_db
 def test_check_projection_drift_catches_tampered_projection() -> None:
     """负向一票否决（feature「手维护引发 drift 必须被拦截」）.
 

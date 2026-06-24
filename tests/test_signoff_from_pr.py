@@ -8,6 +8,10 @@ from __future__ import annotations
 import importlib.util
 from pathlib import Path
 
+import pytest
+
+pytestmark = pytest.mark.no_db
+
 REPO = Path(__file__).resolve().parent.parent
 _spec = importlib.util.spec_from_file_location(
     "signoff_from_pr", REPO / "scripts" / "signoff_from_pr.py"

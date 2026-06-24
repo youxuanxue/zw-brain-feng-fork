@@ -37,6 +37,7 @@ from zw_brain.shared.auth_session import SESSION_COOKIE_NAME
 # ── Layer 1: domain policy ──────────────────────────────────────────────────
 
 
+@pytest.mark.no_db
 def test_permissioned_read_without_role_key_is_still_enforced() -> None:
     """The role-key escape is gone: a permissioned read-only cap is enforced against
     the resolved role even when the original payload carried no ``role`` key."""
@@ -52,6 +53,7 @@ def test_permissioned_read_without_role_key_is_still_enforced() -> None:
         enforce_manifest_policy("audit.event.query", manifest, "ROLE_ORGAN_OPERATER", {})
 
 
+@pytest.mark.no_db
 def test_permissioned_read_with_authorized_role_passes() -> None:
     """An authorized resolved role still passes the same permissioned read — the fix
     denies only the *under-privileged* case, not legitimate reads."""
@@ -64,6 +66,7 @@ def test_permissioned_read_with_authorized_role_passes() -> None:
     enforce_manifest_policy("audit.event.query", manifest, "ROLE_SECURITY_AUDIT", {})
 
 
+@pytest.mark.no_db
 def test_unpermissioned_read_remains_public() -> None:
     """Capabilities that declare no permissions stay public-by-design (no-op check)."""
     manifest = {

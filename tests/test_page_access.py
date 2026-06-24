@@ -7,6 +7,10 @@
 
 from __future__ import annotations
 
+import pytest
+
+pytestmark = pytest.mark.no_db
+
 # 与 productShellNav.ts PRODUCT_SHELL_NAV 同步
 _SHELL_ROLES: dict[str, frozenset[str]] = {
     "workbench": frozenset(

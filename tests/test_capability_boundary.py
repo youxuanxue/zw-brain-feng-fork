@@ -19,6 +19,8 @@ import pytest
 
 SCRIPT = Path(__file__).resolve().parent.parent / "scripts" / "check_capability_boundary.py"
 
+pytestmark = pytest.mark.no_db
+
 
 def _write_manifest(directory: Path, skill_id: str, *, binding: str, status: str, journey: str = "j1") -> None:
     """Write a minimal manifest the check script can parse. Fields kept minimal — only

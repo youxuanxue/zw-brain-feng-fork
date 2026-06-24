@@ -23,7 +23,11 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+import pytest
+
 from tests.test_page_access import _is_route_allowed
+
+pytestmark = pytest.mark.no_db
 
 _ROOT = Path(__file__).resolve().parents[1]
 _WEB_SRC = _ROOT / "zw-brain-web" / "src"

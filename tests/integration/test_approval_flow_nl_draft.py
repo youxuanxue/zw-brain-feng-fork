@@ -26,6 +26,7 @@ def session():
 # Tier 1 deterministic
 # ──────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_generate_draft_payload_deterministic_4_level_approval():
     from zw_brain.domain.approval_flow_nl_draft import generate_draft_payload
 
@@ -44,6 +45,7 @@ def test_generate_draft_payload_deterministic_4_level_approval():
     assert meta["level"] == 4
 
 
+@pytest.mark.no_db
 def test_generate_draft_payload_deterministic_chinese_numerals():
     from zw_brain.domain.approval_flow_nl_draft import generate_draft_payload
 
@@ -62,6 +64,7 @@ def test_generate_draft_payload_deterministic_chinese_numerals():
 # deterministic-only：zw-brain 不持有推理 SDK/env
 # ──────────────────────────────────────────────────────────────────────────
 
+@pytest.mark.no_db
 def test_generate_draft_payload_uses_deterministic_without_inference(monkeypatch):
     import zw_brain.domain.approval_flow_nl_draft as nl
 
@@ -322,6 +325,7 @@ def test_anshan_4_level_e2e_one_sentence_to_live():
     assert {"approval_flow.nl_draft", "approval_flow.schema.promote_to_preview", "approval_flow.schema.commit"} <= skills_seen
 
 
+@pytest.mark.no_db
 def test_manifest_load_passes() -> None:
     from zw_brain.capability_registry.runtime import load_manifests
 

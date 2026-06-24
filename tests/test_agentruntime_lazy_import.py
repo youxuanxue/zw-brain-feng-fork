@@ -5,6 +5,8 @@ import importlib.util
 
 import pytest
 
+pytestmark = pytest.mark.no_db
+
 
 def test_capability_provider_has_no_top_level_agent_runtime_import() -> None:
     import zw_brain.shared.agent_runtime.capability_provider as mod
