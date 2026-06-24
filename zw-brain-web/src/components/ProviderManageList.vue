@@ -101,8 +101,11 @@ function hasTimeline(r: ProviderAssetRow): boolean {
           <select v-model="statusFilter" class="filter-select">
             <option value="">全部生命周期</option>
             <option value="草稿">草稿</option>
-            <option value="审批中">审批中</option>
+            <option value="审核中">审核中</option>
+            <option value="待发布">待发布</option>
             <option value="已发布">已发布</option>
+            <option value="已停用">已停用</option>
+            <option value="已撤销">已撤销</option>
             <option value="已驳回">已驳回</option>
           </select>
         </div>
