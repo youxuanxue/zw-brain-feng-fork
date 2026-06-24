@@ -89,6 +89,56 @@ describe('WorkbenchTodoActionPanel · decision-list', () => {
     });
   });
 
+  it('国家通道未配置时展示真实 pending 回执原因', async () => {
+    invokeActionStub.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      data: {
+        national_channel: {
+          status: 'pending',
+          reason: '国家通道待配置接入信息，已记录转报意图',
+        },
+      },
+    });
+    const nationalAction: WorkbenchTodoActionList = {
+      kind: 'decision-list',
+      items: [
+        {
+          id: 'A-NAT-1',
+          label: '国家级数据申请',
+          capability: 'application.escalate_national',
+          gate: 'application.escalate_national',
+          basePayload: { application_code: 'A-NAT-1' },
+          context: [{ label: '申请资源', value: '国家级数据申请' }],
+          decisions: [
+            {
+              label: '转报国家平台',
+              tone: 'primary',
+              success: '已提交国家通道',
+              payload: { action: 'escalate' },
+            },
+          ],
+        },
+      ],
+    };
+    const w = mount(WorkbenchTodoActionPanel, {
+      props: { action: nationalAction, role: 'ROLE_BUSIAUDIT' },
+    });
+
+    await w.get('[data-testid="workbench-todo-decision"]').trigger('click');
+
+    expect(invokeActionStub).toHaveBeenCalledWith({
+      skillId: 'application.escalate_national',
+      payload: { application_code: 'A-NAT-1', action: 'escalate' },
+      successTitle: '已提交国家通道',
+    });
+    expect(pushToast).toHaveBeenCalledWith({
+      kind: 'warn',
+      title: '国家通道待接入',
+      detail: '国家通道待配置接入信息，已记录转报意图',
+    });
+  });
+
   it('needsReason 的决策（退回）→ 首点展开理由框，不立即下发', async () => {
     const w = mountList();
     expect(w.find('[data-testid="workbench-decision-reason"]').exists()).toBe(false);

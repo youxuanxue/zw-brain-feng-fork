@@ -22,6 +22,9 @@ def _clear_env(monkeypatch: pytest.MonkeyPatch) -> None:
         prov.ENV_APPKEY,
         prov.ENV_APPSECRET,
         prov.ENV_SID_MAP,
+        prov.ENV_BASIC_ELEM_TEMPLATE_READY,
+        prov.ENV_RECEIPT_RECONCILIATION_READY,
+        prov.ENV_CREDENTIAL_LIFECYCLE_READY,
     ):
         monkeypatch.delenv(name, raising=False)
 
@@ -60,6 +63,18 @@ def test_enabled_and_provisioned(monkeypatch: pytest.MonkeyPatch) -> None:
     assert cfg.endpoint == "http://10.0.0.1:8080"
     assert cfg.sid_for("catalog.report") == "sid-001"
     assert cfg.sid_for("unknown.interface") is None
+    assert prov.is_national_sync_ready() is False
+
+
+def test_sync_ready_requires_external_readiness(monkeypatch: pytest.MonkeyPatch) -> None:
+    _clear_env(monkeypatch)
+    monkeypatch.setenv(prov.ENV_ENABLED, "1")
+    _provision(monkeypatch)
+    monkeypatch.setenv(prov.ENV_BASIC_ELEM_TEMPLATE_READY, "1")
+    monkeypatch.setenv(prov.ENV_RECEIPT_RECONCILIATION_READY, "1")
+    assert prov.is_national_sync_ready() is False
+    monkeypatch.setenv(prov.ENV_CREDENTIAL_LIFECYCLE_READY, "1")
+    assert prov.is_national_sync_ready() is True
 
 
 def test_provisioned_requires_all_fields(monkeypatch: pytest.MonkeyPatch) -> None:

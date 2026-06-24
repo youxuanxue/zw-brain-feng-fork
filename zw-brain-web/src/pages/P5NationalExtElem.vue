@@ -22,14 +22,30 @@ const nationalChannel = computed(
   () => (webui.value.nationalChannel as Record<string, unknown> | undefined) ?? {},
 );
 const channelEnabled = computed(() => nationalChannel.value.enabled === true);
-const channelProvisioned = computed(() => nationalChannel.value.provisioned === true);
+const channelSyncReady = computed(() => nationalChannel.value.syncReady === true);
 const channelNotice = computed(() => String(nationalChannel.value.notice ?? '国家通道待配置接入信息'));
+const channelSyncBlockedNotice = computed(() =>
+  String(nationalChannel.value.operatorSummary ?? '草拟与审核可用，发布同步需平台运维员补齐接入信息'),
+);
+const opsRoute = computed(() => String(nationalChannel.value.opsRoute ?? '#/integration-admin'));
+const missingConfigItems = computed(() =>
+  ((nationalChannel.value.missingConfigItems as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => String(it.label ?? ''))
+    .filter(Boolean),
+);
+const missingExternalItems = computed(() =>
+  ((nationalChannel.value.missingExternalReadinessItems as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => String(it.label ?? ''))
+    .filter(Boolean),
+);
+const missingSummary = computed(() => [...missingConfigItems.value, ...missingExternalItems.value]);
 
 // 编制态中文标签（R12：用户可见不暴露英文枚举码）。
 const STATUS_LABEL: Record<string, string> = {
   draft: '草稿',
   pending_business_review: '待业务部门审核',
   pending_supervisor_review: '待主管部门审核',
+  pending_national_sync: '待同步国家平台',
   published: '已发布',
   revision_draft: '变更草稿',
   pending_business_review_revision: '变更待业务部门审核',
@@ -49,9 +65,15 @@ interface CompileTask {
 
 const items = ref<CompileTask[]>([]);
 const loading = ref(false);
+const creating = ref(false);
 const errorMsg = ref('');
 const newCode = ref('');
 const newTitle = ref('');
+
+function generatedDraftCode(): string {
+  const stamp = new Date().toISOString().replace(/\D/g, '').slice(0, 17);
+  return `C_NAT_${stamp}`;
+}
 
 async function loadTasks(): Promise<void> {
   if (!canCompile.value || !channelEnabled.value) {
@@ -90,16 +112,23 @@ watch(source, (live) => {
 watch([role, channelEnabled], () => void loadTasks());
 
 async function createDraft(): Promise<void> {
-  if (!newCode.value.trim()) return;
-  const result = await invokeActionStub({
-    skillId: COMPILE_SKILL,
-    payload: { action: 'create', task_code: newCode.value.trim(), title: newTitle.value.trim() || newCode.value.trim() },
-    successTitle: '已创建编制草稿',
-  });
-  if (!result.ok) return;
-  newCode.value = '';
-  newTitle.value = '';
-  await loadTasks();
+  if (creating.value) return;
+  creating.value = true;
+  const code = newCode.value.trim() || generatedDraftCode();
+  const title = newTitle.value.trim() || '国家扩展要素编制草稿';
+  try {
+    const result = await invokeActionStub({
+      skillId: COMPILE_SKILL,
+      payload: { action: 'create', task_code: code, title },
+      successTitle: '已创建编制草稿',
+    });
+    if (!result.ok) return;
+    newCode.value = '';
+    newTitle.value = '';
+    await loadTasks();
+  } finally {
+    creating.value = false;
+  }
 }
 
 async function submitTask(code: string): Promise<void> {
@@ -109,6 +138,11 @@ async function submitTask(code: string): Promise<void> {
 
 async function reviewTask(code: string): Promise<void> {
   const result = await invokeActionStub({ skillId: COMPILE_SKILL, payload: { action: 'review', task_code: code, approve: true }, successTitle: '已通过审核' });
+  if (result.ok) await loadTasks();
+}
+
+async function syncTask(code: string): Promise<void> {
+  const result = await invokeActionStub({ skillId: COMPILE_SKILL, payload: { action: 'sync', task_code: code }, successTitle: '已同步国家平台' });
   if (result.ok) await loadTasks();
 }
 
@@ -136,14 +170,31 @@ const headerMeta = computed(() => {
       <p v-else-if="!channelEnabled" class="role-hint">{{ channelNotice }}</p>
 
       <div v-else>
-        <p v-if="!channelProvisioned" class="notice-pending">
-          {{ channelNotice }}；当前可草拟与审核编制目录，「发布并同步国家平台」待接入信息配齐后可用。
+        <p v-if="!channelSyncReady" class="notice-pending">
+          {{ channelSyncBlockedNotice }}；当前可草拟与审核编制目录，不标记已同步国家平台。
+          <a :href="opsRoute" data-testid="nat-ext-ops-link">查看运维配置</a>
         </p>
 
+        <section v-if="!channelSyncReady && missingSummary.length" class="readiness-panel" data-testid="nat-ext-readiness-missing">
+          <header>
+            <strong>发布同步待平台运维补齐</strong>
+            <a :href="opsRoute">外部系统 · 国家通道</a>
+          </header>
+          <ul>
+            <li v-for="label in missingSummary" :key="label">{{ label }}</li>
+          </ul>
+        </section>
+
         <div class="new-row">
-          <input v-model="newCode" class="ipt" placeholder="编制目录编号（如 C_NAT_001）" data-testid="nat-ext-new-code" />
+          <input v-model="newCode" class="ipt" placeholder="编制目录编号（可选）" data-testid="nat-ext-new-code" />
           <input v-model="newTitle" class="ipt" placeholder="目录名称" data-testid="nat-ext-new-title" />
-          <button type="button" class="primary-btn" data-testid="nat-ext-create-btn" @click="createDraft">新建编制草稿</button>
+          <button
+            type="button"
+            class="primary-btn"
+            data-testid="nat-ext-create-btn"
+            :disabled="creating"
+            @click="createDraft"
+          >{{ creating ? '创建中…' : '新建编制草稿' }}</button>
         </div>
 
         <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
@@ -170,11 +221,22 @@ const headerMeta = computed(() => {
                 >业务部门审核通过</button>
                 <button
                   v-else-if="it.compile_status === 'pending_supervisor_review' || it.compile_status === 'pending_supervisor_review_revision'"
-                  type="button" class="row-link-btn publish" data-testid="nat-ext-publish-btn"
-                  :disabled="!channelProvisioned"
-                  :title="channelProvisioned ? '' : channelNotice"
+                  type="button" class="row-link-btn" data-testid="nat-ext-supervisor-review-btn"
                   @click="reviewTask(it.task_code)"
-                >主管审核并发布（同步国家平台）</button>
+                >主管审核通过（待同步）</button>
+                <template v-else-if="it.compile_status === 'pending_national_sync'">
+                  <button
+                    type="button" class="row-link-btn publish" data-testid="nat-ext-publish-btn"
+                    :disabled="!channelSyncReady"
+                    :title="channelSyncReady ? '' : channelSyncBlockedNotice"
+                    @click="syncTask(it.task_code)"
+                  >同步国家平台</button>
+                  <span
+                    v-if="!channelSyncReady"
+                    class="sync-blocked-note"
+                    data-testid="nat-ext-sync-blocked-note"
+                  >待运维配置</span>
+                </template>
                 <span v-else class="muted">—</span>
               </td>
             </tr>
@@ -191,11 +253,21 @@ const headerMeta = computed(() => {
 .crumbs a { color: var(--b-primary, #006be6); text-decoration: none; font-weight: 600; }
 .role-hint { font-size: 13px; color: var(--b-muted, #5c6370); margin: 0 0 12px; line-height: 1.5; }
 .notice-pending { font-size: 13px; color: #8a6d00; background: #fff7e0; padding: 8px 12px; border-radius: 6px; margin: 0 0 14px; }
+.notice-pending a { margin-left: 8px; color: var(--b-primary, #006be6); font-weight: 600; text-decoration: none; }
+.notice-pending a:hover { text-decoration: underline; }
+.readiness-panel { margin: 0 0 14px; padding: 12px 14px; border: 1px solid #f2d98d; border-radius: 6px; background: #fffbec; }
+.readiness-panel header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.readiness-panel strong { font-size: 13px; color: #5f4700; }
+.readiness-panel a { color: var(--b-primary, #006be6); font-size: 13px; font-weight: 600; text-decoration: none; white-space: nowrap; }
+.readiness-panel a:hover { text-decoration: underline; }
+.readiness-panel ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; color: #5f4700; font-size: 13px; }
 .new-row { display: flex; gap: 8px; margin: 0 0 14px; flex-wrap: wrap; }
 .ipt { padding: 6px 10px; border: 1px solid var(--b-border, #d0d7de); border-radius: 6px; font-size: 13px; min-width: 200px; }
 .primary-btn { padding: 6px 14px; border: 0; border-radius: 6px; background: var(--b-primary, #006be6); color: #fff; cursor: pointer; font-size: 13px; }
+.primary-btn:disabled { opacity: 0.65; cursor: wait; }
 .row-link-btn { background: none; border: 0; cursor: pointer; font-size: 13px; text-decoration: underline; margin-right: 12px; padding: 0; color: var(--b-primary, #006be6); }
 .row-link-btn.publish:disabled { color: var(--b-muted, #9aa0a6); cursor: not-allowed; text-decoration: none; }
+.sync-blocked-note { display: inline-block; font-size: 12px; color: #8a6d00; margin-left: 2px; }
 .status-pill { display: inline-block; padding: 2px 8px; border-radius: 10px; background: #eef4fb; color: var(--b-primary, #006be6); font-size: 12px; }
 .error-msg { font-size: 13px; color: #c0392b; margin: 0 0 10px; }
 .muted { color: var(--b-muted, #9aa0a6); }

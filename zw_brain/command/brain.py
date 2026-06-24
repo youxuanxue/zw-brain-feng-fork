@@ -69,25 +69,84 @@ def _national_channel_webui_state() -> dict[str, Any]:
 
     单一事实源 = shared.national.resolve_national_channel_state（gate 与前端共用）。
     前端用 enabled 决定 P5「国家扩展要素」入口是否渲染（off→不渲染，承「无权=不可见」），
-    用 provisioned 决定「发布/同步国家平台」按钮是否可用（未配置→置灰、草拟仍可）。
+    用 syncReady 决定「发布/同步国家平台」按钮是否可用（未配置或上线资料未确认→置灰、草拟仍可）。
     notice 用人话（R12，禁 flag/binding/provision/endpoint 工程术语）；不含任何密钥。
     """
     from zw_brain.shared.national import (  # noqa: PLC0415  (避免模块级反向依赖)
         NationalChannelState,
+        is_national_sync_ready,
+        national_channel_config_presence,
+        national_external_readiness_presence,
         resolve_national_channel_state,
     )
 
     state = resolve_national_channel_state()
-    notice = {
-        NationalChannelState.OFF: "国家通道未开启",
-        NationalChannelState.ON_UNPROVISIONED: "国家通道待配置接入信息",
-        NationalChannelState.ON_PROVISIONED: "国家通道已就绪",
-    }[state]
+    config = national_channel_config_presence()
+    external = national_external_readiness_presence()
+    sync_ready = is_national_sync_ready()
+    notice = (
+        "国家通道已满足发布同步条件"
+        if sync_ready
+        else {
+            NationalChannelState.OFF: "国家通道未开启",
+            NationalChannelState.ON_UNPROVISIONED: "国家通道待配置接入信息",
+            NationalChannelState.ON_PROVISIONED: "国家通道待确认上线资料",
+        }[state]
+    )
+    config_items = [
+        {"key": "channel_enabled", "label": "启用国家通道", "ready": config["channel_enabled"]},
+        {"key": "platform_address", "label": "国家平台访问地址", "ready": config["platform_address"]},
+        {"key": "requester_identity", "label": "请求方身份标识", "ready": config["requester_identity"]},
+        {"key": "access_account", "label": "接入账号", "ready": config["access_account"]},
+        {"key": "access_secret", "label": "接入密钥", "ready": config["access_secret"]},
+        {"key": "interface_service_map", "label": "接口服务标识映射", "ready": config["interface_service_map"]},
+    ]
+    external_items = [
+        {"key": "basic_elem_template", "label": "国家下发基本要素目录与模板数据", "ready": external["basic_elem_template"]},
+        {"key": "receipt_reconciliation", "label": "国家平台真实回执与对账口径", "ready": external["receipt_reconciliation"]},
+        {"key": "credential_lifecycle", "label": "国家平台凭据签发与撤销规则", "ready": external["credential_lifecycle"]},
+    ]
+    missing_config = [item for item in config_items if not item["ready"]]
+    missing_external = [item for item in external_items if not item["ready"]]
     return {
         "enabled": state is not NationalChannelState.OFF,
         "provisioned": state is NationalChannelState.ON_PROVISIONED,
+        "syncReady": sync_ready,
         "status": state.value,
         "notice": notice,
+        "operatorSummary": (
+            "国家通道已满足发布同步条件"
+            if sync_ready
+            else "接入信息已配齐，发布同步仍需确认上线资料"
+            if state is NationalChannelState.ON_PROVISIONED
+            else "草拟与审核可用，发布同步需平台运维员补齐接入信息"
+        ),
+        "configItems": config_items,
+        "externalReadinessItems": external_items,
+        "missingConfigItems": missing_config,
+        "missingExternalReadinessItems": missing_external,
+        "opsRoute": "#/integration-admin",
+        "nationalQueueRoute": "#/workbench",
+        "opsChecklist": [
+            {
+                "key": "env_config",
+                "label": "补齐接入配置",
+                "detail": "由平台运维员在部署环境注入国家平台地址、请求方身份、接入账号、接入密钥和接口服务标识映射。",
+                "blocked": bool(missing_config),
+            },
+            {
+                "key": "external_material",
+                "label": "确认上线资料",
+                "detail": "核对国家下发基本要素目录与模板、真实回执对账口径、凭据签发与撤销规则。",
+                "blocked": bool(missing_external),
+            },
+            {
+                "key": "apply_effect",
+                "label": "刷新校验生效",
+                "detail": "配置变更随部署环境生效后，在本页刷新状态；全部就绪后才允许发布同步。",
+                "blocked": not sync_ready,
+            },
+        ],
     }
 
 

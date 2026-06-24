@@ -1,7 +1,7 @@
 {
   "slug": "catalog.national_ext_elem.compile",
   "title": "国家扩展要素目录编制",
-  "description": "国家扩展要素目录编制（Wave 3 — 国家扩展元素同步落地后开放）。本期仅占 IA 占位 + manifest deferred，无 handler / 无 dispatch / 不投影到任何 surface。详见架构基线 §3.4 业务流 #9 与 §9.2 CatalogModel 双轨编制。",
+  "description": "国家扩展要素目录编制：独立于政务目录主线的草拟、送审、两级审核与待国家平台同步流程。未满足国家通道接入配置和上线资料前，只能停在待同步状态，不标记已同步国家平台。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -23,6 +23,28 @@
       },
       "ext_elem_payload": {
         "type": "object"
+      },
+      "action": {
+        "type": "string",
+        "enum": [
+          "create",
+          "submit",
+          "review",
+          "sync",
+          "revise",
+          "revoke",
+          "list",
+          "get"
+        ]
+      },
+      "task_code": {
+        "type": "string"
+      },
+      "title": {
+        "type": "string"
+      },
+      "approve": {
+        "type": "boolean"
       }
     },
     "required": [
@@ -78,8 +100,7 @@
     "catalog",
     "national",
     "ext-elem",
-    "compile",
-    "deferred"
+    "compile"
   ],
   "product_scope": {
     "journey": "j2",

@@ -1,13 +1,12 @@
 """J2 国家扩展要素编制 handler（D50/C5，national-ext-elements 子旅程）。
 
 单能力 ``catalog.national_ext_elem.compile`` 按 ``action`` 驱动编制任务生命周期：
-create / submit / review / revise / revoke / list / get。状态机 + 2 级审核全部委托
+create / submit / review / sync / revise / revoke / list / get。状态机 + 2 级审核全部委托
 ``national_ext_elem_walker`` + ``NationalExtElemRepository`` —— **与政务目录主线完全独立**，
 本 handler 绝不写 catalog_entry/catalog_item（national-ext-elements.feature 场景4）。
 
-诚实纪律（D50）：发布（已发布态）= 「同步国家平台」语义，真实出站经 C4 国家通道 gate；
-本能力本期 manifest 仍 deferred（handler 就绪、不 live、不进投影），不接真实出站——
-未配置即诚实 pending 由 gate 兜底，绝不在此伪造回流。
+诚实纪律（D50）：主管审核通过只进入「待同步国家平台」；只有接入信息 + 上线资料均确认
+后，sync 动作才可落「已发布」，绝不靠 UI 置灰单点防伪造回流。
 """
 
 from __future__ import annotations
@@ -17,6 +16,7 @@ from typing import Any
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain import national_ext_elem_walker as walker
 from zw_brain.domain.repositories.national_ext_elem import NationalExtElemRepository
+from zw_brain.shared.national import is_national_sync_ready
 
 _DEFAULT_TENANT = "sd-default"
 _READ_ACTIONS = {"list", "get"}
@@ -44,6 +44,11 @@ def handler_national_ext_elem_compile(deps: HandlerDeps, ctx: SkillContext, payl
             task = repo.set_status(task_code, target, tenant_id=tenant_id, current_review_step=step)
         elif action == "review":
             task = repo.review_decision(task_code, approve=bool(payload.get("approve")), tenant_id=tenant_id)
+        elif action == "sync":
+            if not is_national_sync_ready():
+                raise RuntimeError("国家通道尚未满足发布同步条件")
+            target = walker.sync_target(_require_task(repo, task_code, tenant_id)["compile_status"])
+            task = repo.set_status(task_code, target, tenant_id=tenant_id)
         elif action == "revise":
             task = repo.set_status(task_code, walker.REVISION_DRAFT, tenant_id=tenant_id)
         elif action == "revoke":

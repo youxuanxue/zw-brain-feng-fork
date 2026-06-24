@@ -84,6 +84,7 @@ _API_CANONICAL_KIND = "api"
 
 # 待受理申请：提交后未终结、等待受理/审批的**申请单**态（kind=apply，不含需求登记）。
 _APPLICATION_BACKLOG_STATUSES = frozenset({"submitted", "under_review"})
+_NATIONAL_ESCALATE_STATUS = "dept_approved"
 
 # 待汇总需求：需求登记进入供方侧、等待业务运营员汇总响应的相位（同 provider_snapshot 口径）。
 _DEMAND_PROVIDER_PHASES = frozenset(
@@ -329,6 +330,38 @@ def _objection_item(case: ObjectionCaseRecord) -> dict[str, Any]:
     }
 
 
+def _national_escalate_item(record: Any) -> dict[str, Any]:
+    """国家通道待转报行内项：转报（application.escalate_national）。
+
+    队列口径 = channel_class=national 且主状态仍为 dept_approved；点击后由国家通道 gate
+    决定真实出站或诚实 pending，不改 J1 主状态机。
+    """
+    payload = record.payload_json or {}
+    request_id = str(payload.get("id") or "")
+    resource_name = str(payload.get("resourceName") or payload.get("resource_name") or request_id)
+    return {
+        "id": request_id,
+        "label": resource_name or request_id,
+        "context": _context(
+            _ctx_row("申请编号", request_id),
+            _ctx_row("申请资源", resource_name),
+            _ctx_row("申请部门", payload.get("applicantDept") or payload.get("applicant_dept")),
+            _ctx_row("用途", payload.get("purpose")),
+        ),
+        "capability": "application.escalate_national",
+        "gate": "application.escalate_national",
+        "basePayload": {"application_code": request_id},
+        "decisions": [
+            {
+                "label": "转报国家平台",
+                "tone": "primary",
+                "success": "已提交国家通道",
+                "payload": {"action": "escalate"},
+            }
+        ],
+    }
+
+
 def _count_pending_applications(application_repo: ApplicationRepository, tenant_id: str) -> int:
     """待受理申请 = kind=apply 且 status∈受理态的申请单数。
 
@@ -341,6 +374,18 @@ def _count_pending_applications(application_repo: ApplicationRepository, tenant_
         if (record.payload_json or {}).get("kind", "apply") == "apply"
         and record.status in _APPLICATION_BACKLOG_STATUSES
     )
+
+
+def _national_escalate_records(application_repo: ApplicationRepository, tenant_id: str) -> list[Any]:
+    """国家级数据申请待转报 = kind=apply ∩ status=dept_approved ∩ channel_class=national."""
+    return [
+        record
+        for record in application_repo.list_records(tenant_id=tenant_id)
+        if (record.payload_json or {}).get("kind", "apply") == "apply"
+        and record.status == _NATIONAL_ESCALATE_STATUS
+        and str((record.payload_json or {}).get("channel_class") or "internal") == "national"
+        and str((record.payload_json or {}).get("id") or "")
+    ]
 
 
 def _emit_backlog_todo(
@@ -401,6 +446,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
         tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
     )
     objection_cases = objection_repo.list_cases(tenant_id=tenant_id, status="submitted")
+    national_escalate = _national_escalate_records(application_repo, tenant_id)
 
     pending_applications = _count_pending_applications(application_repo, tenant_id)
     # 待督办异议 = 有 escalate 督办事件且未终结的 case（事件式升级闭环，j1-objection-authz.feature:46）。
@@ -449,6 +495,18 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 action_clause=f"{len(publish_assets)} 个资源待发布",
                 action=_decision_list_action(
                     [_resource_publish_item(a) for a in publish_assets]
+                ),
+            ),
+            # 国家通道待转报（C9 归位）：国家级数据申请本级审核通过后，由业务运营员在工作台行内转报。
+            _emit_backlog_todo(
+                item_id="backlog-national-escalate",
+                label="国家通道待转报",
+                count=len(national_escalate),
+                status="待转报",
+                href="#/workbench",
+                action_clause=f"{len(national_escalate)} 条国家级数据申请待转报",
+                action=_decision_list_action(
+                    [_national_escalate_item(r) for r in national_escalate]
                 ),
             ),
             # 待受理申请（不 re-grain：受理面跨多角色 + 申请单一事实源在 sync 投影；保 count+href 兜底）。

@@ -5,8 +5,8 @@
 绝不写入政务目录表。
 
 编制生命周期态取真实「目录编制」页筛选枚举（old/20260519 目录管理-国家目录治理）：
-  草稿 → 待业务部门审核 → 待主管部门审核 → 已发布；
-  历史目录处理：已发布 →（变更）变更草稿 → 变更待业务部门审核 → 变更待主管部门审核 → 已发布；
+  草稿 → 待业务部门审核 → 待主管部门审核 → 待同步国家平台 → 已发布；
+  历史目录处理：已发布 →（变更）变更草稿 → 变更待业务部门审核 → 变更待主管部门审核 → 待同步国家平台 → 已发布；
                已发布 →（撤销）撤销待审核 → 已撤销。
 
 2 级审核（业务部门 → 主管部门）**复用 approval_flow_walker.instantiate_steps_from_schema**：
@@ -15,8 +15,8 @@
 （本期不做条件求值器，承 D49 不镀金）。审核推进的是编制任务自有 ``compile_status``，
 不写 ApprovalCase（编制任务是独立聚合，审核步骤由本走查派生、由 handler 落任务态）。
 
-发布动作 = 「同步国家平台」，经 C4 国家通道 gate 出站；未配置即诚实 pending（本模块只管
-状态机，不接出站——出站在 handler 经 national_channel_gate）。
+主管审核通过只进入「待同步国家平台」；接入信息和上线资料确认后，才可同步并落「已发布」。
+本模块只管状态机，不接出站。
 """
 
 from __future__ import annotations
@@ -32,6 +32,7 @@ FLOW_SCHEMA_CODE = "national_ext_elem"
 DRAFT = "draft"  # 草稿 / 待编制
 PENDING_BUSINESS_REVIEW = "pending_business_review"  # 待业务部门审核
 PENDING_SUPERVISOR_REVIEW = "pending_supervisor_review"  # 待主管部门审核
+PENDING_NATIONAL_SYNC = "pending_national_sync"  # 待同步国家平台
 PUBLISHED = "published"  # 已发布
 REVISION_DRAFT = "revision_draft"  # 变更草稿
 PENDING_BUSINESS_REVIEW_REVISION = "pending_business_review_revision"  # 变更待业务部门审核
@@ -43,11 +44,12 @@ REVOKED = "revoked"  # 已撤销
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     DRAFT: {PENDING_BUSINESS_REVIEW},
     PENDING_BUSINESS_REVIEW: {PENDING_SUPERVISOR_REVIEW, DRAFT},  # 通过→主管 / 驳回→回草稿
-    PENDING_SUPERVISOR_REVIEW: {PUBLISHED, PENDING_BUSINESS_REVIEW},  # 通过→发布 / 驳回→回业务
+    PENDING_SUPERVISOR_REVIEW: {PENDING_NATIONAL_SYNC, PENDING_BUSINESS_REVIEW},  # 通过→待同步 / 驳回→回业务
+    PENDING_NATIONAL_SYNC: {PUBLISHED},
     PUBLISHED: {REVISION_DRAFT, PENDING_REVOKE_REVIEW},  # 历史目录处理：变更 / 撤销
     REVISION_DRAFT: {PENDING_BUSINESS_REVIEW_REVISION},
     PENDING_BUSINESS_REVIEW_REVISION: {PENDING_SUPERVISOR_REVIEW_REVISION, REVISION_DRAFT},
-    PENDING_SUPERVISOR_REVIEW_REVISION: {PUBLISHED, PENDING_BUSINESS_REVIEW_REVISION},
+    PENDING_SUPERVISOR_REVIEW_REVISION: {PENDING_NATIONAL_SYNC, PENDING_BUSINESS_REVIEW_REVISION},
     PENDING_REVOKE_REVIEW: {REVOKED, PUBLISHED},  # 撤销通过→已撤销 / 驳回→回已发布
     REVOKED: set(),
 }
@@ -118,9 +120,9 @@ def next_review_status(current: str, *, approve: bool) -> str:
     """
     table_approve = {
         PENDING_BUSINESS_REVIEW: PENDING_SUPERVISOR_REVIEW,
-        PENDING_SUPERVISOR_REVIEW: PUBLISHED,
+        PENDING_SUPERVISOR_REVIEW: PENDING_NATIONAL_SYNC,
         PENDING_BUSINESS_REVIEW_REVISION: PENDING_SUPERVISOR_REVIEW_REVISION,
-        PENDING_SUPERVISOR_REVIEW_REVISION: PUBLISHED,
+        PENDING_SUPERVISOR_REVIEW_REVISION: PENDING_NATIONAL_SYNC,
         PENDING_REVOKE_REVIEW: REVOKED,
     }
     table_reject = {
@@ -136,3 +138,11 @@ def next_review_status(current: str, *, approve: bool) -> str:
     nxt = table[current]
     validate_transition(current, nxt)
     return nxt
+
+
+def sync_target(current: str) -> str:
+    """国家平台同步目标态：待同步 → 已发布。"""
+    if current != PENDING_NATIONAL_SYNC:
+        raise NationalExtElemTransitionError(f"{current!r} 非可同步态")
+    validate_transition(current, PUBLISHED)
+    return PUBLISHED

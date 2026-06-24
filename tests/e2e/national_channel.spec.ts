@@ -28,16 +28,13 @@ function seedNationalEscalateFixture(): void {
  * 即"已上线未接入"真实态）。flag 未开时本 suite skip（不假装）；flag-off→不渲染 面
  * 由 tests/test_national_channel_webui_snapshot.py + tests/test_page_access.py 单测覆盖。
  *
- * IA 重构（拆「办申请」）影响：原 P3「国家通道」tab + 待转报队列 + 转报按钮（p3-tab-national /
- *   p3-national-pane / p3-escalate-btn）随 P3RequestFlow.vue 列表页整面退役，本期**无新前端宿主**
- *   （escalate 后端 capability application.escalate_national 保留、角色门 canViewNationalChannel 保留）。
- *   故下列「P3 国家通道 tab」与「待转报队列」两条 UI 走查暂无可断言的真实 UI 面，honest skip（不假装）；
- *   该 UI 的重新归家是后续项（national-direct.feature 仍 Ready/未绿，本迁移不据此打绿）。flag-off→
- *   不渲染 与角色门由 test_national_channel_gate.py / test_national_channel_webui_snapshot.py 单测覆盖。
+ * IA 重构（拆「办申请」）后，国家通道待转报归位工作台行内办理：BUSIAUDIT 在 #/workbench
+ * 展开「国家通道待转报」聚合待办，逐条点「转报国家平台」；OPERATER 无该待办。flag-off→
+ * 不渲染 与角色门由 test_national_channel_gate.py / test_national_channel_webui_snapshot.py 单测覆盖。
  *
  * 仍真跑的守护点（P5 国家扩展要素编制面在新 IA 下原样保留）：
  *   - P5 国家扩展要素入口：canCompileNationalExtElem(MANAGER+BUSIAUDIT) ∧ enabled
- *   - 未配置：P5 发布按钮 disabled，草拟可用
+ *   - 未配置：P5 同步按钮 disabled，草拟与审核可用但停在待同步
  */
 
 async function nationalChannelEnabled(page: import('@playwright/test').Page): Promise<boolean> {
@@ -56,11 +53,17 @@ test.describe('国家通道 角色门 + flag 门', () => {
     await waitAppReady(page);
   });
 
-  test('P3 国家通道 tab：BUSIAUDIT 可见 / OPERATER 不渲染', async ({ page }) => {
+  test('国家通道待转报工作台入口：BUSIAUDIT 可见 / OPERATER 不渲染', async ({ page }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开（起栈需 ZW_BRAIN_NATIONAL_CHANNEL_ENABLED=1）');
-    // IA 重构后无 P3 国家通道 tab 前端宿主（见文件头）——本走查暂无可断言的真实 UI 面。
-    // 角色门 canViewNationalChannel 仍由 test_national_channel_gate.py 单测覆盖（不假装有 UI）。
-    test.skip(true, '国家通道 P3 tab 随拆「办申请」退役、无新前端宿主（IA 重构）；待 UI 重新归家后恢复');
+    seedNationalEscalateFixture();
+
+    await setRole(page, 'ROLE_BUSIAUDIT');
+    await gotoHash(page, '#/workbench');
+    await expect(page.getByTestId('workbench-todo').filter({ hasText: '国家通道待转报' })).toBeVisible();
+
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/workbench');
+    await expect(page.getByTestId('workbench-todo').filter({ hasText: '国家通道待转报' })).toHaveCount(0);
   });
 
   test('P5 国家扩展要素入口：MANAGER 可见 / OPERATER 不渲染', async ({ page }) => {
@@ -75,19 +78,25 @@ test.describe('国家通道 角色门 + flag 门', () => {
     await expect(page.getByTestId('national-ext-elem-entry')).toHaveCount(0);
   });
 
-  test('P3 国家通道「待转报队列」：看得到 national 待转报单 + 点转报诚实 pending（C9）', async ({
+  test('工作台国家通道「待转报队列」：看得到 national 待转报单 + 点转报诚实 pending（C9）', async ({
     page,
   }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开');
-    // IA 重构后无 P3「待转报队列」+ 转报按钮前端宿主（见文件头）——后端口径自证（snapshot.requests
-    // 含该 national dept_approved 单）与 escalate 诚实 pending 由 test_national_escalate.py 单测覆盖；
-    // 本走查暂无可点击的真实 UI 面，honest skip（不假装）。
-    test.skip(true, '国家通道待转报队列/转报按钮随拆「办申请」退役、无新前端宿主（IA 重构）；待 UI 重新归家后恢复');
-    void seedNationalEscalateFixture;
-    void NATIONAL_APPLY_CODE;
+    seedNationalEscalateFixture();
+
+    await setRole(page, 'ROLE_BUSIAUDIT');
+    await gotoHash(page, '#/workbench');
+    const todo = page.getByTestId('workbench-todo').filter({ hasText: '国家通道待转报' });
+    await expect(todo).toBeVisible();
+    await todo.getByTestId('workbench-todo-expand').click();
+
+    const item = todo.getByTestId('workbench-decision-item').filter({ hasText: NATIONAL_APPLY_CODE });
+    await expect(item).toBeVisible();
+    await item.getByTestId('workbench-todo-decision').filter({ hasText: '转报国家平台' }).click();
+    await expect(page.locator('.toast-stack')).toContainText('国家通道待接入', { timeout: 15_000 });
   });
 
-  test('未配置(provisioned=false)：P5 发布按钮置灰、草拟编制可达', async ({ page }) => {
+  test('未配置(provisioned=false)：P5 同步按钮置灰、草拟编制可达', async ({ page }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开');
 
     // 全程经真实 UI 驱动（写动作走 useActionStub，自带 CSRF token）：新建草稿 → 提交送审
@@ -108,7 +117,10 @@ test.describe('国家通道 角色门 + flag 门', () => {
     await expect(row.getByTestId('nat-ext-business-review-btn')).toBeVisible();
     await row.getByTestId('nat-ext-business-review-btn').click(); // → 待主管部门审核
 
-    // 发布按钮（主管审核并发布·同步国家平台）渲染、但未配置下置灰。
+    await expect(row.getByTestId('nat-ext-supervisor-review-btn')).toBeVisible();
+    await row.getByTestId('nat-ext-supervisor-review-btn').click(); // → 待同步国家平台
+
+    // 同步按钮渲染、但国家通道未就绪下置灰，不标记已同步国家平台。
     const publishBtn = row.getByTestId('nat-ext-publish-btn');
     await expect(publishBtn).toBeVisible();
     await expect(publishBtn).toBeDisabled();

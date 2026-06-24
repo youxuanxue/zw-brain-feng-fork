@@ -30,8 +30,10 @@ Feature: 国家扩展要素目录编制独立子旅程
     When 业务部门管理员审核通过
     Then task.status → 业务部门通过
     When ROLE_BUSIAUDIT 主管部门审核通过
+    Then task.status → 待同步国家平台
+    When 国家通道接入配置与上线资料均确认后执行同步
     Then task.status → 已发布
-    And 同步到国家平台（通过国家通道 adapter，与 national-direct.feature 联动）
+    And 不在同步完成前标记已同步国家平台
 
   Scenario: 正向 — 历史目录处理审核
     Given 存在历史国家扩展要素目录 C_NAT_OLD
@@ -44,9 +46,11 @@ Feature: 国家扩展要素目录编制独立子旅程
     Then 拒绝
     And 两套表 / 两套状态机的独立性硬约束
 
-  Scenario: 负向 — 不能在国家通道关闭时强制发布
-    Given feature flag national_channel=off
-    Then 国家扩展要素发布按钮置灰
+  Scenario: 负向 — 不能在国家通道未就绪时强制发布
+    Given 国家通道未开启，或接入配置 / 上线资料未补齐
+    Then 国家扩展要素同步按钮置灰
+    And API 只能把主管审核通过的任务推进到「待同步国家平台」
+    And 不能把任务强制写成「已发布」
     And 草拟编辑仍可（草稿不发布国家通道）
 
   Scenario: 回归 — 与 national-direct.feature 边界

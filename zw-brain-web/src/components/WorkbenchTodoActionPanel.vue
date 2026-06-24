@@ -46,6 +46,19 @@ function surfaceDuplicateWarnings(result: { ok: boolean; data?: unknown }): void
   }
 }
 
+function surfaceNationalChannelResult(result: { ok: boolean; data?: unknown }): void {
+  if (!result.ok) return;
+  const root = (result.data ?? {}) as Record<string, unknown>;
+  const inner = (root.result ?? root) as Record<string, unknown>;
+  const channel = inner.national_channel as Record<string, unknown> | undefined;
+  if (!channel) return;
+  const status = String(channel.status ?? '');
+  const reason = String(channel.reason ?? '').trim();
+  if (status === 'pending' && reason) {
+    pushToast({ kind: 'warn', title: '国家通道待接入', detail: reason });
+  }
+}
+
 async function decide(decision: WorkbenchTodoDecision): Promise<void> {
   if (props.action.kind !== 'decision') return;
   const result = await invokeActionStub({
@@ -54,6 +67,7 @@ async function decide(decision: WorkbenchTodoDecision): Promise<void> {
     successTitle: decision.success,
   });
   surfaceDuplicateWarnings(result);
+  surfaceNationalChannelResult(result);
 }
 
 // ── 聚合（decision-list）形态：逐条办理 + 行内理由门 ──
@@ -114,6 +128,7 @@ async function dispatch(
     successTitle: decision.success,
   });
   surfaceDuplicateWarnings(result);
+  surfaceNationalChannelResult(result);
   cancelReason();
 }
 

@@ -139,7 +139,7 @@ const providerHeaderLinks = computed(() => {
         data-testid="national-ext-elem-entry"
       >
         <strong>国家扩展要素编制</strong>
-        <em>与政务目录编制双轨独立，走业务部门→主管部门审核后同步国家平台</em>
+        <em>与政务目录编制双轨独立，走业务部门→主管部门审核后待国家通道同步</em>
       </a>
 
       <!-- 协作待办（次区，0605#8）：审核 / 供需对接 / 异议从首屏主视觉降为次级一行；

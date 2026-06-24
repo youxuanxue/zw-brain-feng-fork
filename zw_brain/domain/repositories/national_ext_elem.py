@@ -138,8 +138,12 @@ class NationalExtElemRepository:
                 raise KeyError(f"national ext-elem task not found: {task_code}")
             nxt = walker.next_review_status(rec.compile_status, approve=approve)
             rec.compile_status = nxt
-            # 进入主管部门审核 → 第 2 步；其余（发布/回退/草稿）清空步号。
-            rec.current_review_step = 2 if nxt == walker.PENDING_SUPERVISOR_REVIEW else None
+            # 进入主管部门审核（含变更链）→ 第 2 步；待同步/发布/回退/草稿清空步号。
+            rec.current_review_step = (
+                2
+                if nxt in (walker.PENDING_SUPERVISOR_REVIEW, walker.PENDING_SUPERVISOR_REVIEW_REVISION)
+                else None
+            )
             rec.updated_at = _now()
             session.commit()
             return task_to_dict(session.get(NationalExtElemCompileTaskRecord, rec.id))

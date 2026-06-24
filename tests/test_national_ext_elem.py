@@ -14,9 +14,13 @@ from __future__ import annotations
 import pytest
 from sqlalchemy import text
 
+from tests._trusted_payload import invoke_trusted
+from zw_brain.command.brain import BrainService
 from zw_brain.domain import national_ext_elem_walker as walker
 from zw_brain.domain.repositories.national_ext_elem import NationalExtElemRepository
 from zw_brain.shared import db as db_module
+from zw_brain.shared import national as national_shared
+from zw_brain.shared.state_store import StateStore
 
 TENANT = "sd-default"
 
@@ -44,7 +48,8 @@ def test_review_steps_reuse_approval_flow_walker() -> None:
 def test_compile_happy_path_transitions() -> None:
     walker.validate_transition(walker.DRAFT, walker.PENDING_BUSINESS_REVIEW)
     assert walker.next_review_status(walker.PENDING_BUSINESS_REVIEW, approve=True) == walker.PENDING_SUPERVISOR_REVIEW
-    assert walker.next_review_status(walker.PENDING_SUPERVISOR_REVIEW, approve=True) == walker.PUBLISHED
+    assert walker.next_review_status(walker.PENDING_SUPERVISOR_REVIEW, approve=True) == walker.PENDING_NATIONAL_SYNC
+    assert walker.sync_target(walker.PENDING_NATIONAL_SYNC) == walker.PUBLISHED
 
 
 @pytest.mark.no_db
@@ -58,7 +63,8 @@ def test_history_revision_and_revoke_chains() -> None:
     # 历史目录处理：变更链
     walker.validate_transition(walker.PUBLISHED, walker.REVISION_DRAFT)
     assert walker.submit_target(walker.REVISION_DRAFT) == walker.PENDING_BUSINESS_REVIEW_REVISION
-    assert walker.next_review_status(walker.PENDING_SUPERVISOR_REVIEW_REVISION, approve=True) == walker.PUBLISHED
+    assert walker.next_review_status(walker.PENDING_SUPERVISOR_REVIEW_REVISION, approve=True) == walker.PENDING_NATIONAL_SYNC
+    assert walker.sync_target(walker.PENDING_NATIONAL_SYNC) == walker.PUBLISHED
     # 撤销链
     walker.validate_transition(walker.PUBLISHED, walker.PENDING_REVOKE_REVIEW)
     assert walker.next_review_status(walker.PENDING_REVOKE_REVIEW, approve=True) == walker.REVOKED
@@ -85,6 +91,9 @@ def test_repo_full_lifecycle_to_published(temp_db: None) -> None:
     assert t["compile_status"] == walker.PENDING_SUPERVISOR_REVIEW
     assert t["current_review_step"] == 2
     t = repo.review_decision("C_NAT_001", approve=True, tenant_id=TENANT)
+    assert t["compile_status"] == walker.PENDING_NATIONAL_SYNC
+    assert t["current_review_step"] is None
+    t = repo.set_status("C_NAT_001", walker.PUBLISHED, tenant_id=TENANT)
     assert t["compile_status"] == walker.PUBLISHED
     assert t["current_review_step"] is None
 
@@ -129,7 +138,8 @@ def test_compile_never_writes_data_catalog(temp_db: None) -> None:
     repo.create_task({"task_code": "C_NAT_004", "title": "D"}, tenant_id=TENANT)
     repo.set_status("C_NAT_004", walker.PENDING_BUSINESS_REVIEW, tenant_id=TENANT, current_review_step=1)
     repo.review_decision("C_NAT_004", approve=True, tenant_id=TENANT)
-    repo.review_decision("C_NAT_004", approve=True, tenant_id=TENANT)  # → published
+    repo.review_decision("C_NAT_004", approve=True, tenant_id=TENANT)  # → pending_national_sync
+    repo.set_status("C_NAT_004", walker.PUBLISHED, tenant_id=TENANT)
 
     with SessionLocal() as s:
         after_entry = s.execute(text("SELECT COUNT(*) FROM catalog_entry")).scalar()
@@ -139,6 +149,50 @@ def test_compile_never_writes_data_catalog(temp_db: None) -> None:
     assert after_entry == before_entry, "编制不得写入 catalog_entry 政务目录主线"
     assert after_item == before_item, "编制不得写入 catalog_item 政务目录主线"
     assert nat == 1
+
+
+def test_handler_review_stops_at_pending_sync_until_channel_ready(
+    temp_db: None, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    brain = BrainService(state_store=StateStore())
+    skill = "catalog.national_ext_elem.compile"
+    payload = {"task_code": "C_NAT_API_GATE", "title": "API 强门回归", "confirmed": True}
+
+    invoke_trusted(brain, skill, {**payload, "action": "create"}, role="ROLE_ORGAN_MANAGER")
+    invoke_trusted(brain, skill, {"task_code": "C_NAT_API_GATE", "action": "submit", "confirmed": True}, role="ROLE_ORGAN_MANAGER")
+    invoke_trusted(
+        brain,
+        skill,
+        {"task_code": "C_NAT_API_GATE", "action": "review", "approve": True, "confirmed": True},
+        role="ROLE_ORGAN_MANAGER",
+    )
+    reviewed = invoke_trusted(
+        brain,
+        skill,
+        {"task_code": "C_NAT_API_GATE", "action": "review", "approve": True, "confirmed": True},
+        role="ROLE_BUSIAUDIT",
+    )["result"]
+    assert reviewed["task"]["compile_status"] == walker.PENDING_NATIONAL_SYNC
+
+    with pytest.raises(RuntimeError, match="国家通道尚未满足发布同步条件"):
+        invoke_trusted(
+            brain,
+            skill,
+            {"task_code": "C_NAT_API_GATE", "action": "sync", "confirmed": True},
+            role="ROLE_BUSIAUDIT",
+        )
+
+    monkeypatch.setattr(national_shared, "is_national_sync_ready", lambda: True)
+    import zw_brain.command.handlers.j2.national_ext_elem as handler_module
+
+    monkeypatch.setattr(handler_module, "is_national_sync_ready", lambda: True)
+    synced = invoke_trusted(
+        brain,
+        skill,
+        {"task_code": "C_NAT_API_GATE", "action": "sync", "confirmed": True},
+        role="ROLE_BUSIAUDIT",
+    )["result"]
+    assert synced["task"]["compile_status"] == walker.PUBLISHED
 
 
 @pytest.mark.no_db

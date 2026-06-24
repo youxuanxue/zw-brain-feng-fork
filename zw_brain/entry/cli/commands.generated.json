@@ -3034,11 +3034,21 @@
     {
       "skill_id": "catalog.national_ext_elem.compile",
       "title": "国家扩展要素目录编制",
-      "description": "国家扩展要素目录编制（Wave 3 — 国家扩展元素同步落地后开放）。本期仅占 IA 占位 + manifest deferred，无 handler / 无 dispatch / 不投影到任何 surface。详见架构基线 §3.4 业务流 #9 与 §9.2 CatalogModel 双轨编制。",
+      "description": "国家扩展要素目录编制：独立于政务目录主线的草拟、送审、两级审核与待国家平台同步流程。未满足国家通道接入配置和上线资料前，只能停在待同步状态，不标记已同步国家平台。",
       "mode": "write",
       "human_confirmation_required": true,
       "audit_required": true,
       "args": [
+        {
+          "name": "action",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "approve",
+          "required": false,
+          "type": "boolean"
+        },
         {
           "name": "catalog_code",
           "required": false,
@@ -3065,7 +3075,17 @@
           "type": "string"
         },
         {
+          "name": "task_code",
+          "required": false,
+          "type": "string"
+        },
+        {
           "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "title",
           "required": false,
           "type": "string"
         }

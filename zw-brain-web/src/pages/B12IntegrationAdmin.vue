@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue';
+import { computed, onMounted } from 'vue';
 import {
   disableTenantCapability,
   enableTenantCapability,
@@ -8,6 +8,8 @@ import {
   usePackageList,
 } from '@/composables/usePackageLifecycle';
 import { pushToast } from '@/composables/useActionStub';
+import { loadSnapshot, useWebUiConfig } from '@/composables/useSnapshot';
+import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
@@ -33,12 +35,60 @@ import { trustPillClass, TRUST_LABELS, PKG_STATUS_LABELS } from '@/lib/packageDi
 const NL_PRESETS_B12 = ['未审核能力包', '近 7 天 IAM 失败', '看接入故障'];
 
 const packages = usePackageList();
+const role = getProductRole();
+const webui = useWebUiConfig();
+const nationalChannel = computed(
+  () => (webui.value.nationalChannel as Record<string, unknown> | undefined) ?? {},
+);
+const nationalConfigItems = computed(() =>
+  ((nationalChannel.value.configItems as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => ({ label: String(it.label ?? ''), ready: it.ready === true }))
+    .filter((it) => it.label),
+);
+const nationalExternalItems = computed(() =>
+  ((nationalChannel.value.externalReadinessItems as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => ({ label: String(it.label ?? ''), ready: it.ready === true }))
+    .filter((it) => it.label),
+);
+const nationalMissingConfigItems = computed(() =>
+  ((nationalChannel.value.missingConfigItems as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => ({ label: String(it.label ?? ''), ready: it.ready === true }))
+    .filter((it) => it.label),
+);
+const nationalMissingExternalItems = computed(() =>
+  ((nationalChannel.value.missingExternalReadinessItems as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => ({ label: String(it.label ?? ''), ready: it.ready === true }))
+    .filter((it) => it.label),
+);
+const nationalOpsChecklist = computed(() =>
+  ((nationalChannel.value.opsChecklist as Array<Record<string, unknown>> | undefined) ?? [])
+    .map((it) => ({
+      key: String(it.key ?? ''),
+      label: String(it.label ?? ''),
+      detail: String(it.detail ?? ''),
+      blocked: it.blocked === true,
+    }))
+    .filter((it) => it.key && it.label),
+);
+const nationalEnabled = computed(() => nationalChannel.value.enabled === true);
+const nationalSyncReady = computed(() => nationalChannel.value.syncReady === true);
+const nationalStatusLabel = computed(() => {
+  if (nationalSyncReady.value) return '已就绪';
+  if (nationalEnabled.value) return '待补齐';
+  return '未开启';
+});
+const nationalSummary = computed(() =>
+  String(nationalChannel.value.operatorSummary ?? '草拟与审核可用，发布同步需平台运维员补齐接入信息'),
+);
+const nationalQueueRoute = computed(() => String(nationalChannel.value.nationalQueueRoute ?? '#/workbench'));
 
 onMounted(() => {
+  void loadSnapshot(role.value, { soft: true });
   void packages.load();
 });
 
 async function refreshAll(): Promise<void> {
+  await loadSnapshot(role.value, { soft: true });
   await packages.load();
 }
 
@@ -111,6 +161,75 @@ async function onTrustLevelChange(pkgId: string): Promise<void> {
         </template>
       </PageFocusHeader>
 
+      <section class="national-card" data-testid="national-channel-ops-card" aria-label="国家通道接入状态">
+        <div class="national-card-main">
+          <header class="national-card-head">
+            <div>
+              <h2>国家通道</h2>
+              <p>{{ nationalSummary }}</p>
+            </div>
+            <span :class="['national-status', nationalSyncReady ? 'is-ready' : nationalEnabled ? 'is-pending' : 'is-off']">
+              {{ nationalStatusLabel }}
+            </span>
+          </header>
+          <div class="national-grid">
+            <section>
+              <h3>接入配置</h3>
+              <ul class="check-list">
+                <li v-for="item in nationalConfigItems" :key="item.label" :class="{ ready: item.ready }">
+                  <span>{{ item.ready ? '已配' : '待补' }}</span>{{ item.label }}
+                </li>
+              </ul>
+            </section>
+            <section>
+              <h3>上线资料</h3>
+              <ul class="check-list">
+                <li v-for="item in nationalExternalItems" :key="item.label" :class="{ ready: item.ready }">
+                  <span>{{ item.ready ? '已确认' : '待确认' }}</span>{{ item.label }}
+                </li>
+              </ul>
+            </section>
+          </div>
+          <section class="national-ops-flow" data-testid="national-channel-ops-flow">
+            <h3>配置生效步骤</h3>
+            <ol>
+              <li v-for="item in nationalOpsChecklist" :key="item.key" :class="{ blocked: item.blocked }">
+                <strong>{{ item.label }}</strong>
+                <span>{{ item.detail }}</span>
+              </li>
+            </ol>
+          </section>
+          <section
+            v-if="nationalMissingConfigItems.length || nationalMissingExternalItems.length"
+            class="national-missing"
+            data-testid="national-channel-missing"
+          >
+            <h3>当前阻塞项</h3>
+            <div v-if="nationalMissingConfigItems.length">
+              <strong>接入配置</strong>
+              <p>{{ nationalMissingConfigItems.map((it) => it.label).join('、') }}</p>
+            </div>
+            <div v-if="nationalMissingExternalItems.length">
+              <strong>上线资料</strong>
+              <p>{{ nationalMissingExternalItems.map((it) => it.label).join('、') }}</p>
+            </div>
+          </section>
+          <section class="national-config-source" data-testid="national-channel-config-source">
+            <h3>配置来源</h3>
+            <p>接入配置由部署环境和密钥托管注入，本页只显示配置项和就绪状态，不展示任何配置值。</p>
+            <div class="config-source-groups">
+              <div><strong>接入配置</strong><span v-for="item in nationalConfigItems" :key="item.label">{{ item.label }}</span></div>
+              <div><strong>上线资料确认</strong><span v-for="item in nationalExternalItems" :key="item.label">{{ item.label }}</span></div>
+            </div>
+          </section>
+        </div>
+        <footer class="national-card-actions">
+          <button type="button" class="gov-btn gov-btn-secondary" @click="refreshAll">刷新状态</button>
+          <a class="gov-btn gov-btn-secondary" :href="nationalQueueRoute" data-testid="national-channel-queue-link">待转报队列</a>
+          <span class="national-action-note">业务部门可继续草拟与审核；本页全部就绪后，发布同步和国家转报才放行。</span>
+        </footer>
+      </section>
+
       <section class="focus-section">
         <header class="focus-section-head">
           <h2 class="focus-section-title">已接入的外部系统</h2>
@@ -170,6 +289,42 @@ async function onTrustLevelChange(pkgId: string): Promise<void> {
   border-left: 3px solid var(--b-primary, #006be6);
 }
 .refresh-btn { margin-left: auto; }
+.national-card { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; padding: 16px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
+.national-card-main { display: grid; gap: 14px; min-width: 0; }
+.national-card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.national-card-head h2 { margin: 0 0 4px; font-size: 16px; color: var(--b-neutral-text, #1a1d21); }
+.national-card-head p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--b-muted, #5c6370); }
+.national-status { flex: 0 0 auto; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: #f1f3f5; color: #495057; }
+.national-status.is-ready { background: #d4f8e0; color: #155724; }
+.national-status.is-pending { background: #fff3cd; color: #856404; }
+.national-status.is-off { background: #f1f3f5; color: #495057; }
+.national-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+.national-grid h3 { margin: 0 0 8px; font-size: 13px; color: var(--b-neutral-text, #1a1d21); }
+.national-ops-flow,
+.national-missing,
+.national-config-source { display: grid; gap: 8px; padding-top: 2px; }
+.national-ops-flow h3,
+.national-missing h3,
+.national-config-source h3 { margin: 0; font-size: 13px; color: var(--b-neutral-text, #1a1d21); }
+.national-ops-flow ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.national-ops-flow li { font-size: 13px; color: var(--b-muted, #5c6370); }
+.national-ops-flow li.blocked strong { color: #856404; }
+.national-ops-flow strong { margin-right: 8px; color: var(--b-neutral-text, #1a1d21); }
+.national-missing { padding: 10px 12px; border-radius: 6px; background: #fff7e0; color: #5f4700; }
+.national-missing div { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.national-missing strong,
+.national-missing p { margin: 0; font-size: 13px; }
+.national-config-source p { margin: 0; font-size: 12px; color: var(--b-muted, #5c6370); }
+.config-source-groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.config-source-groups div { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.config-source-groups strong { flex: 0 0 100%; font-size: 12px; color: var(--b-muted, #5c6370); }
+.config-source-groups span { padding: 2px 6px; border-radius: 4px; background: var(--b-bg-subtle, #e8f2fc); font-size: 12px; color: var(--b-neutral-text, #1a1d21); }
+.check-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.check-list li { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--b-neutral-text, #1a1d21); }
+.check-list span { flex: 0 0 auto; min-width: 44px; text-align: center; padding: 2px 6px; border-radius: 999px; background: #fff3cd; color: #856404; font-size: 12px; }
+.check-list li.ready span { background: #d4f8e0; color: #155724; }
+.national-card-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; align-items: center; }
+.national-action-note { max-width: 260px; font-size: 12px; line-height: 1.5; color: var(--b-muted, #5c6370); }
 /* 外部系统表 */
 .pkg-table { width: 100%; border-collapse: collapse; margin-top: 12px; }
 .pkg-table th, .pkg-table td { padding: 10px 12px; text-align: left; font-size: 13px; border-bottom: 1px solid var(--b-border, #d4e2f4); vertical-align: top; }

@@ -36,7 +36,13 @@ def temp_db() -> None:
     ensure_runtime_schema()
 
 
-def _seed_application(app_repo: ApplicationRepository, code: str, status: str) -> None:
+def _seed_application(
+    app_repo: ApplicationRepository,
+    code: str,
+    status: str,
+    *,
+    channel_class: str = "internal",
+) -> None:
     app_repo.upsert_from_request(
         {
             "id": code,
@@ -45,6 +51,8 @@ def _seed_application(app_repo: ApplicationRepository, code: str, status: str) -
             "applicant": "op",
             "applicantDept": "部门A",
             "resourceName": f"申请单{code}",
+            "purpose": "跨层级数据核验",
+            "channel_class": channel_class,
         },
         tenant_id=TENANT,
     )
@@ -180,6 +188,29 @@ def test_demand_not_miscounted_as_application(temp_db: None) -> None:
     todos = {t["id"]: t for t in out["todos"]}
     assert todos["backlog-demand"]["title"] == "待汇总需求 1 条"
     assert "backlog-application" not in todos
+
+
+def test_national_dept_approved_application_becomes_workbench_escalate_todo(temp_db: None) -> None:
+    app_repo = ApplicationRepository()
+    _seed_application(app_repo, "A-NAT-1", "dept_approved", channel_class="national")
+    _seed_application(app_repo, "A-INTERNAL-1", "dept_approved", channel_class="internal")
+    _seed_application(app_repo, "A-NAT-SUBMITTED", "submitted", channel_class="national")
+
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
+    todo = todos["backlog-national-escalate"]
+
+    assert todo["title"] == "国家通道待转报 1 条"
+    assert todo["status"] == "待转报"
+    assert todo["action"]["kind"] == "decision-list"
+    items = todo["action"]["items"]
+    assert [it["id"] for it in items] == ["A-NAT-1"]
+    item = items[0]
+    assert item["capability"] == "application.escalate_national"
+    assert item["gate"] == "application.escalate_national"
+    assert item["basePayload"] == {"application_code": "A-NAT-1"}
+    assert item["decisions"][0]["label"] == "转报国家平台"
+    assert item["decisions"][0]["payload"] == {"action": "escalate"}
 
 
 def test_busiaudit_empty_backlog_is_honest_empty(temp_db: None) -> None:

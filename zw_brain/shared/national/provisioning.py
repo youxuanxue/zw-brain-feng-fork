@@ -35,6 +35,9 @@ ENV_RID = "ZW_BRAIN_NATIONAL_RID"
 ENV_APPKEY = "ZW_BRAIN_NATIONAL_APPKEY"
 ENV_APPSECRET = "ZW_BRAIN_NATIONAL_APPSECRET"
 ENV_SID_MAP = "ZW_BRAIN_NATIONAL_SID_MAP"
+ENV_BASIC_ELEM_TEMPLATE_READY = "ZW_BRAIN_NATIONAL_BASIC_ELEM_TEMPLATE_READY"
+ENV_RECEIPT_RECONCILIATION_READY = "ZW_BRAIN_NATIONAL_RECEIPT_RECONCILIATION_READY"
+ENV_CREDENTIAL_LIFECYCLE_READY = "ZW_BRAIN_NATIONAL_CREDENTIAL_LIFECYCLE_READY"
 
 
 @dataclass(frozen=True)
@@ -58,6 +61,10 @@ class NationalProvisioning:
 def get_national_channel_enabled() -> bool:
     """通道开关是否打开（默认 False）。打开 ≠ 可对外，仅放开"尝试"。"""
     return os.environ.get(ENV_ENABLED, "").strip() == "1"
+
+
+def _truthy_env(name: str) -> bool:
+    return os.environ.get(name, "").strip() == "1"
 
 
 def _parse_sid_map(raw: str | None) -> dict[str, str]:
@@ -102,6 +109,38 @@ def load_national_provisioning() -> NationalProvisioning | None:
 def is_national_provisioned() -> bool:
     """接入凭据是否已配齐。"""
     return load_national_provisioning() is not None
+
+
+def national_channel_config_presence() -> dict[str, bool]:
+    """返回国家通道接入配置是否齐备；只暴露布尔状态，绝不返回配置值。"""
+    endpoint = (os.environ.get(ENV_ENDPOINT) or "").strip()
+    rid = (os.environ.get(ENV_RID) or "").strip()
+    appkey = (os.environ.get(ENV_APPKEY) or "").strip()
+    appsecret = (os.environ.get(ENV_APPSECRET) or "").strip()
+    sid_map = _parse_sid_map(os.environ.get(ENV_SID_MAP))
+    return {
+        "channel_enabled": get_national_channel_enabled(),
+        "platform_address": bool(endpoint),
+        "requester_identity": bool(rid),
+        "access_account": bool(appkey),
+        "access_secret": bool(appsecret),
+        "interface_service_map": bool(sid_map),
+    }
+
+
+def national_external_readiness_presence() -> dict[str, bool]:
+    """返回国家平台上线资料确认状态；只暴露布尔状态，不承载资料内容。"""
+    return {
+        "basic_elem_template": _truthy_env(ENV_BASIC_ELEM_TEMPLATE_READY),
+        "receipt_reconciliation": _truthy_env(ENV_RECEIPT_RECONCILIATION_READY),
+        "credential_lifecycle": _truthy_env(ENV_CREDENTIAL_LIFECYCLE_READY),
+    }
+
+
+def is_national_sync_ready() -> bool:
+    """国家扩展要素发布同步是否可放行：接入凭据齐 + 外部上线资料均已确认。"""
+    external = national_external_readiness_presence()
+    return is_national_provisioned() and all(external.values())
 
 
 def resolve_national_channel_state() -> NationalChannelState:

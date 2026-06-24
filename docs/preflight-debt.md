@@ -1011,13 +1011,13 @@ trigger 关闭即可删除字段。
 > 业务运营员自己 items 通常空、转报入口点不到单。C9 修取数口径：待转报队列 = 请求
 > 国家级数据(channel_class=='national')且本级审核通过(dept_approved)的申请，不是 own-items。
 
-- **Where**: `zw-brain-web/src/pages/P3RequestFlow.vue`(`nationalEscalateItems`)、
+- **Where**: `zw_brain/domain/workbench_backlog_projection.py`(`backlog-national-escalate` 工作台行内待办)、
   `zw_brain/domain/discovery_snapshot_projection.py`(`_record_to_request_card` 透 `channelClass`)、
   `zw_brain/domain/services/application_service.py`(`record_to_request` 同透，详情页一致)、
   `scripts/seed_national_escalate_fixture.py`(e2e 造数)。
-- **最终口径**: requests ∩ `channelClass==='national'` ∩ `status==='dept_approved'`。直接遍历
-  requests（卡片自带 channelClass+status），**不经 approvals 卡**——approvals 由 `approval_case`
-  表现算投影，legacy apply 记录通常无对应 approval_case，故以 requests 为待转报队列单一事实源。
+- **最终口径**: `application_record` ∩ `payload_json.channel_class==='national'` ∩ `status==='dept_approved'`。
+  该口径投到业务运营员工作台「国家通道待转报」行内待办；点击调用 `application.escalate_national`，
+  未配置国家通道时只显示诚实 pending 回执，不污染主状态机。
 - **诚实上限 / 残留缺口**:
   1. **national 信号来源**: `channel_class` 存于 `application_record.payload_json["channel_class"]`
      （supply_demand §scenario 5 占位口径）。真实旧平台导入的 apply 记录**当前无该字段**
