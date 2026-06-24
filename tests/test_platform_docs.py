@@ -92,3 +92,18 @@ def test_explicit_doc_roots_still_exclude_preflight_only(tmp_path, monkeypatch: 
     # preflight-debt.md 仍被排除
     with pytest.raises(FileNotFoundError):
         platform_docs._safe_resolve("preflight-debt.md")
+
+
+def test_platform_guide_user_whitepaper_is_searchable_and_readable(monkeypatch: pytest.MonkeyPatch) -> None:
+    """平台指南默认文档库必须能命中新客户流程白皮书。"""
+    monkeypatch.delenv("ZW_BRAIN_PLATFORM_DOCS_ROOTS", raising=False)
+
+    result = platform_docs.search_docs(query="新客户第一次怎么使用平台", limit=5)
+    paths = [hit["path"] for hit in result["hits"]]
+    assert "user-whitepaper-platform-guide.md" in paths
+
+    body = platform_docs.read_doc(rel_path="user-whitepaper-platform-guide.md")
+    content = str(body["content"])
+    assert "按业务流程理解平台" in content
+    assert "各角色在流程中的位置和操作" in content
+    assert "申请共享数据从找数到交付怎么走" in content

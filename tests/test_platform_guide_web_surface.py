@@ -45,3 +45,22 @@ def test_platform_guide_ask_serializes_product_role_value() -> None:
     assert not re.search(r"role:\s*getProductRole\(\)\s*,", body), (
         f"role must not be set to the Ref object itself, got body: {body!r}"
     )
+
+
+def test_platform_guide_presets_start_from_new_customer_flow() -> None:
+    src = (REPO / "zw-brain-web" / "src" / "components" / "PlatformGuideChatPanel.vue").read_text(
+        encoding="utf-8",
+    )
+    assert "平台助手" in src
+    assert "新客户第一次怎么使用平台？" in src
+    assert "帮我找一类数据，并说明能不能申请。" in src
+    assert "我有申请或交付编号，帮我看现在卡在哪一步。" in src
+    assert "申请共享数据需要填哪些信息？" in src
+
+
+def test_platform_guide_uses_unified_readonly_copilot_agent() -> None:
+    src = (REPO / "zw-brain-web" / "src" / "composables" / "usePlatformGuideChat.ts").read_text(
+        encoding="utf-8",
+    )
+    assert "a-platform-copilot" in src
+    assert "UI-COPILOT" in src

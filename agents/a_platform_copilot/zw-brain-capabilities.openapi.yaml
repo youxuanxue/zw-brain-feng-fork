@@ -1,0 +1,1216 @@
+openapi: 3.0.3
+info:
+  title: zw-brain 平台助手只读能力
+  description: 平台助手在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
+  version: 1.0.0
+servers:
+- url: "http://127.0.0.1:8800"
+paths:
+  /api/skills/platform.docs.search:
+    post:
+      operationId: platform_docs_search
+      summary: 平台文档关键词检索
+      description: 在 zw-brain 仓库 docs/ 等只读文档中按关键词检索，返回路径、标题与摘要片段，供平台问答 Agent 定位资料。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: 检索关键词或短语
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 20
+                  default: 8
+                role:
+                  type: string
+                request_id:
+                  type: string
+              required:
+              - query
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  query:
+                    type: string
+                  hits:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /api/skills/platform.docs.read:
+    post:
+      operationId: platform_docs_read
+      summary: 平台文档全文读取
+      description: 按相对路径读取 zw-brain 仓库内已授权 Markdown 文档正文（只读，带长度上限），供平台问答 Agent 核对细节。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                path:
+                  type: string
+                  description: 文档相对路径，如 deployment/docker-image-deployment.md
+                rel_path:
+                  type: string
+                  description: 同 path 的别名
+                max_chars:
+                  type: integer
+                  minimum: 500
+                  maximum: 24000
+                role:
+                  type: string
+                request_id:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  path:
+                    type: string
+                  content:
+                    type: string
+                  truncated:
+                    type: boolean
+                  size_chars:
+                    type: integer
+  /api/skills/search.intent.parse:
+    post:
+      operationId: search_intent_parse
+      summary: P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由）
+      description: P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。zw-brain 主进程不持有推理平台
+        SDK/env，当前走本地确定性规则。可由调用方传 enabled=false 标记关闭。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: 用户一句话搜索语句
+                role:
+                  type: string
+                enabled:
+                  type: boolean
+                  description: false 时跳过推理直接走本地规则；默认 true
+                request_id:
+                  type: string
+                  description: 审计关联（D4）；缺省由 cap 自动生成
+              required:
+              - query
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  intent:
+                    type: string
+                    description: discover_resource | register_demand | query_application | unknown
+                  keywords:
+                    type: array
+                    items:
+                      type: string
+                  dimension:
+                    type: object
+                    properties:
+                      keyword:
+                        type: array
+                        items:
+                          type: string
+                      target_resource_hint:
+                        type: string
+                      region:
+                        type: string
+                  missing_fields:
+                    type: array
+                    items:
+                      type: string
+                  recommendation_reason:
+                    type: string
+                  follow_up_questions:
+                    type: array
+                    items:
+                      type: string
+                  source:
+                    type: string
+                    description: inference | fallback_rule
+                  enabled:
+                    type: boolean
+                  degraded:
+                    type: boolean
+                    description: 兼容旧客户端的可选字段；当前 zw-brain 本地规则路径不设置。
+  /api/skills/data.search:
+    post:
+      operationId: data_search
+      summary: 数据资源检索
+      description: 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - query
+              properties:
+                query:
+                  type: string
+                  minLength: 1
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - results
+                - total
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                    minimum: 0
+  /api/skills/catalog.browse:
+    post:
+      operationId: catalog_browse
+      summary: 浏览真目录条目
+      description: 按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                page:
+                  type: integer
+                  minimum: 1
+                  default: 1
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                lifecycle:
+                  type: string
+                  enum:
+                  - active
+                  - approved_pending_publish
+                  - draft
+                  - pending_review
+                  - rejected
+                  - all
+                  default: active
+                kind:
+                  type: string
+                  enum:
+                  - real
+                  - api-group
+                  - all
+                  default: real
+                owner_org_id:
+                  type: string
+                query:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - total
+                - page
+                - limit
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                    minimum: 0
+                  page:
+                    type: integer
+                    minimum: 1
+                  limit:
+                    type: integer
+                    minimum: 1
+  /api/skills/catalog.entry.query:
+    post:
+      operationId: catalog_entry_query
+      summary: 查询目录条目
+      description: 查询已进入 canonical 聚合的目录条目详情和列表。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                catalog_code:
+                  type: string
+                source:
+                  type: string
+                  description: filter by summary_json.source (e.g. 'reverse' for 反向编目 drafts)
+                lifecycle_status:
+                  type: string
+                  description: filter by lifecycle_status (draft / pending_review / active / ...)
+                limit:
+                  type: integer
+                  minimum: 1
+                  description: max rows to return; filters apply in SQL before serialization
+                offset:
+                  type: integer
+                  minimum: 0
+                  description: skip rows before applying limit
+                order:
+                  type: string
+                  enum:
+                  - updated_desc
+                  description: 'result ordering: ''updated_desc'' = newest updated first (work-queue view); default = catalog_code
+                    ascending (stable browse order)'
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+  /api/skills/request.list:
+    post:
+      operationId: request_list
+      summary: 查看申请列表
+      description: 查看黄金链路中的申请清单和当前状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+  /api/skills/request.view:
+    post:
+      operationId: request_view
+      summary: 查看申请详情
+      description: 查看申请详情、差异字段、时间线与 AI 解释。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - request_id
+              properties:
+                request_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - status
+                - timeline
+                - aiStatus
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  timeline:
+                    type: array
+                    items:
+                      type: object
+                  aiStatus:
+                    type: object
+  /api/skills/approval.view:
+    post:
+      operationId: approval_view
+      summary: 查看审批详情
+      description: 查看审批建议、风险、影响和异常项。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - request_id
+              properties:
+                request_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - suggestion
+                - actions
+                properties:
+                  id:
+                    type: string
+                  suggestion:
+                    type: string
+                  actions:
+                    type: array
+                    items:
+                      type: string
+  /api/skills/delivery.list:
+    post:
+      operationId: delivery_list
+      summary: 查看交付任务列表
+      description: 查看预填下发、自动汇总、回流候选和异常交付任务列表。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties: {}
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+  /api/skills/delivery.view:
+    post:
+      operationId: delivery_view
+      summary: 查看交付任务
+      description: 查看预填下发、自动汇总和回流候选的交付任务详情。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - task_id
+              properties:
+                task_id:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - id
+                - status
+                - history
+                - backflow
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  history:
+                    type: array
+                    items:
+                      type: object
+                  backflow:
+                    type: object
+  /api/skills/credential.query:
+    post:
+      operationId: credential_query
+      summary: 查询访问凭据（P4 凭据领取页）
+      description: 只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受
+        policy 控制）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                request_id:
+                  type: string
+                role:
+                  type: string
+              required:
+              - request_id
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  request_id:
+                    type: string
+                  credential:
+                    type: object
+                  status:
+                    type: string
+                    description: issued | not_issued
+                  issued_audit_id:
+                    type: string
+                  issued_at:
+                    type: string
+                  issued_by:
+                    type: string
+                  resource_id:
+                    type: string
+                  resource_name:
+                    type: string
+                  hint:
+                    type: string
+  /api/skills/objection.case.query:
+    post:
+      operationId: objection_case_query
+      summary: 查询异议案件
+      description: 查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                confirmed:
+                  type: boolean
+                status:
+                  type: string
+                target_type:
+                  type: string
+              required: []
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  run:
+                    type: object
+                  mapping:
+                    type:
+                    - object
+                    - 'null'
+                  summary:
+                    type: object
+                  audit_id:
+                    type: string
+  /api/skills/objection.process.query:
+    post:
+      operationId: objection_process_query
+      summary: 查询异议过程
+      description: 查询异议处理过程、证据与评价链路。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                confirmed:
+                  type: boolean
+                objection_id:
+                  type: string
+              required:
+              - objection_id
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  run:
+                    type: object
+                  mapping:
+                    type:
+                    - object
+                    - 'null'
+                  summary:
+                    type: object
+                  audit_id:
+                    type: string
+  /api/skills/objection.metric.query:
+    post:
+      operationId: objection_metric_query
+      summary: 查询异议指标
+      description: 查询异议状态分布和闭环指标投影。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                role:
+                  type: string
+                confirmed:
+                  type: boolean
+              required: []
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  run:
+                    type: object
+                  mapping:
+                    type:
+                    - object
+                    - 'null'
+                  summary:
+                    type: object
+                  audit_id:
+                    type: string
+  /api/skills/audit.event.query:
+    post:
+      operationId: audit_event_query
+      summary: 查询审计事件
+      description: 按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload
+        字段需通过专用 evidence chain 二次申请）。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                actor:
+                  type: string
+                  description: 按发起人精确匹配，如 'user:gov:ROLE_SECURITY_AUDIT:安全审计员'
+                skill_id:
+                  type: string
+                  description: 按 capability skill_id 精确匹配
+                tenant_id:
+                  type: string
+                  description: 租户 ID；缺省走运行时租户（sd-default 单租户模式下不可跨租户读）
+                audit_class:
+                  type: string
+                  enum:
+                  - write-critical
+                  - write-normal
+                  - read-sensitive
+                  description: 按 3 级正规化 audit_class 过滤；其他历史值在 store 写入时已 normalize
+                since:
+                  type: string
+                  format: date-time
+                  description: 起始时间（ISO8601 含时区）
+                until:
+                  type: string
+                  format: date-time
+                  description: 截止时间（ISO8601 含时区）
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 200
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - summary
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - request_id
+                      - actor
+                      - skill_id
+                      - tenant_id
+                      - audit_class
+                      - event_type
+                      - phase
+                      - occurred_at
+                      properties:
+                        request_id:
+                          type: string
+                        actor:
+                          type: string
+                        skill_id:
+                          type: string
+                        tenant_id:
+                          type: string
+                        audit_class:
+                          type: string
+                        event_type:
+                          type: string
+                        phase:
+                          type: string
+                        occurred_at:
+                          type: string
+                          format: date-time
+                  summary:
+                    type: object
+                    required:
+                    - total
+                    - by_audit_class
+                    - by_skill
+                    - by_actor
+                    properties:
+                      total:
+                        type: integer
+                      by_audit_class:
+                        type: object
+                      by_skill:
+                        type: object
+                      by_actor:
+                        type: object
+                      first_occurred_at:
+                        type:
+                        - string
+                        - 'null'
+                      last_occurred_at:
+                        type:
+                        - string
+                        - 'null'
+  /api/skills/audit.event.statistics:
+    post:
+      operationId: audit_event_statistics
+      summary: 审计事件统计聚合
+      description: 按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计
+        panel。只读，单租户 sd-default 强过滤。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                bucket:
+                  type: string
+                  enum:
+                  - hour
+                  - day
+                  - week
+                  - month
+                  default: day
+                  description: 时间桶粒度
+                dimension:
+                  type: string
+                  enum:
+                  - actor
+                  - skill_id
+                  - audit_class
+                  - tenant_id
+                  default: audit_class
+                  description: 聚合维度
+                tenant_id:
+                  type: string
+                  description: 租户 ID；缺省走运行时租户（单租户 sd-default 模式下不可跨租户读）
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 10000
+                  default: 1000
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - bucket
+                - dimension
+                - buckets
+                - totals
+                properties:
+                  bucket:
+                    type: string
+                  dimension:
+                    type: string
+                  buckets:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - bucket_key
+                      - by_dimension
+                      - total
+                      properties:
+                        bucket_key:
+                          type: string
+                        by_dimension:
+                          type: object
+                        total:
+                          type: integer
+                  totals:
+                    type: object
+                  scanned:
+                    type: integer
+  /api/skills/audit.event.anomaly:
+    post:
+      operationId: audit_event_anomaly
+      summary: 审计事件异常 Top-N 扫描
+      description: Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied
+        request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tenant_id:
+                  type: string
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                top_n:
+                  type: integer
+                  minimum: 1
+                  maximum: 100
+                  default: 20
+                min_failure_count:
+                  type: integer
+                  minimum: 2
+                  default: 3
+                  description: high-failure-rate 规则的最低失败次数阈值
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - anomalies
+                - scanned
+                properties:
+                  anomalies:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - rule
+                      - severity
+                      - actor
+                      - evidence_request_ids
+                      - summary
+                      properties:
+                        rule:
+                          type: string
+                          enum:
+                          - cross-tenant-read
+                          - high-failure-rate
+                          - repeated-denied
+                        severity:
+                          type: string
+                          enum:
+                          - low
+                          - medium
+                          - high
+                        actor:
+                          type: string
+                        skill_id:
+                          type: string
+                        tenant_id:
+                          type: string
+                        evidence_request_ids:
+                          type: array
+                          items:
+                            type: string
+                        occurrence_count:
+                          type: integer
+                        summary:
+                          type: string
+                  scanned:
+                    type: integer
+  /api/skills/audit.event.accountability:
+    post:
+      operationId: audit_event_accountability
+      summary: 审计事件追责反查
+      description: 按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段
+        hash 化）；不返回原始 payload 全文。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - actor
+              properties:
+                actor:
+                  type: string
+                  minLength: 1
+                tenant_id:
+                  type: string
+                since:
+                  type: string
+                  format: date-time
+                until:
+                  type: string
+                  format: date-time
+                limit:
+                  type: integer
+                  minimum: 1
+                  maximum: 1000
+                  default: 100
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - actor
+                - denied_chains
+                - total
+                properties:
+                  actor:
+                    type: string
+                  denied_chains:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                      - request_id
+                      - skill_id
+                      - denied_at
+                      - events
+                      properties:
+                        request_id:
+                          type: string
+                        skill_id:
+                          type: string
+                        denied_at:
+                          type: string
+                          format: date-time
+                        events:
+                          type: array
+                          items:
+                            type: object
+                            required:
+                            - phase
+                            - occurred_at
+                            - sanitized_payload
+                            properties:
+                              phase:
+                                type: string
+                              occurred_at:
+                                type: string
+                                format: date-time
+                              sanitized_payload:
+                                type: object
+                  total:
+                    type: integer
+  /api/skills/ops.catalog.statistics.query:
+    post:
+      operationId: ops_catalog_statistics_query
+      summary: 查询目录资源统计
+      description: 查询目录、资源、schema 映射和质量证据的治理统计摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary:
+                    type: object
+  /api/skills/ops.exchange.statistics.query:
+    post:
+      operationId: ops_exchange_statistics_query
+      summary: 查询交换统计
+      description: 只读查询交换、订阅和交付投影统计，不反向驱动业务状态。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource_code:
+                  type: string
+                delivery_code:
+                  type: string
+                metric_scope:
+                  type: string
+                role:
+                  type: string
+              required: []
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  total:
+                    type: integer
+                  result:
+                    type: object
+                  ok:
+                    type: boolean
+                  summary:
+                    type: object
+  /api/skills/ops.service.report.query:
+    post:
+      operationId: ops_service_report_query
+      summary: 查询服务运行态势
+      description: 只读汇总网关心跳和服务调用统计，形成服务运行态势报告。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - gateways
+                - metrics
+                - summary
+                properties:
+                  gateways:
+                    type: array
+                    items:
+                      type: object
+                  metrics:
+                    type: array
+                    items:
+                      type: object
+                  summary:
+                    type: object
+  /api/skills/ops.service.invocation.query:
+    post:
+      operationId: ops_service_invocation_query
+      summary: 查询服务调用统计
+      description: 只读查询 API 服务调用量、成功失败和错误归因摘要。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                resource_code:
+                  type: string
+                capability_id:
+                  type: string
+                metric_scope:
+                  type: string
+                role:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                - items
+                - summary
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                  summary:
+                    type: object
+  /api/skills/projection.status.query:
+    post:
+      operationId: projection_status_query
+      summary: 查询 5 类投影状态 + 失败摘要
+      description: 聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给
+        业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                tenant_id:
+                  type: string
+      responses:
+        '200':
+          description: 能力返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tenant_id:
+                    type: string
+                  projections:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        kind:
+                          type: string
+                        total_rows:
+                          type: integer
+                        latest_updated_at:
+                          type:
+                          - string
+                          - 'null'
+                        failed_count:
+                          type: integer
+                        failure_summary:
+                          type: array
+                          items:
+                            type: object
+                  overall_health:
+                    type: string

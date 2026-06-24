@@ -45,6 +45,55 @@ class ScenarioAgent:
 
 SCENARIO_AGENTS: tuple[ScenarioAgent, ...] = (
     ScenarioAgent(
+        agent_id="a-platform-copilot",
+        name="平台助手",
+        agent_class="A",
+        surface="agent",
+        journey="infra",
+        role="平台各岗位用户",
+        outcome="作为统一前台助手，按用户意图解释流程、找数、申请进度、审批交付、异议审计和运营态势，并给出下一步人工办理建议。",
+        description=(
+            "平台统一前台助手：面向各岗位用户，用只读能力解释流程、检索资源、汇总申请/审批/"
+            "交付/异议/审计线索，并按场景给出下一步建议。不提交、不审批、不写库。"
+        ),
+        guardrails=(
+            "默认先判断用户意图：流程/角色问题读平台文档；找数问题查资源；进度问题查申请、审批、交付；争议和合规问题查异议与审计。",
+            "所有工具只读；不提交申请、不审批、不发布、不授权、不撤回、不写库。",
+            "涉及办理动作时，只说明入口、所需信息和对应人工角色，不代办。",
+            "缺少编号、部门、时间范围或业务场景会影响准确性时，先追问最少必要信息。",
+            "按更专业的只读语义选择证据路径：平台指南、数据发现、用数全程、审核研判、异议分诊、审计调查和运营报表；但输出仍保持一个统一答案。",
+        ),
+        tools=(
+            "platform.docs.search",
+            "platform.docs.read",
+            "search.intent.parse",
+            "data.search",
+            "catalog.browse",
+            "catalog.entry.query",
+            "request.list",
+            "request.view",
+            "approval.view",
+            "delivery.list",
+            "delivery.view",
+            "credential.query",
+            "objection.case.query",
+            "objection.process.query",
+            "objection.metric.query",
+            "audit.event.query",
+            "audit.event.statistics",
+            "audit.event.anomaly",
+            "audit.event.accountability",
+            "ops.catalog.statistics.query",
+            "ops.exchange.statistics.query",
+            "ops.service.report.query",
+            "ops.service.invocation.query",
+            "projection.status.query",
+        ),
+        temperature=0.1,
+        max_tokens=8000,
+        exposes_chat=True,
+    ),
+    ScenarioAgent(
         agent_id="a-zw-search-helper",
         name="数据发现副驾",
         agent_class="A",
@@ -130,7 +179,7 @@ SCENARIO_AGENTS: tuple[ScenarioAgent, ...] = (
         ),
         guardrails=(
             "只读核对 schema、目录项映射和目录条目。",
-            "不写 metadata、质量规则或血缘关系。",
+            "不写 metadata、质量检测配置或血缘关系。",
             "没有 evidence 时明确说明缺口，不补造字段。",
         ),
         tools=(
@@ -286,12 +335,13 @@ SCENARIO_AGENTS: tuple[ScenarioAgent, ...] = (
         surface="agent",
         journey="infra",
         role="平台各岗位用户",
-        outcome="基于平台正式文档回答使用、部署、权限、智能问答和数据共享流程问题。",
+        outcome="基于平台正式文档回答新客户使用流程、角色分工、部署、权限、智能问答和数据共享问题。",
         description=(
-            "平台内副驾：基于仓库正式文档回答平台使用、部署、权限、智能问答和数据共享流程问题。"
+            "平台内副驾：基于仓库正式文档回答新客户使用流程、角色分工、部署、权限、智能问答和数据共享问题。"
             "只读文档，不代办业务。"
         ),
         guardrails=(
+            "新客户、业务流程、角色分工类问题，先检索并读取用户白皮书，再结合角色规范回答。",
             "先检索文档，再读取相关正文核对。",
             "文档未记载时明确说明，不猜测路径、默认值或部署拓扑。",
             "不代替用户提交申请、审批或写库。",
@@ -523,7 +573,7 @@ SCENARIO_AGENTS: tuple[ScenarioAgent, ...] = (
             "输出只读完整性核验清单。"
         ),
         guardrails=(
-            "只读核验，不修复文件、不写质量规则。",
+            "只读核验，不修复文件、不写质量检测配置。",
             "完整性结论必须基于 schema 或字段映射证据。",
             "没有字段证据时明确提示需补齐。",
         ),
@@ -582,6 +632,20 @@ def tool_name(skill_id: str) -> str:
     return snake(skill_id)
 
 
+def agent_labels(agent: ScenarioAgent) -> dict[str, str]:
+    labels = {
+        "zw_brain_builtin": "true",
+        "journey": agent.journey,
+        "surface": agent.surface,
+        "scenario_class": agent.agent_class,
+        "runtime_ready": "true",
+        "net_new": "none",
+    }
+    if agent.agent_id == "a-platform-copilot":
+        labels["agent_authorization_mode"] = "any_read_tool"
+    return labels
+
+
 def input_schema(manifest: dict[str, Any]) -> dict[str, Any]:
     schema = manifest.get("input_schema")
     if isinstance(schema, dict) and schema:
@@ -624,6 +688,18 @@ def build_instructions(agent: ScenarioAgent, manifests: dict[str, dict[str, Any]
 
 
 def quick_questions(agent: ScenarioAgent) -> list[str]:
+    if agent.agent_id == "a-platform-copilot":
+        return [
+            "我是新客户，请按业务流程介绍系统怎么用？",
+            "帮我找一类数据，并说明能不能申请。",
+            "我有申请或交付编号，帮我看现在卡在哪一步。",
+        ]
+    if agent.agent_id == "a-zw-platform-guide":
+        return [
+            "我是新客户，请按业务流程介绍系统怎么用？",
+            "各角色在流程中的位置和操作分别是什么？",
+            "申请共享数据从找数到交付怎么走？",
+        ]
     return [
         f"这个助手适合帮{agent.role}处理什么问题？",
         "我应该提供哪些编号、时间范围或判断条件？",
@@ -644,14 +720,7 @@ def agent_yaml(agent: ScenarioAgent, manifests: dict[str, dict[str, Any]]) -> di
             "owner": agent.owner,
             "exposes_chat": agent.exposes_chat,
             "exposes_a2a": agent.exposes_a2a,
-            "labels": {
-                "zw_brain_builtin": "true",
-                "journey": agent.journey,
-                "surface": agent.surface,
-                "scenario_class": agent.agent_class,
-                "runtime_ready": "true",
-                "net_new": "none",
-            },
+            "labels": agent_labels(agent),
         },
         "model": {
             "provider": "openai_compatible",

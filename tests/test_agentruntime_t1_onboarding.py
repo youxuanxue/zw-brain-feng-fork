@@ -104,6 +104,79 @@ tools: []
     assert any("kind:api" in item and "data_search" in item for item in violations)
 
 
+def test_validate_rejects_any_read_tool_mode_with_write_capability(tmp_path: Path) -> None:
+    agent_dir = tmp_path / "agent"
+    agent_dir.mkdir()
+    (agent_dir / "AGENT.yaml").write_text(
+        """
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: bad-any-read
+  name: Bad Any Read
+  version: 1.0.0
+  trust_level: platform
+  labels:
+    agent_authorization_mode: any_read_tool
+model:
+  provider: openai_compatible
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
+memory:
+  enabled: false
+tools:
+  - kind: api
+    name: request_submit
+    description: bad write tool
+    spec_url: ./zw-brain-capabilities.openapi.yaml
+""".strip(),
+        encoding="utf-8",
+    )
+    (agent_dir / "capabilities.json").write_text(
+        json.dumps(
+            {
+                "runtime_spec_version": "anp-agent/v1.2",
+                "trust_level": "platform",
+                "source_type": "builtin",
+                "auth_mode": "trusted_gateway",
+                "tenant_id": "sd-default",
+                "context_policy": "regulated_minimal",
+                "capability_tools": [
+                    {
+                        "skill_id": "request.submit",
+                        "name": "request_submit",
+                        "description": "写能力",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (agent_dir / "zw-brain-capabilities.openapi.yaml").write_text(
+        """
+openapi: 3.0.3
+info:
+  title: bad
+  version: 1.0.0
+paths:
+  /api/skills/request.submit:
+    post:
+      operationId: request_submit
+      responses:
+        '200':
+          description: ok
+""".strip(),
+        encoding="utf-8",
+    )
+
+    valid, violations, _ = validate_agent_bundle(agent_dir / "AGENT.yaml")
+
+    assert not valid
+    blob = " ".join(violations)
+    assert "any_read_tool" in blob
+    assert "request.submit" in blob
+    assert "write-critical" in blob
+
+
 def test_validate_rejects_bad_external_with_real_violations() -> None:
     """防假绿：故意违规样本逐条命中（旧 spec / 直连 provider / auth none / 多租户 / kind:skill）。"""
     valid, violations, _ = validate_agent_bundle(FIX / "bad-external" / "AGENT.yaml")

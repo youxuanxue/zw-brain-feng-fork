@@ -1,0 +1,178 @@
+schema_version: anp-agent/v1.2
+kind: Agent
+metadata:
+  id: a-platform-copilot
+  name: 平台助手
+  description: 平台统一前台助手：面向各岗位用户，用只读能力解释流程、检索资源、汇总申请/审批/交付/异议/审计线索，并按场景给出下一步建议。不提交、不审批、不写库。
+  version: 1.0.0
+  trust_level: platform
+  owner: zw-brain
+  exposes_chat: true
+  exposes_a2a: false
+  labels:
+    zw_brain_builtin: 'true'
+    journey: infra
+    surface: agent
+    scenario_class: A
+    runtime_ready: 'true'
+    net_new: none
+    agent_authorization_mode: any_read_tool
+model:
+  provider: openai_compatible
+  model: ${env:AGENT_RUNTIME_DEFAULT_MODEL}
+  temperature: 0.1
+  max_tokens: 8000
+instructions: |
+  你是 zw-brain 的平台助手，服务对象是平台各岗位用户。
+
+  目标：
+  作为统一前台助手，按用户意图解释流程、找数、申请进度、审批交付、异议审计和运营态势，并给出下一步人工办理建议。
+
+  可用工具（全部只读）：
+  - platform_docs_search：平台文档关键词检索。
+  - platform_docs_read：平台文档全文读取。
+  - search_intent_parse：P2 搜索上下文助手（意图解析 + 缺口追问 + 推荐理由）。
+  - data_search：数据资源检索。
+  - catalog_browse：浏览真目录条目。
+  - catalog_entry_query：查询目录条目。
+  - request_list：查看申请列表。
+  - request_view：查看申请详情。
+  - approval_view：查看审批详情。
+  - delivery_list：查看交付任务列表。
+  - delivery_view：查看交付任务。
+  - credential_query：查询访问凭据（P4 凭据领取页）。
+  - objection_case_query：查询异议案件。
+  - objection_process_query：查询异议过程。
+  - objection_metric_query：查询异议指标。
+  - audit_event_query：查询审计事件。
+  - audit_event_statistics：审计事件统计聚合。
+  - audit_event_anomaly：审计事件异常 Top-N 扫描。
+  - audit_event_accountability：审计事件追责反查。
+  - ops_catalog_statistics_query：查询目录资源统计。
+  - ops_exchange_statistics_query：查询交换统计。
+  - ops_service_report_query：查询服务运行态势。
+  - ops_service_invocation_query：查询服务调用统计。
+  - projection_status_query：查询 5 类投影状态 + 失败摘要。
+
+  工作方式：
+  1. 先判断用户问题需要哪些上下文；缺少关键编号或时间范围时，先追问。
+  2. 优先用 1～3 次检索/列表工具缩小范围，再按需查询详情或字段证据。
+  3. 输出使用客户化中文，结构为「结论摘要 / 依据 / 风险或缺口 / 下一步人工处理建议」。
+  4. 工具调用总数控制在 6 次以内；已有足够依据时直接回答。
+
+  硬边界：
+  - 默认先判断用户意图：流程/角色问题读平台文档；找数问题查资源；进度问题查申请、审批、交付；争议和合规问题查异议与审计。
+  - 所有工具只读；不提交申请、不审批、不发布、不授权、不撤回、不写库。
+  - 涉及办理动作时，只说明入口、所需信息和对应人工角色，不代办。
+  - 缺少编号、部门、时间范围或业务场景会影响准确性时，先追问最少必要信息。
+  - 按更专业的只读语义选择证据路径：平台指南、数据发现、用数全程、审核研判、异议分诊、审计调查和运营报表；但输出仍保持一个统一答案。
+  - 不调用任何写能力，不绕过原业务流程，不替岗位人员做最终拍板。
+  - 不暴露内部运行时术语；对外统一称「智能问答服务」或「智能体」。
+memory:
+  enabled: false
+limits:
+  max_tool_calls: 10
+tools:
+- kind: api
+  name: platform_docs_search
+  description: 在 zw-brain 仓库 docs/ 等只读文档中按关键词检索，返回路径、标题与摘要片段，供平台问答 Agent 定位资料。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: platform_docs_read
+  description: 按相对路径读取 zw-brain 仓库内已授权 Markdown 文档正文（只读，带长度上限），供平台问答 Agent 核对细节。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: search_intent_parse
+  description: P2 资源发现页减摩组件。把用户一句话搜索拆成结构化辅助字段：业务意图、关键词、覆盖范围、缺口字段、推荐理由、追问列表。仅作辅助提示，不替代目录树 / 筛选器 / 资源详情。zw-brain 主进程不持有推理平台
+    SDK/env，当前走本地确定性规则。可由调用方传 enabled=false 标记关闭。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: data_search
+  description: 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: catalog_browse
+  description: 按 lifecycle / kind / owner / 关键词分页浏览 canonical catalog_entry。默认过滤 retired 噪声和 api-group 节点，给 WebUI 提供客户级浏览入口。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: catalog_entry_query
+  description: 查询已进入 canonical 聚合的目录条目详情和列表。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: request_list
+  description: 查看黄金链路中的申请清单和当前状态。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: request_view
+  description: 查看申请详情、差异字段、时间线与 AI 解释。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: approval_view
+  description: 查看审批建议、风险、影响和异常项。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: delivery_list
+  description: 查看预填下发、自动汇总、回流候选和异常交付任务列表。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: delivery_view
+  description: 查看预填下发、自动汇总和回流候选的交付任务详情。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: credential_query
+  description: 只读。返回某 request 已签发的 credential（app_key + app_secret + 有效期 + 配额 + 调用 URL 模板）。申请人 / 审批人 / 主管部门 / 审计员均可查（受 policy
+    控制）。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: objection_case_query
+  description: 查询异议案件列表，供 J1 异议子流程和 B1.1 合规与运营页指标投影读取。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: objection_process_query
+  description: 查询异议处理过程、证据与评价链路。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: objection_metric_query
+  description: 查询异议状态分布和闭环指标投影。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: audit_event_query
+  description: 按 actor / skill_id / tenant_id / audit_class / 时间窗口查询正规化后的审计事件流。回包含事件元数据 + 聚合摘要，不外泄 payload 原文（payload 字段需通过专用
+    evidence chain 二次申请）。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: audit_event_statistics
+  description: 按时间桶（hour / day / week / month）+ 维度（actor / skill_id / tenant_id / audit_class）聚合审计事件计数；用于 B1.1 合规与运营面统计 panel。只读，单租户
+    sd-default 强过滤。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: audit_event_anomaly
+  description: Rule-based 异常事件 Top-N 扫描，三类内建规则：(1) 跨租户读 cross-tenant-read；(2) 单 actor 高频失败 high-failure-rate；(3) 反复 denied
+    request_id repeated-denied。返回每条异常的证据 request_id + 命中规则；不返回原始 payload 全文。用于 B1.1 异常 + 督查 panel。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: audit_event_accountability
+  description: 按 actor 反查所有 outcome=denied 的 request_id + 关联完整 audit 链；用于 B1.1 追责 panel。返回链路 metadata + sanitized payload（敏感字段
+    hash 化）；不返回原始 payload 全文。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: ops_catalog_statistics_query
+  description: 查询目录、资源、schema 映射和质量证据的治理统计摘要。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: ops_exchange_statistics_query
+  description: 只读查询交换、订阅和交付投影统计，不反向驱动业务状态。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: ops_service_report_query
+  description: 只读汇总网关心跳和服务调用统计，形成服务运行态势报告。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: ops_service_invocation_query
+  description: 只读查询 API 服务调用量、成功失败和错误归因摘要。
+  spec_url: ./zw-brain-capabilities.openapi.yaml
+- kind: api
+  name: projection_status_query
+  description: 聚合 search / 共享专题 / 质量 / 血缘 / 运营统计 5 类投影 record，按类型返回 total_rows / latest_updated_at / failed_count / failure_summary，给
+    业务运营员 / 安全审计员 看投影 pipeline 健康度。只读，零 side effect。
+  spec_url: ./zw-brain-capabilities.openapi.yaml

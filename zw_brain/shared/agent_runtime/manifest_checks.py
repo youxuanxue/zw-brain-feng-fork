@@ -126,14 +126,23 @@ def validate_agent_bundle(agent_yaml: Path) -> tuple[bool, list[str], dict[str, 
         if isinstance(tool, dict) and str(tool.get("kind") or "").lower() in {"mcp", "skill"}:
             violations.append("tools.kind must not use legacy mcp/skill entries; use mcp_servers/skills")
 
+    labels = metadata.get("labels") if isinstance(metadata.get("labels"), dict) else {}
+    authorization_mode = str(labels.get("agent_authorization_mode") or "all_tools").strip().lower()
+    if authorization_mode and authorization_mode not in {"all_tools", "any_read_tool"}:
+        violations.append(f"metadata.labels.agent_authorization_mode unsupported: {authorization_mode!r}")
+
     capability_tools = sidecar.get("capability_tools") if isinstance(sidecar, dict) else []
     manifests = load_manifests()
+    if authorization_mode == "any_read_tool" and not capability_tools:
+        violations.append("agent_authorization_mode=any_read_tool requires capability_tools")
     for item in capability_tools or []:
         if not isinstance(item, dict):
             continue
         skill_id = str(item.get("skill_id") or "")
         if skill_id and skill_id not in manifests:
             violations.append(f"capability_tools references unknown skill_id {skill_id!r}")
+        if skill_id and authorization_mode == "any_read_tool" and skill_id in manifests:
+            _validate_any_read_tool_capability(skill_id, manifests[skill_id], violations)
     _validate_declared_api_tools(agent_yaml, tools, capability_tools, violations)
 
     if (agent_yaml.parent / "server.py").exists() or (agent_yaml.parent / "main.py").exists():
@@ -141,6 +150,30 @@ def validate_agent_bundle(agent_yaml: Path) -> tuple[bool, list[str], dict[str, 
 
     merged = {"agent": agent, "sidecar": sidecar, "spec_version": spec, "trust_level": trust_level}
     return not violations, violations, merged
+
+
+def _validate_any_read_tool_capability(
+    skill_id: str,
+    manifest: dict[str, Any],
+    violations: list[str],
+) -> None:
+    audit_class = str(manifest.get("audit_class") or "")
+    if not audit_class.startswith("read"):
+        violations.append(
+            f"agent_authorization_mode=any_read_tool requires read-class capability; "
+            f"{skill_id!r} audit_class={audit_class!r}"
+        )
+    side_effects = manifest.get("side_effects") or []
+    if set(side_effects) - {"audit"}:
+        violations.append(
+            f"agent_authorization_mode=any_read_tool forbids non-audit side effects; "
+            f"{skill_id!r} side_effects={side_effects!r}"
+        )
+    if manifest.get("human_confirmation_required"):
+        violations.append(
+            f"agent_authorization_mode=any_read_tool forbids human-confirmation tools; "
+            f"{skill_id!r} requires confirmation"
+        )
 
 
 def _model_provider_allowed(model: dict[str, Any]) -> bool:

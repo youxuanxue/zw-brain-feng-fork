@@ -5,15 +5,15 @@ import { getProductRole } from '@/composables/useProductRole';
 
 // G3（6.4#9）：快捷问题按岗位给业务化提示（不同角色关注的事不同），去工程/部署黑话。
 const DEFAULT_PRESETS = [
-  '我的岗位能办哪些事？',
-  '申请共享数据需要填哪些信息？',
-  '怎么查看我的申请进度？',
+  '新客户第一次怎么使用平台？',
+  '帮我找一类数据，并说明能不能申请。',
+  '我有申请或交付编号，帮我看现在卡在哪一步。',
 ];
 const ROLE_PRESETS: Record<string, readonly string[]> = {
-  ROLE_BUSIAUDIT: ['平台已发布多少个数据目录？', '当前有多少条数据申请待办理？', '怎么查看我的申请进度？'],
-  ROLE_ORGAN_MANAGER: ['如何注册一个数据目录？', '如何申请共享数据？', '怎么查看我的申请进度？'],
-  ROLE_ORGAN_OPERATER: ['如何注册一个数据目录？', '如何把资源挂接到目录？', '申请共享数据需要填哪些信息？'],
-  ROLE_SECURITY_AUDIT: ['如何查看平台监控与告警信息？', '怎么审计一次数据交付？', '合规检查从哪里看？'],
+  ROLE_BUSIAUDIT: ['业务运营员在流程中负责哪些节点？', '帮我汇总待受理申请和异议线索。', '怎么查看平台运行与审计线索？'],
+  ROLE_ORGAN_MANAGER: ['部门管理员在申请和供数中做什么？', '帮我看本部门申请和交付进度。', '如何审核目录和资源挂接？'],
+  ROLE_ORGAN_OPERATER: ['部门操作员从找数到申请怎么走？', '帮我找一类数据，并说明能不能申请。', '申请共享数据需要填哪些信息？'],
+  ROLE_SECURITY_AUDIT: ['安全审计员在流程中看哪些证据？', '怎么审计一次数据交付？', '合规检查从哪里看？'],
 };
 const presets = computed(() => ROLE_PRESETS[getProductRole().value] ?? DEFAULT_PRESETS);
 
@@ -55,17 +55,17 @@ onUnmounted(() => {
     <button
       type="button"
       class="guide-trigger"
-      :title="open ? '收起平台指南' : '打开平台指南问答'"
+      :title="open ? '收起平台助手' : '打开平台助手'"
       @click="toggle"
     >
       <span aria-hidden="true">{{ open ? '×' : '?' }}</span>
-      <span class="guide-trigger-text">平台指南</span>
+      <span class="guide-trigger-text">平台助手</span>
     </button>
 
-    <aside v-if="open" class="guide-drawer" role="dialog" aria-label="平台指南问答">
+    <aside v-if="open" class="guide-drawer" role="dialog" aria-label="平台助手问答">
       <header class="guide-head">
-        <strong>平台指南</strong>
-        <p class="guide-hint">按你的岗位回答找数、申请、办理与查看进度等使用问题。</p>
+        <strong>平台助手</strong>
+        <p class="guide-hint">按你的岗位回答流程、找数、申请进度、审批交付、异议审计等问题。</p>
         <!-- R12：引擎内部名（AgentRuntime）不上屏；「平台管理员」非产品 7 角色，改「平台运维员」。 -->
         <p v-if="runtimeEnabled === false" class="guide-warn">
           智能问答暂未开启，请联系平台运维员开启后使用。
@@ -80,7 +80,7 @@ onUnmounted(() => {
           class="guide-msg"
           :data-role="msg.role"
         >
-          <span class="guide-msg-label">{{ msg.role === 'user' ? '我' : '指南' }}</span>
+          <span class="guide-msg-label">{{ msg.role === 'user' ? '我' : '助手' }}</span>
           <pre class="guide-msg-body">{{ msg.text }}</pre>
         </article>
       </div>
@@ -92,7 +92,7 @@ onUnmounted(() => {
           v-model="draft"
           class="guide-input"
           rows="3"
-          placeholder="例如：我的岗位能办哪些事？申请共享数据要填哪些信息？"
+          placeholder="例如：新客户第一次怎么使用平台？帮我看申请现在卡在哪一步？"
           :disabled="loading"
         />
         <button type="submit" class="guide-submit" :disabled="loading || runtimeEnabled === false">

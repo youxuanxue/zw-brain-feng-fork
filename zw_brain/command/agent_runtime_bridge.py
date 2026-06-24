@@ -63,29 +63,57 @@ def runtime_status() -> dict[str, Any]:
     return {"enabled": True, "configured": True, "ready": True, "status": "running"}
 
 
-def _roles_that_can_use(bindings: list[dict[str, Any]]) -> list[str]:
-    """返回能通过该 Agent **全部**绑定 skill policy 的角色集——与 _verify_agent_and_policy
-    完全同口径（同一 enforce_manifest_policy 链）。这是 UI 落位的单一事实源：
+def _authorization_mode(labels: dict[str, Any]) -> str:
+    mode = str(labels.get("agent_authorization_mode") or "all_tools").strip().lower()
+    return mode if mode in {"all_tools", "any_read_tool"} else "all_tools"
+
+
+def _role_can_use_bindings(
+    *,
+    role: str,
+    bindings: list[dict[str, Any]],
+    authorization_mode: str,
+) -> bool:
+    from zw_brain.capability_registry.runtime import get_manifest
+
+    matched = False
+    for binding in bindings:
+        skill_id = binding["skill_id"]
+        try:
+            manifest = get_manifest(skill_id)
+            policy.enforce_manifest_policy(skill_id, manifest, role, {})
+        except (KeyError, policy.DomainAccessDeniedError):
+            if authorization_mode == "all_tools":
+                return False
+            continue
+        matched = True
+        if authorization_mode == "any_read_tool":
+            return True
+    return matched
+
+
+def _roles_that_can_use(
+    bindings: list[dict[str, Any]],
+    *,
+    authorization_mode: str = "all_tools",
+) -> list[str]:
+    """返回能通过该 Agent 绑定 skill policy 的角色集。这是 UI 落位的单一事实源：
 
       - 数据应用画廊只渲染 caller 角色 ∈ 该集合的卡片（no-permission=invisible，
         不再「可见+403」死胡同，见 #294/#296/#297 反复诉讼的反模式）；
       - 403 文案据此列出「可切换到」的具体岗位名。
 
-    返回 [] 表示无任何角色可用（视为对所有人不可见）。"""
-    from zw_brain.capability_registry.runtime import get_manifest
+    默认 ``all_tools`` 沿用历史口径；显式声明 ``any_read_tool`` 的统一只读入口，
+    只要求角色至少能使用一个绑定能力。单个能力调用仍由 ``invoke_skill`` 按
+    原 manifest policy 守门。返回 [] 表示无任何角色可用（视为对所有人不可见）。"""
 
     allowed: list[str] = []
     for role in BUSINESS_ROLE_CODES:
-        ok = True
-        for binding in bindings:
-            skill_id = binding["skill_id"]
-            try:
-                manifest = get_manifest(skill_id)
-                policy.enforce_manifest_policy(skill_id, manifest, role, {})
-            except (KeyError, policy.DomainAccessDeniedError):
-                ok = False
-                break
-        if ok:
+        if _role_can_use_bindings(
+            role=role,
+            bindings=bindings,
+            authorization_mode=authorization_mode,
+        ):
             allowed.append(role)
     return allowed
 
@@ -127,7 +155,8 @@ def list_builtin_agents(
             for item in (raw_quick_questions if isinstance(raw_quick_questions, list) else [])
             if str(item).strip()
         ][:3]
-        policy_allowed_roles = _roles_that_can_use(bindings)
+        authorization_mode = _authorization_mode(labels)
+        policy_allowed_roles = _roles_that_can_use(bindings, authorization_mode=authorization_mode)
         default_allowed_roles = [
             role_code for role_code in policy_allowed_roles if role_code in _AGENT_ASSIGNABLE_ROLE_SET
         ]
@@ -175,6 +204,7 @@ def list_builtin_agents(
                 "assignable_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in _AGENT_ASSIGNABLE_ROLE_CODES],
                 "policy_allowed_roles": policy_allowed_roles,
                 "policy_allowed_role_names": [ROLE_DISPLAY_NAMES_ZH.get(r, r) for r in policy_allowed_roles],
+                "authorization_mode": authorization_mode,
                 "net_new": net_new,
                 "tool_count": len(bindings),
                 # 调用方角色须 ∈ allowed_roles 才可用本 Agent（与 task 启动鉴权同口径）。
