@@ -121,11 +121,12 @@ def test_validate_session_store_for_deploy_allows_dev_without_redis(monkeypatch:
     validate_session_store_for_deploy()
 
 
-def test_validate_session_store_for_deploy_requires_redis_in_prod(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_validate_session_store_for_deploy_accepts_prod_without_redis(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Production no longer mandates ZW_BRAIN_SESSION_REDIS_URL — single-replica
+    deployments work fine with the default InMemoryAuthSessionStore (P0-E)."""
     monkeypatch.setenv("ZW_BRAIN_DEPLOY_MODE", "prod")
     monkeypatch.delenv("ZW_BRAIN_SESSION_REDIS_URL", raising=False)
-    with pytest.raises(SystemExit, match="ZW_BRAIN_SESSION_REDIS_URL"):
-        validate_session_store_for_deploy()
+    validate_session_store_for_deploy()
 
 
 def test_validate_session_store_for_deploy_passes_when_prod_has_redis(monkeypatch: pytest.MonkeyPatch) -> None:

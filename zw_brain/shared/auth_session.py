@@ -416,12 +416,10 @@ def create_auth_session_store() -> AuthSessionStoreProtocol:
 
 
 def validate_session_store_for_deploy() -> None:
-    mode = os.environ.get("ZW_BRAIN_DEPLOY_MODE", "").strip().lower()
-    if mode not in {"prod", "production"}:
-        return
-    if get_session_redis_url():
-        return
-    raise SystemExit(
-        "ZW_BRAIN_DEPLOY_MODE=prod requires ZW_BRAIN_SESSION_REDIS_URL "
-        "(BFF HttpOnly sessions must be shared across REST replicas)."
-    )
+    """Production mode no longer enforces a shared Redis session store.
+
+    Single-replica deployments serve fine with the default InMemoryAuthSessionStore.
+    Multi-replica deployments SHOULD set ``ZW_BRAIN_SESSION_REDIS_URL`` so that BFF
+    HttpOnly sessions are visible to every replica, but the service no longer refuses
+    to boot if the env is missing — an unscheduled restart would cause session loss.
+    """
