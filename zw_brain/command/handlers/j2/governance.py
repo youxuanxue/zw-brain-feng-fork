@@ -398,6 +398,22 @@ def _list_actors(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     role_filter = str(payload.get("role_code") or "").strip()
     status_filter = str(payload.get("status") or "").strip()
     repo = deps.repos.governance_projection
+    org_names = {
+        str(org.org_code or ""): str(org.org_name or "")
+        for org in repo.list_orgs(tenant_id=tenant_id)
+    }
+
+    def org_name(code: object) -> str:
+        return org_names.get(str(code or "").strip(), "")
+
+    def org_matches(code: object) -> bool:
+        if not org_filter:
+            return True
+        raw_code = str(code or "")
+        name = org_name(raw_code)
+        needle = org_filter.lower()
+        return needle in raw_code.lower() or needle in name.lower()
+
     actors = repo.list_actors(tenant_id=tenant_id)
     active_bindings = repo.list_actor_org_role_bindings(tenant_id=tenant_id, binding_status="active")
     bindings_by_actor: dict[str, list[Any]] = {}
@@ -408,22 +424,35 @@ def _list_actors(brain, deps, ctx, payload: dict[str, Any]) -> dict[str, Any]:
     for actor in actors:
         status_counts[actor.status] = status_counts.get(actor.status, 0) + 1
         item = governance_ser.actor_with_bindings_to_dict(actor, bindings_by_actor.get(actor.external_actor_id, []))
+        # 身份治理是 ROLE_SYSTEM 独占的用户管理面；用户行必须可识别。只放开列表展示名，
+        # profile_json 仍走 serializer 默认脱敏，不外放手机号/邮箱/证件号等字段。
+        item["display_name"] = actor.display_name
+        item["org_name"] = org_name(actor.org_code)
+        for bd in item.get("bindings", []):
+            bd["org_name"] = org_name(bd.get("org_code"))
         if status_filter and item.get("status") != status_filter:
             continue
         binding_orgs = {bd.get("org_code") for bd in item.get("bindings", [])}
         binding_roles = {bd.get("role_code") for bd in item.get("bindings", [])}
-        if org_filter and item.get("org_code") != org_filter and org_filter not in binding_orgs:
+        if org_filter and not org_matches(item.get("org_code")) and not any(org_matches(code) for code in binding_orgs):
             continue
         if role_filter and role_filter not in binding_roles:
             continue
         if q:
-            # R-004: match against the RAW (unmasked) record fields — item.display_name is
-            # mask()'d ('张三'→'张*'), so a real-name query would never hit. The predicate runs
-            # server-side where the raw value is available; only masked rows egress.
+            # Match against the raw record fields; this ROLE_SYSTEM-only management list shows
+            # display_name, while profile_json remains serializer-masked.
             profile = actor.profile_json if isinstance(actor.profile_json, dict) else {}
             haystack = " ".join(
                 str(v or "")
-                for v in (actor.display_name, actor.external_actor_id, actor.org_code, profile.get("account"))
+                for v in (
+                    actor.display_name,
+                    actor.external_actor_id,
+                    actor.org_code,
+                    org_name(actor.org_code),
+                    *(bd.get("org_code") for bd in item.get("bindings", [])),
+                    *(bd.get("org_name") for bd in item.get("bindings", [])),
+                    profile.get("account"),
+                )
             ).lower()
             if q not in haystack:
                 continue
@@ -618,4 +647,3 @@ def handler_governance_actor_role_revoke(deps: HandlerDeps, ctx: SkillContext, p
 def handler_governance_actor_status_set(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     brain = deps.brain_legacy if deps is not None else None
     return _set_actor_status(brain, deps, ctx, payload)
-

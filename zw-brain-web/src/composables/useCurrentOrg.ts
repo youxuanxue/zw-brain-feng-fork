@@ -6,7 +6,7 @@ import { ref, computed, type Ref, type ComputedRef } from 'vue';
 // （P5InlineCatalogWizard / P5ApiServiceWizard）的「提供方 / 所属部门」只读回显仍硬编码
 // 「省大数据局」——非省大数据局部门用户看到的提供方显示是错的（仅显示骗人）。前端原先不跟踪
 // current_org_code。此处把 /auth/iaf/session 响应里的 current_org_code + current_org_name
-// 缓存为模块级 ref，供向导只读回显消费；取不到诚实留空，调用方回落机构码。
+// 缓存为模块级 ref，供向导只读回显消费；取不到诚实留空，不把机构码当展示名。
 
 const _currentOrgCode: Ref<string> = ref('');
 const _currentOrgName: Ref<string> = ref('');
@@ -19,9 +19,9 @@ export function getCurrentOrgName(): Ref<string> {
   return _currentOrgName;
 }
 
-/** 机构名优先、缺名回落码、再缺为空——向导只读回显的展示值。 */
+/** 机构展示名只取 current_org_name；缺名诚实留空，机构码保留给机器字段。 */
 export function getCurrentOrgDisplay(): ComputedRef<string> {
-  return computed(() => _currentOrgName.value || _currentOrgCode.value || '');
+  return computed(() => _currentOrgName.value || '');
 }
 
 /** 登录 / 会话刷新后由 useAuth 调用，把会话当前机构同步进单源。 */

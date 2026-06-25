@@ -163,14 +163,15 @@ def test_resolve_trusted_role_rejects_disabled_snapshot() -> None:
 def test_assign_list_revoke_e2e_with_audit_and_role_gate() -> None:
     service = _service()
     repo = GovernanceProjectionRepository()
-    _seed_actor(repo, external="iaf-9", account="qianba")
+    _seed_actor(repo, external="iaf-9", account="qianba", org_code="ORG-A-NAMED")
+    repo.upsert_org({"org_code": "ORG-A-NAMED", "org_name": "测试组织局"}, tenant_id=TENANT)
 
     # 非平台运维员被拒（角色门）—— brain 将 policy 的 DomainAccessDeniedError 包成 AccessDeniedError
     with pytest.raises(AccessDeniedError):
         invoke_trusted(
             service,
             "governance.actor.role.assign",
-            {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
+            {"external_actor_id": "iaf-9", "org_code": "ORG-A-NAMED", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
             role="ROLE_ORGAN_OPERATER",
         )
 
@@ -178,22 +179,27 @@ def test_assign_list_revoke_e2e_with_audit_and_role_gate() -> None:
     assigned = invoke_trusted(
         service,
         "governance.actor.role.assign",
-        {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
+        {"external_actor_id": "iaf-9", "org_code": "ORG-A-NAMED", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
         role="ROLE_SYSTEM",
     )
     assert assigned["result"]["ok"] is True
     assert assigned["audit_id"]
 
-    # 列表反映新角色（来自 binding，非 token）
-    listed = service.invoke_skill("governance.actor.list", {"role": "ROLE_SYSTEM"})
+    # 列表反映新角色（来自 binding，非 token），且机构展示来自 org_projection 的可读名称。
+    listed = service.invoke_skill("governance.actor.list", {"role": "ROLE_SYSTEM", "org_filter": "测试组织局"})
     item = next(it for it in listed["items"] if it["external_actor_id"] == "iaf-9")
+    assert item["display_name"] == "qianba"
+    assert item["org_code"] == "ORG-A-NAMED"
+    assert item["org_name"] == "测试组织局"
     assert "ROLE_ORGAN_OPERATER" in item["role_codes"]
+    assert item["bindings"][0]["org_code"] == "ORG-A-NAMED"
+    assert item["bindings"][0]["org_name"] == "测试组织局"
 
     # 撤销
     revoked = invoke_trusted(
         service,
         "governance.actor.role.revoke",
-        {"external_actor_id": "iaf-9", "org_code": "ORG-A", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
+        {"external_actor_id": "iaf-9", "org_code": "ORG-A-NAMED", "role_code": "ROLE_ORGAN_OPERATER", "confirmed": True},
         role="ROLE_SYSTEM",
     )
     assert revoked["result"]["revoked"] is True

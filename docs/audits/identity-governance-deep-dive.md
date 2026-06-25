@@ -4,6 +4,10 @@
 > 方法：12-agent workflow（7 facet 实证测绘 → 4 乔布斯透镜批判 → 综合），关键 critical 项已人工复核源码
 > 日期：2026-06-18 ｜ 分支：chore/identity-governance-audit（独立 worktree）
 
+> 现状注记（2026-06-25）：本文记录的是 D62 前后的历史审计基线。当前 `B12IamGovernance.vue`
+> 已改为「用户与角色 / 谁能访问什么」两管理面，旧权限映射审核不再作为平台运维员 WebUI 模块出现；
+> 机构展示改由 `org_projection.org_name` 作为单一事实来源。
+
 ---
 
 ## 一句话结论

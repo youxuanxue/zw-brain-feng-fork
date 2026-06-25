@@ -7,7 +7,7 @@ import { invokeActionStub } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canReviewCatalogDept, canReviewCatalogPlatform } from '@/lib/requestFlowRoles';
 import { apiUrl } from '@/composables/useApiBase';
-import { displayRecordName } from '@/lib/userLanguage';
+import { displayRecordCode, displayRecordName } from '@/lib/userLanguage';
 
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -41,10 +41,10 @@ const nextLifecycleHint = computed(() => {
 
 interface CatalogReviewRow {
   catalog_code: string;
-  /** 展示码：业务码（数据资源目录代码 DRC-…）优先，缺则回落内部码。 */
+  /** 展示码：短显业务码/内部码，不摊开带机构前缀的完整目录号。 */
   display_code: string;
   title: string;
-  /** 责任单位：机构中文名优先（后端 ReferenceService 补名），缺则回落 org id 诚实展示。 */
+  /** 责任单位：机构中文名优先（后端 ReferenceService 补名），缺则空态，不回落 org id。 */
   owner: string;
   /** 区划：中文名优先，缺则回落区划码。 */
   region: string;
@@ -87,10 +87,10 @@ async function loadInbox(): Promise<void> {
         const summary = (it.summary_json ?? {}) as Record<string, unknown>;
         return {
           catalog_code: String(it.catalog_code ?? ''),
-          display_code: String(summary.data_catalog_code ?? '') || String(it.catalog_code ?? ''),
+          display_code: displayRecordCode(String(summary.data_catalog_code ?? '') || String(it.catalog_code ?? ''), '编号'),
           // 名缺失 / 名==catalog_code / 名是裸编码 → 「未命名目录（编码 …）」，不把目录码当名直出（R12）。
           title: displayRecordName(it.title, it.catalog_code, '目录'),
-          owner: String(it.owner_org_name ?? '') || String(it.owner_org_id ?? ''),
+          owner: String(it.owner_org_name ?? ''),
           region: String(it.region_name ?? '') || String(it.region_code ?? ''),
           // 展示态取后端下发的中文 lifecycle_label（前端零词表，R12），不直出机器 slug。
           lifecycle_label: String(it.lifecycle_label ?? ''),

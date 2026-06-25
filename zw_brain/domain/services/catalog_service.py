@@ -19,6 +19,7 @@ from zw_brain.domain.serializers import metadata as metadata_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.domain.serializers import topic_package as topic_package_ser
 from zw_brain.domain.serializers import typed_resource_detail as typed_resource_detail_ser
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sensitive_mask import mask_default as _mask
 
@@ -127,6 +128,42 @@ class CatalogService:
         if record.lifecycle_status != "active":
             return False
         return any(projection.get("projectionStatus") == "projected" for projection in projections) or not projections
+
+    @staticmethod
+    def _looks_readable_org_name(value: Any) -> str:
+        s = str(value or "").strip()
+        if not s:
+            return ""
+        # 组织机构码/统一社会信用代码/纯数字区划码不作为用户可见机构名。
+        if re.fullmatch(r"[0-9A-Z]{8,}", s) or re.fullmatch(r"[\d,\s-]+", s):
+            return ""
+        return s
+
+    def provider_display_name(
+        self,
+        record: Any,
+        summary: dict[str, Any] | None = None,
+        *,
+        org_name_resolver: Any | None = None,
+    ) -> str:
+        """目录提供方展示名：org_projection 为单一事实源，旧导入中文快照仅作可读兜底。
+
+        owner_org_id 仍保留在 DTO 的机器字段里做过滤/审批，不再作为 provider 文本回落。
+        """
+        body = summary if isinstance(summary, dict) else {}
+        owner = getattr(record, "owner_org_id", None)
+        ref_name = (
+            str(org_name_resolver(owner) or "")
+            if org_name_resolver is not None
+            else ReferenceService().display_org_name(owner, tenant_id=_DEFAULT_TENANT_ID)
+        )
+        if ref_name:
+            return ref_name
+        for candidate in (body.get("org_name"), body.get("imported_by_org_name"), body.get("owner_org_name")):
+            readable = self._looks_readable_org_name(candidate)
+            if readable:
+                return readable
+        return ""
 
     def topic_projection_cards(self, catalog_code: str, store: Any) -> list[dict[str, Any]]:
         """List of topic projection cards referencing this catalog code.
@@ -238,15 +275,15 @@ class CatalogService:
 
     # --- Card / detail projection ---
 
-    def record_to_card_dict(self, record: Any) -> dict[str, Any]:
+    def record_to_card_dict(self, record: Any, *, org_name_resolver: Any | None = None) -> dict[str, Any]:
         """Catalog record → card dict for P2 discovery list."""
         from zw_brain.shared import clock  # noqa: PLC0415
 
         summary = _mask(copy.deepcopy(record.summary_json or {}))
         body = self.summary_body(summary)
-        provider = body.get("org_name") or body.get("imported_by_org_name") or record.owner_org_id or summary.get("provider", "—")
+        provider = self.provider_display_name(record, body, org_name_resolver=org_name_resolver)
         desc = body.get("description") or body.get("source_service_item_catalog_name") or summary.get("desc") or record.title
-        access_policy = self.access_policy(body, record)
+        access_policy = self.access_policy(body, record, org_name_resolver=org_name_resolver)
         # Legacy migration occasionally carries an updated_at that is in the future
         # (planning-date semantics in dsp_catalog). Clamp to today so the customer
         # never sees "更新于 2026-08-19" on a UI rendered 2026-05-22.
@@ -417,7 +454,13 @@ class CatalogService:
         """Strip the wrapping ``summary`` key if nested（单源 resource_labels.summary_body）。"""
         return resource_labels.summary_body(summary)
 
-    def access_policy(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
+    def access_policy(
+        self,
+        summary: dict[str, Any],
+        record: Any,
+        *,
+        org_name_resolver: Any | None = None,
+    ) -> dict[str, Any]:
         """Catalog access policy dict for share / open semantics.
 
         ``shareType`` / ``openType`` 保留旧平台原始码（既有 consumer 依赖，不破坏）；
@@ -436,7 +479,7 @@ class CatalogService:
             "openTypeLabel": _OPEN_TYPE_LABELS.get(str(summary.get("open_type")), summary.get("open_type")),
             "openCondition": summary.get("open_condition") or "未登记公开条件。",
             "regionCode": record.region_code,
-            "provider": summary.get("org_name") or summary.get("imported_by_org_name") or record.owner_org_id,
+            "provider": self.provider_display_name(record, summary, org_name_resolver=org_name_resolver),
         }
 
     def catalog_meta(self, summary: dict[str, Any], record: Any) -> dict[str, Any]:
@@ -449,7 +492,7 @@ class CatalogService:
         + card 承载并占首屏；本块承载「次屏/折叠编目字段」全量，一个不少但不抢首屏。
         """
         body = self.summary_body(summary)
-        provider = body.get("org_name") or body.get("imported_by_org_name") or record.owner_org_id
+        provider = self.provider_display_name(record, body)
         resource_format = body.get("resource_format")
         # 旧平台「业务更新周期 + 数据更新周期」是两字段（B3 反馈 6.4#5）。旧导入只有单
         # update_cycle 时，业务/数据周期回落到它（一个不漏，且老数据不空态）；在线编制（B1）

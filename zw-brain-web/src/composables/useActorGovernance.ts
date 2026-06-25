@@ -8,7 +8,7 @@ import {
   type ActorListResult,
 } from '@/fixtures/actor-governance-fixture';
 
-// 'error' = 生产构建下 API 失败的诚实不可用态（R-007，与 usePolicyCandidates 同口径）。
+// 'error' = 生产构建下 API 失败的诚实不可用态（R-007）。
 export type PanelSource = 'idle' | 'loading' | 'live' | 'fixture' | 'error';
 
 const TENANT_ID = 'sd-default';

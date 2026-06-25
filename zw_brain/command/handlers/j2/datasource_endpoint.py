@@ -11,6 +11,7 @@ from sqlalchemy import desc, select
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.models import ResourceSchemaSnapshotRecord
 from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository, endpoint_to_dict
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
@@ -32,7 +33,8 @@ def _list_endpoints(_brain, deps, _ctx, payload: dict[str, Any]) -> dict[str, An
         connectivity_status=str(payload["connectivity_status"]) if payload.get("connectivity_status") else None,
         search=str(payload["search"]) if payload.get("search") else None,
     )
-    items = [endpoint_to_dict(row) for row in rows if row.connectivity_status != "deleted"]
+    org_name = ReferenceService().org_name_resolver(tenant_id=_tenant(payload))
+    items = [endpoint_to_dict(row, org_name_resolver=org_name) for row in rows if row.connectivity_status != "deleted"]
     return {"items": items, "total": len(items)}
 
 
@@ -51,7 +53,8 @@ def _upsert_endpoint(_brain, deps, ctx, payload: dict[str, Any]) -> dict[str, An
             body["connectivity_status"] = "unknown"
         record = repo.upsert_endpoint(body, tenant_id=_tenant(payload))
         deps.append_audit_feed("datasource.endpoint.upsert", endpoint_id, "ok", actor)
-        return {"endpoint": endpoint_to_dict(record), "audit_id": audit_id}
+        org_name = ReferenceService().org_name_resolver(tenant_id=_tenant(payload))
+        return {"endpoint": endpoint_to_dict(record, org_name_resolver=org_name), "audit_id": audit_id}
 
     return deps.write(ctx, payload, mutation)
 

@@ -399,13 +399,10 @@ test.describe('客户验收 — 平台运维员 B1', () => {
     await page.getByRole('link', { name: '身份治理' }).click();
     await expect(page).toHaveURL(/#\/integration-admin\/iam-governance/, { timeout: 8_000 });
     await expect(page.getByRole('heading', { name: '身份治理' })).toBeVisible();
-    // D62：身份治理重构为 3 tab（用户与角色 / 谁能访问什么 / 旧权限映射审核）。默认用户与角色，
-    // 旧权限映射审核（含「映射候选列表」+ 数据源标）迁入第三 tab。
+    // 身份治理保留用户与角色 / 谁能访问什么两个管理面，旧权限映射审核不再作为页面模块出现。
     await expect(page.getByRole('tab', { name: '用户与角色' })).toBeVisible();
-    await page.getByRole('tab', { name: '旧权限映射审核' }).click();
-    const policyPanel = page.locator('.tab-panel').filter({ hasText: '映射候选列表' });
-    await expect(policyPanel.getByText('映射候选列表')).toBeVisible();
-    await expect(policyPanel.locator('.data-source-badge')).toBeVisible();
+    await expect(page.getByRole('tab', { name: '谁能访问什么' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '旧权限映射审核' })).toHaveCount(0);
   });
 
   test('B1.2 能力包详情链', async ({ page }) => {

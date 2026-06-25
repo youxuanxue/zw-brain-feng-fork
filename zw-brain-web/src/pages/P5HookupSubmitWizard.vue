@@ -39,7 +39,7 @@ const catalogCode = ref('');
 const resourceCode = ref(mintResourceCode('resource'));
 const title = ref('');
 
-// 可挂接的数据目录（来自 provider 目录列表，真实 snapshot）。携带 owner_org_id + 机构中文名。
+// 可挂接的数据目录（来自 provider 目录列表，真实 snapshot）。ownerOrgId 是机器字段，ownerName 是机构中文名。
 interface CatalogOption {
   code: string;
   title: string;
@@ -56,7 +56,7 @@ const catalogOptions = computed<CatalogOption[]>(() => {
       code: String(c.catalog_code ?? c.id ?? ''),
       title: String(c.name ?? c.title ?? c.catalog_code ?? c.id ?? ''),
       ownerOrgId: String(c.owner_org_id ?? ''),
-      ownerName: String(c.owner ?? c.owner_org_id ?? ''),
+      ownerName: String(c.owner ?? ''),
     }))
     .filter((c) => c.code);
 });

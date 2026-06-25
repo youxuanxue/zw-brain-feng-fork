@@ -124,7 +124,7 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
     // 路由仍为 /integration-admin/iam-governance（契约测试不破），角色门同 capability。
     key: 'iam-governance',
     navLabel: '身份治理',
-    navDesc: '旧权限映射候选审核与租户策略',
+    navDesc: '用户和角色分派、能力矩阵',
     to: '/integration-admin/iam-governance',
     group: 'admin',
     roles: ['ROLE_SYSTEM'],

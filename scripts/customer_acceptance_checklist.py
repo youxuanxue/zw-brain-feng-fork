@@ -192,7 +192,7 @@ def main() -> int:
         fb = forbidden_in(t)
         record(
             "B1.2 身份治理页",
-            "身份治理" in t and "映射候选列表" in t and PLACEHOLDER not in t and fb is None,
+            "身份治理" in t and "用户与角色" in t and "谁能访问什么" in t and "旧权限映射审核" not in t and PLACEHOLDER not in t and fb is None,
             f"forbidden={fb}",
         )
 

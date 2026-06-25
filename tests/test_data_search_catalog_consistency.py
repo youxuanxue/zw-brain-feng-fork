@@ -7,6 +7,7 @@ import pytest
 from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.database_store import DatabaseStore
@@ -34,6 +35,9 @@ def brain(temp_db: None) -> BrainService:
 
 
 def _seed_parking_catalogs() -> None:
+    GovernanceProjectionRepository().upsert_org(
+        {"org_code": "11370000MB284651XL", "org_name": "省大数据局"}, tenant_id=TENANT
+    )
     catalog = CatalogRepository()
     catalog.upsert_from_resource(
         {
@@ -125,4 +129,25 @@ def test_data_search_matches_active_catalog_browse_and_query(brain: BrainService
 
     card = next(item for item in search["results"] if item["id"] == ACTIVE_PARKING_CODE)
     assert card["lifecycleStatus"] == "active"
+    assert card["provider"] == "省大数据局"
     assert {item["projectionStatus"] for item in card["topicProjections"]} == {"blocked"}
+
+
+def test_data_search_supports_provider_org_name_or_code(brain: BrainService) -> None:
+    _seed_parking_catalogs()
+
+    by_name = invoke_trusted(
+        brain,
+        "data.search",
+        {"query": "省大数据局", "page": 1},
+        role="ROLE_ORGAN_OPERATER",
+    )
+    by_code = invoke_trusted(
+        brain,
+        "data.search",
+        {"query": "11370000MB284651XL", "page": 1},
+        role="ROLE_ORGAN_OPERATER",
+    )
+
+    assert ACTIVE_PARKING_CODE in {item["id"] for item in by_name["results"]}
+    assert ACTIVE_PARKING_CODE in {item["id"] for item in by_code["results"]}

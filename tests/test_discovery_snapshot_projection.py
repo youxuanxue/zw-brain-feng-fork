@@ -25,6 +25,7 @@ from zw_brain.domain.discovery_snapshot_projection import (
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared import db as db_module
@@ -173,6 +174,39 @@ def test_enrich_discovery_resources_only_discoverable_statuses(temp_db: Path) ->
     # 共享类型（源表 DDL 权威：1=无条件 / 2=有条件）+ 色级
     assert cards["RES-1"]["shareType"] == "无条件共享"
     assert cards["RES-1"]["shareLevel"] == "open"
+
+
+def test_discovery_resource_provider_uses_org_projection_without_code_fallback(temp_db: Path) -> None:
+    GovernanceProjectionRepository().upsert_org(
+        {"org_code": "ORG-DISC-A", "org_name": "测试发现资源局"}, tenant_id=TENANT
+    )
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "RES-ORG-NAME",
+            "title": "机构显示测试资源",
+            "lifecycle_status": "active",
+            "owner_org_id": "ORG-DISC-A",
+            "owner_org_snapshot_json": {},
+            "access_policy_json": {"share_type": "1"},
+        },
+        tenant_id=TENANT,
+    )
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "RES-ORG-UNKNOWN",
+            "title": "未知机构资源",
+            "lifecycle_status": "active",
+            "owner_org_id": "ORG-NOT-IN-PROJECTION",
+            "owner_org_snapshot_json": {},
+            "access_policy_json": {"share_type": "1"},
+        },
+        tenant_id=TENANT,
+    )
+
+    out = enrich_discovery_resources_snapshot({"discovery": {"resources": []}}, tenant_id=TENANT)
+    cards = {c["id"]: c for c in out["discovery"]["resources"]}
+    assert cards["RES-ORG-NAME"]["provider"] == "测试发现资源局"
+    assert cards["RES-ORG-UNKNOWN"]["provider"] == "", "未知机构不应把 owner_org_id 当可见 provider"
 
 
 def test_discovery_card_share_type_uses_catalog_policy_before_asset_fallback(temp_db: Path) -> None:

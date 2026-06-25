@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import { gotoHash, setRole, skipUnlessBackend, waitAppReady } from './helpers';
 
-// 身份治理 = 用户与角色管理（分派/撤销/停用）+ 谁能访问什么（只读矩阵）+ 旧权限映射审核（D62）。
+// 身份治理 = 用户与角色管理（分派/撤销/停用）+ 谁能访问什么（只读矩阵）。
 // 角色门 ROLE_SYSTEM 独占（D55/P4）。e2e 验真 UI 走查的渲染 + 写动作；非-bypass 越权安全
 // 性质由 pytest（test_iam_role_governance / test_c1_read_authz_bypass）覆盖。
 test.describe('B1.2 身份治理 — 角色分派与治理 (D62)', () => {
@@ -15,54 +15,68 @@ test.describe('B1.2 身份治理 — 角色分派与治理 (D62)', () => {
     await waitAppReady(page);
   });
 
-  test('P0: 平台运维员可进身份治理，三 tab + 用户列表渲染', async ({ page }) => {
+  test('P0: 平台运维员可进身份治理，两 tab + 用户列表渲染', async ({ page }) => {
     await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/integration-admin/iam-governance');
     await expect(page.getByRole('heading', { name: '身份治理' })).toBeVisible();
     await expect(page.getByRole('tab', { name: '用户与角色' })).toBeVisible();
     await expect(page.getByRole('tab', { name: '谁能访问什么' })).toBeVisible();
-    await expect(page.getByRole('tab', { name: '旧权限映射审核' })).toBeVisible();
-    // 默认 tab = 用户与角色，列表渲染注入的真库 actor（按 actor id 定位，名字被脱敏）。
-    await expect(page.locator('code.tech-id', { hasText: 'e2e-actor-1' })).toBeVisible();
+    await expect(page.getByRole('tab', { name: '旧权限映射审核' })).toHaveCount(0);
+    // 默认 tab = 用户与角色，列表渲染真库 actor；用户名不再整行脱敏，机构展示可读名称而非裸编码。
+    const firstRow = page.locator('tbody tr').filter({ has: page.getByRole('button', { name: '分派角色' }) }).first();
+    await expect(firstRow).toBeVisible();
+    const actorName = (await firstRow.locator('.actor-name').innerText()).trim();
+    const orgName = (await firstRow.locator('.org-name').innerText()).trim();
+    expect(actorName).not.toMatch(/^\*+$/);
+    expect(orgName).toMatch(/[\u4e00-\u9fa5]/);
+    await expect(page.locator('tbody')).not.toContainText('11370000MB284651XL');
   });
 
-  test('P0: 分派角色给用户（写 binding + 审计）', async ({ page }) => {
+  test('P0: 分派并撤销用户角色（写 binding + 审计）', async ({ page }) => {
     await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/integration-admin/iam-governance');
-    const row = page.locator('tr', { has: page.locator('code.tech-id', { hasText: 'e2e-actor-2' }) });
+    const row = page
+      .locator('tbody tr')
+      .filter({ has: page.getByRole('button', { name: '分派角色' }) })
+      .filter({ hasText: '无角色' })
+      .first();
     await expect(row).toBeVisible();
+    const rowCode = (await row.locator('code.tech-id').innerText()).trim();
     await row.getByRole('button', { name: '分派角色' }).click();
     const box = page.locator('.assign-box');
-    await box.locator('input.text-input').fill('11370000MB284651XL');
+    await box.getByTestId('iam-assign-org-picker').click();
+    await page.getByTestId('iam-assign-org-picker-search').fill('省大数据局');
+    await expect(page.getByTestId('iam-assign-org-picker-list')).toContainText('省大数据局', { timeout: 8000 });
+    await page.getByTestId('iam-assign-org-picker-list').getByRole('button', { name: /省大数据局/ }).first().click();
     await box.locator('select.role-select').selectOption('ROLE_BUSIAUDIT');
     await box.getByRole('button', { name: '确认分派' }).click();
     // 成功 toast（含 audit_id）或新角色 chip 出现，二者其一即证写路径通。
     await expect(page.locator('.toast').first()).toContainText(/角色已分派|审计|audit/i, { timeout: 8000 });
-    await expect(
-      page.locator('tr', { has: page.locator('code.tech-id', { hasText: 'e2e-actor-2' }) })
-    ).toContainText('业务运营员', { timeout: 8000 });
-  });
-
-  test('P0: 撤销用户角色（置 binding disabled + 审计）', async ({ page }) => {
-    await setRole(page, 'ROLE_SYSTEM');
-    await gotoHash(page, '#/integration-admin/iam-governance');
-    const row = page.locator('tr', { has: page.locator('code.tech-id', { hasText: 'e2e-actor-1' }) });
-    await expect(row).toBeVisible();
-    // actor-1 至少持有一个角色 chip；点其撤销 ×。
-    const revokeBtn = row.locator('.role-chip-revoke').first();
+    const targetRow = page.locator('tbody tr').filter({ hasText: rowCode }).first();
+    await expect(targetRow).toContainText('业务运营员', { timeout: 8000 });
+    const revokeBtn = targetRow.locator('.role-chip', { hasText: '业务运营员' }).locator('.role-chip-revoke').first();
     await expect(revokeBtn).toBeVisible();
     await revokeBtn.click();
     await expect(page.locator('.toast').first()).toContainText(/角色已撤销|audit/i, { timeout: 8000 });
+    await expect(page.locator('tbody tr').filter({ hasText: rowCode }).first()).not.toContainText('业务运营员', {
+      timeout: 8000,
+    });
   });
 
-  test('P0: 停用用户（actor 生命周期）', async ({ page }) => {
+  test('P0: 启停用户入口可用（actor 生命周期）', async ({ page }) => {
     await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/integration-admin/iam-governance');
-    const row = page.locator('tr', { has: page.locator('code.tech-id', { hasText: 'e2e-actor-3' }) });
+    const row = page
+      .locator('tbody tr')
+      .filter({ has: page.getByRole('button', { name: /停用|启用/ }) })
+      .filter({ has: page.locator('.status-pill').filter({ hasText: /已启用|已停用/ }) })
+      .first();
+    test.skip((await row.count()) === 0, '当前真库无 active/disabled actor；status.set 后端回归由 pytest 覆盖');
     await expect(row).toBeVisible();
+    const before = (await row.locator('.status-pill').innerText()).trim();
+    const expected = before === '已停用' ? '已启用' : '已停用';
     await row.getByRole('button', { name: /停用|启用/ }).first().click();
-    // 停用/启用后状态列变化，列表刷新后可见。
-    await expect(row.locator('.status-pill')).toContainText(/已停用|正常/, { timeout: 8000 });
+    await expect(row.locator('.status-pill')).toContainText(expected, { timeout: 8000 });
   });
 
   test('P0: 谁能访问什么 — 角色能力矩阵只读渲染', async ({ page }) => {
@@ -70,38 +84,9 @@ test.describe('B1.2 身份治理 — 角色分派与治理 (D62)', () => {
     await gotoHash(page, '#/integration-admin/iam-governance');
     await page.getByRole('tab', { name: '谁能访问什么' }).click();
     await page.waitForTimeout(800);
-    // 三个 tab-panel 都在 DOM（v-show），按矩阵专属文案「只读视图」锁定矩阵面板再断言。
+    // 两个 tab-panel 都在 DOM（v-show），按矩阵专属文案「只读视图」锁定矩阵面板再断言。
     const matrixPanel = page.locator('.tab-panel').filter({ hasText: '只读视图' });
     await expect(matrixPanel).toContainText('平台运维员');
-  });
-
-  test('P0: 旧权限映射审核 tab 渲染（候选列表迁入 tab ③）', async ({ page }) => {
-    await page.route('**/api/skills/governance.policy_candidate.list**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          tenant_id: 'sd-default',
-          summary: { total: 1, status_counts: { pending_review: 1 } },
-          items: [
-            {
-              legacy_system: 'dsp-bsp',
-              legacy_permission_ref: 'ACCEPT-TEST',
-              legacy_role_ref: 'ROLE_BUSIAUDIT',
-              capability_id: 'zone.publish_topic_projection',
-              surface: 'webui',
-              candidate_status: 'pending_review',
-              evidence_json: { source: 'e2e-injected' },
-            },
-          ],
-        }),
-      })
-    );
-    await setRole(page, 'ROLE_SYSTEM');
-    await gotoHash(page, '#/integration-admin/iam-governance');
-    await page.getByRole('tab', { name: '旧权限映射审核' }).click();
-    await page.waitForTimeout(600);
-    await expect(page.locator('body')).toContainText('ACCEPT-TEST');
   });
 
   test('P0: 平台运维员左导航有身份治理入口', async ({ page }) => {

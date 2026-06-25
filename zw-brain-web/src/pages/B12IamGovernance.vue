@@ -2,9 +2,8 @@
 import { computed, onMounted, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
-import { usePolicyCandidates } from '@/composables/usePolicyCandidates';
+import ReferencePicker from '@/components/ReferencePicker.vue';
 import { useActorGovernance } from '@/composables/useActorGovernance';
-import type { PolicyCandidateItem } from '@/fixtures/b12-iam-fixture';
 import type { ActorItem } from '@/fixtures/actor-governance-fixture';
 import { pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
@@ -14,12 +13,11 @@ import { shortId } from '@/lib/userLanguage';
 const role = getProductRole();
 
 // ── Tab 状态 ───────────────────────────────────────────────
-type TabKey = 'actors' | 'matrix' | 'policy';
+type TabKey = 'actors' | 'matrix';
 const activeTab = ref<TabKey>('actors');
 const TABS: ReadonlyArray<{ key: TabKey; label: string }> = [
   { key: 'actors', label: '用户与角色' },
   { key: 'matrix', label: '谁能访问什么' },
-  { key: 'policy', label: '旧权限映射审核' },
 ];
 function switchTab(key: TabKey): void {
   if (activeTab.value === key) return;
@@ -31,6 +29,9 @@ function switchTab(key: TabKey): void {
 const ASSIGNABLE_ROLES = Object.keys(PRODUCT_ROLE_LABELS);
 function roleLabel(code: string): string {
   return PRODUCT_ROLE_LABELS[code] ?? code;
+}
+function orgDisplay(_code: string, name?: string): string {
+  return String(name || '').trim() || '—';
 }
 
 const ACTOR_STATUS_LABELS: Record<string, string> = {
@@ -97,16 +98,27 @@ const actorSummaryText = computed(() => {
 // 行内展开「分派角色」表单：每行选择目标机构 + 目标角色后确认。
 const assigningId = ref('');
 const assignOrg = ref('');
+const assignOrgName = ref('');
 const assignRoleCode = ref('');
 function startAssign(item: ActorItem): void {
   assigningId.value = item.external_actor_id;
   assignOrg.value = item.org_code || '';
+  assignOrgName.value = item.org_name || '';
   assignRoleCode.value = '';
 }
 function cancelAssign(): void {
   assigningId.value = '';
   assignOrg.value = '';
+  assignOrgName.value = '';
   assignRoleCode.value = '';
+}
+function onAssignOrgPicked(opt: { code: string; name: string }): void {
+  assignOrg.value = opt.code;
+  assignOrgName.value = opt.name;
+}
+function onAssignOrgCleared(): void {
+  assignOrg.value = '';
+  assignOrgName.value = '';
 }
 
 async function reloadActors(): Promise<void> {
@@ -135,7 +147,7 @@ function guardWrite(): boolean {
 async function confirmAssign(item: ActorItem): Promise<void> {
   if (!guardWrite()) return;
   if (!assignOrg.value.trim()) {
-    pushToast({ kind: 'warn', title: '请填写机构编码', detail: '角色按机构分派，需指定目标机构。' });
+    pushToast({ kind: 'warn', title: '请选择所属机构', detail: '角色按机构分派，需从机构参照中选择目标机构。' });
     return;
   }
   if (!assignRoleCode.value) {
@@ -148,7 +160,7 @@ async function confirmAssign(item: ActorItem): Promise<void> {
     pushToast({
       kind: 'ok',
       title: '角色已分派',
-      detail: `${item.display_name} · ${roleLabel(assignRoleCode.value)} @ ${assignOrg.value.trim()} · audit_id=${r.audit_id ?? '—'}`,
+      detail: `${item.display_name} · ${roleLabel(assignRoleCode.value)} @ ${orgDisplay(assignOrg.value.trim(), assignOrgName.value)} · audit_id=${r.audit_id ?? '—'}`,
     });
     cancelAssign();
     await reloadActors();
@@ -157,9 +169,9 @@ async function confirmAssign(item: ActorItem): Promise<void> {
   }
 }
 
-async function onRevoke(item: ActorItem, orgCode: string, roleCode: string): Promise<void> {
+async function onRevoke(item: ActorItem, orgCode: string, roleCode: string, orgName?: string): Promise<void> {
   if (!guardWrite()) return;
-  if (!window.confirm(`确认撤销「${item.display_name}」在 ${orgCode} 的角色「${roleLabel(roleCode)}」？此操作会写审计。`)) {
+  if (!window.confirm(`确认撤销「${item.display_name}」在 ${orgDisplay(orgCode, orgName)} 的角色「${roleLabel(roleCode)}」？此操作会写审计。`)) {
     return;
   }
   const note = window.prompt('撤销备注（可选）：') ?? '';
@@ -197,100 +209,15 @@ async function reloadMatrix(): Promise<void> {
   await gov.loadAccessMatrix(role.value);
 }
 
-// ════════════════════════════════════════════════════════════
-// Tab ③ 旧权限映射审核（既有 policy-candidate 审核逐字迁入）
-// ════════════════════════════════════════════════════════════
-const panel = usePolicyCandidates();
-const statusFilter = ref('');
-const selectedKeys = ref<Set<string>>(new Set());
-
-const POLICY_STATUS_LABELS: Record<string, string> = {
-  pending_review: '待审核',
-  needs_review: '需复核',
-  approved: '已批准',
-  rejected: '已驳回',
-};
-
-function rowKey(item: PolicyCandidateItem): string {
-  return `${item.legacy_system}:${item.legacy_permission_ref}:${item.capability_id}`;
-}
-
-const canReview = computed(() => panel.source.value === 'live');
-const visibleItems = computed(() => panel.data.value?.items ?? []);
-
-const summaryText = computed(() => {
-  const summary = panel.data.value?.summary;
-  if (!summary) return '—';
-  const parts = Object.entries(summary.status_counts ?? {}).map(
-    ([k, n]) => `${POLICY_STATUS_LABELS[k] ?? k} ${n}`,
-  );
-  return `共 ${summary.total} 条${parts.length ? `（${parts.join(' · ')}）` : ''}`;
-});
-
-function toggleRow(item: PolicyCandidateItem, checked: boolean): void {
-  const key = rowKey(item);
-  const next = new Set(selectedKeys.value);
-  if (checked) next.add(key);
-  else next.delete(key);
-  selectedKeys.value = next;
-}
-
-function toggleAll(checked: boolean): void {
-  if (!checked) {
-    selectedKeys.value = new Set();
-    return;
-  }
-  selectedKeys.value = new Set(visibleItems.value.map(rowKey));
-}
-
-function selectedItems(): PolicyCandidateItem[] {
-  return visibleItems.value.filter((it) => selectedKeys.value.has(rowKey(it)));
-}
-
-async function reloadPolicy(): Promise<void> {
-  selectedKeys.value = new Set();
-  await panel.load({ role: role.value, candidateStatus: statusFilter.value || undefined });
-}
-
-async function onReview(decision: 'approve' | 'reject' | 'approve_and_apply'): Promise<void> {
-  if (!canReview.value) {
-    pushToast({ kind: 'warn', title: '当前为样例数据', detail: '后端未连通，无法执行审核写操作。请先刷新并确认 live 数据源。' });
-    return;
-  }
-  const items = selectedItems();
-  if (!items.length) {
-    pushToast({ kind: 'warn', title: '请先勾选候选', detail: '至少选择一条旧权限映射候选再执行审核。' });
-    return;
-  }
-  const label =
-    decision === 'reject' ? '驳回' : decision === 'approve' ? '批准（不落策略）' : '批准并写入租户策略';
-  if (!window.confirm(`确认对 ${items.length} 条候选执行「${label}」？此操作会写审计并可能变更租户策略。`)) {
-    return;
-  }
-  const note = window.prompt('审核备注（可选）：') ?? '';
-  const r = await panel.review(items, decision, role.value, note);
-  if (r.ok) {
-    pushToast({
-      kind: 'ok',
-      title: '审核已落库',
-      detail: `${label} · ${items.length} 条 · audit_id=${r.audit_id ?? '—'}`,
-    });
-    await reloadPolicy();
-  } else {
-    pushToast({ kind: 'error', title: '审核失败', detail: r.error ?? '后端报错' });
-  }
-}
-
 onMounted(() => {
   void reloadActors();
-  void reloadPolicy();
 });
 </script>
 
 <template>
   <main class="focus-page">
     <section class="panel panel-stack">
-      <PageFocusHeader title="身份治理" meta="用户与角色管理 · 角色能力矩阵 · 旧权限映射审核" />
+      <PageFocusHeader title="身份治理" meta="用户与角色管理 · 角色能力矩阵" />
 
       <div class="focus-tabs" role="tablist">
         <button
@@ -319,7 +246,7 @@ onMounted(() => {
           </label>
           <label class="filter-row">
             <span>机构</span>
-            <input v-model="actorOrgFilter" class="text-input" type="text" placeholder="机构编码" @keyup.enter="reloadActors" />
+            <input v-model="actorOrgFilter" class="text-input" type="text" placeholder="机构名称 / 编码" @keyup.enter="reloadActors" />
           </label>
           <label class="filter-row">
             <span>角色</span>
@@ -374,7 +301,7 @@ onMounted(() => {
                   <code class="tech-id" :title="item.external_actor_id">编号 {{ shortId(item.external_actor_id) }}</code>
                 </td>
                 <td>
-                  <span v-if="item.org_code" :title="item.org_code">{{ shortId(item.org_code) }}</span>
+                  <span v-if="item.org_code" class="org-name">{{ orgDisplay(item.org_code, item.org_name) }}</span>
                   <span v-else>—</span>
                 </td>
                 <td><span class="status-pill" :class="actorStatusTone(item.status)">{{ actorStatusLabel(item.status) }}</span></td>
@@ -383,13 +310,13 @@ onMounted(() => {
                   <template v-if="item.bindings.length">
                     <span v-for="b in item.bindings" :key="`${b.org_code}:${b.role_code}`" class="role-chip">
                       {{ roleLabel(b.role_code) }}
-                      <span class="role-chip-org">@{{ b.org_code }}</span>
+                      <span class="role-chip-org">@{{ orgDisplay(b.org_code, b.org_name) }}</span>
                       <button
                         type="button"
                         class="role-chip-revoke"
                         :disabled="!canWrite"
                         :title="canWrite ? '撤销该角色' : '样例数据下不可写'"
-                        @click="onRevoke(item, b.org_code, b.role_code)"
+                        @click="onRevoke(item, b.org_code, b.role_code, b.org_name)"
                       >×</button>
                     </span>
                   </template>
@@ -406,8 +333,16 @@ onMounted(() => {
                 <td colspan="6">
                   <div class="assign-box">
                     <label class="filter-row">
-                      <span>机构编码</span>
-                      <input v-model="assignOrg" class="text-input" type="text" placeholder="如 SD-JNGAJ" />
+                      <span>所属机构</span>
+                      <ReferencePicker
+                        v-model="assignOrg"
+                        mode="organ"
+                        :display-name="assignOrgName"
+                        placeholder="搜索机构名称或编码"
+                        testid="iam-assign-org-picker"
+                        @picked="onAssignOrgPicked"
+                        @cleared="onAssignOrgCleared"
+                      />
                     </label>
                     <label class="filter-row">
                       <span>角色</span>
@@ -478,86 +413,6 @@ onMounted(() => {
         <p v-else class="empty-hint">正在加载……</p>
       </div>
 
-      <!-- ════ Tab ③ 旧权限映射审核（既有逻辑逐字迁入）════ -->
-      <div v-show="activeTab === 'policy'" class="tab-panel" role="tabpanel">
-        <p class="disclaimer">
-          历史系统导入产生的旧权限映射候选，须经人工审核后才能合并写入本租户的能力策略。
-          未审核前，租户策略评估仍会拒绝放行。
-        </p>
-
-        <div class="focus-tab-row">
-          <label class="filter-row">
-            <span>状态筛选</span>
-            <select v-model="statusFilter" class="role-select" @change="reloadPolicy">
-              <option value="">全部</option>
-              <option value="pending_review">待审核</option>
-              <option value="needs_review">需复核</option>
-              <option value="approved">已批准</option>
-              <option value="rejected">已驳回</option>
-            </select>
-          </label>
-          <button type="button" class="focus-tab refresh-btn" @click="reloadPolicy">刷新</button>
-        </div>
-
-        <header class="focus-section-head">
-          <h2 class="focus-section-title">映射候选列表</h2>
-          <DataSourceBadge :source="panel.source.value" />
-        </header>
-        <p class="meta-line">{{ summaryText }}</p>
-
-        <div v-if="panel.error.value && panel.source.value === 'fixture'" class="boot-banner boot-banner-warn">
-          后端暂不可达，展示结构样例。请确认 REST 已启动且当前岗位具备 list 权限。
-        </div>
-        <!-- R-007：生产构建 API 失败不渲染样例，诚实提示不可用。 -->
-        <div v-else-if="panel.source.value === 'error'" class="boot-banner boot-banner-warn">
-          数据暂不可用，请稍后重试。
-        </div>
-
-        <table v-if="visibleItems.length" class="pkg-table">
-          <thead>
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  aria-label="全选"
-                  :checked="selectedKeys.size === visibleItems.length && visibleItems.length > 0"
-                  @change="toggleAll(($event.target as HTMLInputElement).checked)"
-                />
-              </th>
-              <th>旧权限标识</th>
-              <th>旧角色</th>
-              <th>目标能力</th>
-              <th>暴露面</th>
-              <th>状态</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in visibleItems" :key="rowKey(item)">
-              <td>
-                <input
-                  type="checkbox"
-                  :checked="selectedKeys.has(rowKey(item))"
-                  @change="toggleRow(item, ($event.target as HTMLInputElement).checked)"
-                />
-              </td>
-              <td><span class="tech-id">{{ item.legacy_permission_ref }}</span></td>
-              <td>{{ item.legacy_role_ref }}</td>
-              <td><span class="tech-id">{{ item.capability_id }}</span></td>
-              <td>{{ item.surface }}</td>
-              <td>{{ POLICY_STATUS_LABELS[item.candidate_status] ?? item.candidate_status }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <p v-else class="empty-hint">当前筛选下暂无候选记录。</p>
-
-        <div class="action-row">
-          <button type="button" class="gov-btn gov-btn-secondary" :disabled="!canReview" @click="onReview('reject')">驳回所选</button>
-          <button type="button" class="gov-btn gov-btn-secondary" :disabled="!canReview" @click="onReview('approve')">批准所选</button>
-          <button type="button" class="gov-btn gov-btn-primary" :disabled="!canReview" @click="onReview('approve_and_apply')">
-            批准并写入策略
-          </button>
-        </div>
-      </div>
     </section>
   </main>
 </template>
@@ -604,12 +459,6 @@ onMounted(() => {
   color: #94a3b8;
   font-size: 13px;
 }
-.action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 16px;
-}
 .boot-banner-warn {
   background: #fff8e6;
   color: #6b4f00;
@@ -624,6 +473,9 @@ onMounted(() => {
 .actor-name {
   font-size: 14px;
   font-weight: 600;
+  color: var(--b-neutral-text, #1a1d21);
+}
+.org-name {
   color: var(--b-neutral-text, #1a1d21);
 }
 .row-actions {
@@ -658,6 +510,10 @@ onMounted(() => {
 }
 .role-chip-org {
   color: #64748b;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .role-chip-revoke {
   border: 0;
@@ -751,23 +607,5 @@ onMounted(() => {
 }
 .matrix-cap-list li {
   font-size: 12px;
-}
-
-/* 旧权限映射审核表（沿用既有 pkg-table） */
-.pkg-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-.pkg-table th,
-.pkg-table td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--b-border, #e2e8f0);
-}
-.pkg-table th {
-  color: #475569;
-  font-weight: 600;
-  background: var(--b-bg-subtle, #f8fafc);
 }
 </style>

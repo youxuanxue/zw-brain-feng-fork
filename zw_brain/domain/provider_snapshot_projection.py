@@ -52,7 +52,7 @@ def _copy_snapshot(snapshot: dict[str, Any], do_copy: bool) -> dict[str, Any]:
 def _entry_to_field_decision(record: Any, *, owner_name: str = "") -> dict[str, Any]:
     """反向编目草稿 → 部门审收件箱/详情行（D57⑧）。
 
-    带被审内容（去盲批，同 D57⑨/R10 口径）：责任单位中文名（缺则回落 org id 诚实展示）
+    带被审内容（去盲批，同 D57⑨/R10 口径）：责任单位中文名（缺则空态，不回落 org id）
     + 字段建议数（向导生成的 draft_field_suggestions 条数，缺省 0）。
     """
     summary = record.summary_json if isinstance(record.summary_json, dict) else {}
@@ -62,7 +62,7 @@ def _entry_to_field_decision(record: Any, *, owner_name: str = "") -> dict[str, 
         "title": record.title,
         "status": record.lifecycle_status,
         "owner_org_id": record.owner_org_id,
-        "owner": owner_name or str(record.owner_org_id or ""),
+        "owner": owner_name or "",
         "field_count": len(suggestions) if isinstance(suggestions, list) else 0,
     }
 
@@ -103,7 +103,7 @@ def _asset_to_hookup_review(
         "catalog_name": catalog_title,
         "resource_kind": kind,
         "kind_label": _HOOKUP_KIND_LABELS.get(kind, ""),
-        "owner": owner_name or str(record.owner_org_id or ""),
+        "owner": owner_name or "",
         "source_ref": mount_ref,
         # 资源描述：挂接向导业务块键 resource_desc；legacy/api 同义键 desc/description 回落。
         "desc": str(summary.get("resource_desc") or summary.get("desc") or summary.get("description") or ""),
@@ -228,22 +228,10 @@ _MANAGE_EXCLUDED_CATALOG_PREFIXES = ("api-group:", "basic-elem:")
 
 
 def _org_name_resolver(tenant_id: str):
-    """org_code → 机构中文名（ReferenceService fail-soft：未命中回落 org id，诚实不造假）。"""
+    """org_code → 机构中文名（ReferenceService fail-soft：未命中留空，不把机构码当展示名）。"""
     from zw_brain.domain.services.reference_service import ReferenceService  # noqa: PLC0415
 
-    ref = ReferenceService()
-    cache: dict[str, str] = {}
-
-    def resolve(org_id: Any) -> str:
-        code = str(org_id or "")
-        if not code:
-            return ""
-        if code not in cache:
-            organ = ref.organ(code, tenant_id=tenant_id)
-            cache[code] = str(organ["org_name"]) if organ and organ.get("org_name") else code
-        return cache[code]
-
-    return resolve
+    return ReferenceService().org_name_resolver(tenant_id=tenant_id)
 
 
 def project_provider_catalogs(
@@ -303,7 +291,7 @@ def project_provider_catalogs(
                 "status": rec.lifecycle_status,
                 "lifecycle_status": rec.lifecycle_status,
                 "owner_org_id": rec.owner_org_id,
-                "owner": org_name(rec.owner_org_id) or str(rec.owner_org_id or ""),
+                "owner": org_name(rec.owner_org_id),
                 "source_ref": source_ref,
                 "legacy_object_ref": str(summary.get("legacy_object_ref") or ""),
                 # 与 _attach_reverse_catalog_fields 同回落链：表快照 > 任一快照 > source_ref；
@@ -359,7 +347,7 @@ def project_provider_resources(
                 "resource_kind": canonical_resource_kind(rec.resource_kind),
                 "catalog_code": rec.catalog_code,
                 "owner_org_id": rec.owner_org_id,
-                "owner": org_name(rec.owner_org_id) or str(rec.owner_org_id or ""),
+                "owner": org_name(rec.owner_org_id),
                 "source_ref": rec.source_ref,
                 # D57⑨/R-10 闭环：审核驳回理由（return_for_fix 落 summary）随清单行回显，
                 # 提交方在「资源管理清单」看到整改依据（写了就必须有读面）；无驳回则空。
@@ -526,11 +514,12 @@ def project_datasource_endpoints(
     tenant_id = tenant_id or get_runtime_tenant_id()
     repo = DatasourceEndpointRepository()
     rows = repo.list_endpoints(tenant_id=tenant_id)
+    org_name = ReferenceService().org_name_resolver(tenant_id=tenant_id)
     if visible_org_codes is not None:
         if not visible_org_codes:
             return []
         rows = [row for row in rows if not row.org_code or row.org_code in visible_org_codes]
-    return [endpoint_to_dict(row) for row in rows if row.connectivity_status != "deleted"]
+    return [endpoint_to_dict(row, org_name_resolver=org_name) for row in rows if row.connectivity_status != "deleted"]
 
 
 def enrich_provider_snapshot(

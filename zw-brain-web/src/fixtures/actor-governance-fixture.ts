@@ -9,6 +9,7 @@ export type ActorStatus = 'active' | 'iam_account_missing' | 'unmatched' | 'disa
 
 export interface ActorBinding {
   org_code: string;
+  org_name?: string;
   role_code: string;
   binding_status: string;
 }
@@ -17,6 +18,7 @@ export interface ActorItem {
   external_actor_id: string;
   display_name: string;
   org_code: string;
+  org_name?: string;
   status: ActorStatus;
   iaf_bound: boolean;
   binding_status: string;
@@ -56,26 +58,29 @@ export const ACTOR_LIST_FIXTURE: ActorListResult = {
       external_actor_id: 'sample-actor-zhangsan',
       display_name: '张三（样例）',
       org_code: 'SD-JNGAJ',
+      org_name: '济南市公安局（样例）',
       status: 'active',
       iaf_bound: true,
       binding_status: 'active',
-      bindings: [{ org_code: 'SD-JNGAJ', role_code: 'ROLE_ORGAN_OPERATER', binding_status: 'active' }],
+      bindings: [{ org_code: 'SD-JNGAJ', org_name: '济南市公安局（样例）', role_code: 'ROLE_ORGAN_OPERATER', binding_status: 'active' }],
       role_codes: ['ROLE_ORGAN_OPERATER'],
     },
     {
       external_actor_id: 'sample-actor-lisi',
       display_name: '李四（样例）',
       org_code: 'SD-JNRSJ',
+      org_name: '济南市人力资源和社会保障局（样例）',
       status: 'iam_account_missing',
       iaf_bound: false,
       binding_status: 'iam_account_missing',
-      bindings: [{ org_code: 'SD-JNRSJ', role_code: 'ROLE_ORGAN_MANAGER', binding_status: 'iam_account_missing' }],
+      bindings: [{ org_code: 'SD-JNRSJ', org_name: '济南市人力资源和社会保障局（样例）', role_code: 'ROLE_ORGAN_MANAGER', binding_status: 'iam_account_missing' }],
       role_codes: ['ROLE_ORGAN_MANAGER'],
     },
     {
       external_actor_id: 'sample-actor-wangwu',
       display_name: '王五（样例）',
       org_code: 'SD-JNMZJ',
+      org_name: '济南市民政局（样例）',
       status: 'unmatched',
       iaf_bound: false,
       binding_status: 'unmatched',

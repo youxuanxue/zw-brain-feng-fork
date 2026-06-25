@@ -13,6 +13,7 @@ from zw_brain.command.brain import InvalidStateError, NotFoundError, _RequestBat
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.command.serializers import catalog as catalog_ser
 from zw_brain.command.serializers import resource_api as resource_api_ser
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 # ──────────────────────────────────────────────────────────────────────────
@@ -96,13 +97,16 @@ def _browse_catalog_entries(
             counts[asset.catalog_code] = counts.get(asset.catalog_code, 0) + 1
 
     items = []
+    org_name = ReferenceService().org_name_resolver(tenant_id=_DEFAULT_TENANT_ID)
     for r in window:
         item = catalog_ser.catalog_entry_to_dict(r)
         summary = item.get("summary_json") if isinstance(item.get("summary_json"), dict) else {}
         inner = summary.get("summary") if isinstance(summary.get("summary"), dict) else {}
         item["resourceCount"] = counts.get(r.catalog_code, 0)
-        # 责任方机构名（summary.org_name 为真实机构名，如"省大数据局"；回退到 org_id 代码）
-        item["ownerName"] = inner.get("org_name") or summary.get("org_name") or item.get("owner_org_id") or "—"
+        # 责任方机构名以 org_projection 为单一事实源；旧 summary 中文名仅作存量可读兜底，不回落裸机构码。
+        owner_display = deps.services.catalog.provider_display_name(r, inner or summary)
+        item["owner_org_name"] = org_name(item.get("owner_org_id")) or owner_display
+        item["ownerName"] = item["owner_org_name"] or "—"
         item["description"] = inner.get("description") or ""
         items.append(item)
     return {"items": items, "total": total, "page": page, "limit": limit}
@@ -150,8 +154,10 @@ def _list_catalog_resources(
     )
     access_policy = catalog_dict["accessPolicy"]
     items: list[dict[str, Any]] = []
+    org_name = ReferenceService().org_name_resolver(tenant_id=_DEFAULT_TENANT_ID)
     for asset in window:
         item = resource_api_ser.resource_asset_to_dict(asset)
+        item["owner_org_name"] = org_name(item.get("owner_org_id"))
         item["accessPolicy"] = _copy.deepcopy(access_policy)
         item["shareType"] = access_policy.get("shareTypeLabel") or ""
         item["shareLevel"] = access_policy.get("shareLevel") or ""

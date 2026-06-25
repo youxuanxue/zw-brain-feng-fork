@@ -23,8 +23,7 @@
   的 `compatibility` 含 webui」当可达锚——但 `discover_skills()` 读的就是 manifest，断言 manifest
   = 循环信号（等同 `pages.generated.ts` 由 manifest 生成），证明不了真实前端落点。新判据只认「手写测试
   钉死 `zw-brain-web/src` 下非生成前端文件（.vue/路由/composable）」。trace 坐实原经此循环锚「可达」的
-  `governance.iam_overview` / `tenant.policy.evaluate` 在 `web/src` 下**无任何真实 surface**（B1.2 身份
-  治理页实际消费的是 `governance.policy_candidate.list/review`），降为诚实债务进台账、待 owner 裁接面板
+  `governance.iam_overview` / `tenant.policy.evaluate` 在 `web/src` 下**无任何真实 surface**，降为诚实债务进台账、待 owner 裁接面板
   or 诚实降级（去 webui）。台账 2 → 现存
   <!-- stat:zwbrain.webui-render-debt -->4<!-- /stat --> 个（2 NL 可达豁免 + 2 待裁循环债）。
 
@@ -49,8 +48,8 @@
 - **PINNED 手写测试钉死真实前端 surface**：有手写测试既提到该 slug、又在同窗口断言一个
   `zw-brain-web/src` 下的**非生成**前端文件（.vue 组件 / 路由 / composable）——证明确有渲染消费者
   （slug 走专属路由/动态拼串、LIT 看不到字面量，但人工测试钉死了真实 surface）。自动认
-  `governance.policy_candidate.list/review`（`test_iam_governance_web_surface` 钉死 `B12IamGovernance.vue`
-  + `usePolicyCandidates.ts`）。**[2026-06-14 根治]「测试断言 manifest 自身 compatibility 含 webui」不算
+  走动态拼串但有真实 surface 锚的消费面；身份治理页当前消费的 `governance.actor.*` /
+  `governance.access_matrix` 因 `useActorGovernance.ts` 直接写 slug，属于 LIT 可达。**[2026-06-14 根治]「测试断言 manifest 自身 compatibility 含 webui」不算
   PINNED**——`discover_skills()` 读的就是 manifest，断言 manifest = 循环信号（等同 `pages.generated.ts`
   由 manifest 生成），证明不了任何真实前端落点。原经此循环锚误判「可达」的 `governance.iam_overview` /
   `tenant.policy.evaluate` 已降为台账债务（见 §一 2026-06-14 条）。

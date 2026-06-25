@@ -6582,7 +6582,6 @@
         "x-zwbrain-human-confirmation-required": false,
         "x-zwbrain-audit-class": "read-sensitive",
         "x-zwbrain-surfaces": [
-          "webui",
           "api",
           "cli",
           "mcp",
@@ -24677,7 +24676,6 @@
         "x-zwbrain-human-confirmation-required": true,
         "x-zwbrain-audit-class": "write-critical",
         "x-zwbrain-surfaces": [
-          "webui",
           "api",
           "cli",
           "a2a"

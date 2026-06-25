@@ -13,6 +13,7 @@ from tests._pg_realistic import realistic_pg_module  # noqa: F401  (module fixtu
 from tests._trusted_payload import actor_snapshot, invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
@@ -110,6 +111,9 @@ def brain(temp_db: str) -> BrainService:
 
 
 def _seed_inbox_rows() -> None:
+    GovernanceProjectionRepository().upsert_org(
+        {"org_code": SEED_ORG, "org_name": "省大数据局"}, tenant_id=TENANT
+    )
     catalog = CatalogRepository()
     # 反向编目审核收件箱口径（0611 修复项 R-4）= source=reverse ∧ lifecycle=draft（与 confirm/reject
     # handler 可办前置一致）；正向编制在审单（pending_review、无 source）不得混入。
@@ -239,9 +243,9 @@ def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) 
     assert row["id"] == "cat-proj-field-001"
     assert row["title"]
     assert row["status"] == "draft"
-    # D57⑧ 部门审去盲批：被审内容随行下发——责任单位（中文名缺则回落 org id 诚实展示）
+    # D57⑧ 部门审去盲批：被审内容随行下发——责任单位中文名来自 org_projection，不回落 org id。
     # + 字段建议数（向导 draft_field_suggestions 条数）。
-    assert row["owner"], "责任单位缺位（盲批回潮）"
+    assert row["owner"] == "省大数据局"
     assert row["field_count"] == 2
 
 
@@ -372,7 +376,6 @@ def test_provider_catalogs_replaced_with_live_rows_when_db_nonempty(temp_db: str
     现算行——新编目录即时可见；api-group:*（API 分组）、basic-elem:*（国家基本要素）、
     retired（历史版本尾巴）不进目录管理清单。owner 经 ReferenceService 解析机构中文名。"""
     from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
-    from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 
     GovernanceProjectionRepository().upsert_org(
         {"org_code": "11370000MB284651XL", "org_name": "省大数据局"}, tenant_id=TENANT

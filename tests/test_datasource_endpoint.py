@@ -6,6 +6,7 @@ import pytest
 
 from zw_brain.adapters.legacy.mappers.datasource_endpoint import DatasourceEndpointMapper
 from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository, infer_data_partition
+from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.shared.database_store import DatabaseStore
 from zw_brain.shared.migrate import ensure_runtime_schema
@@ -88,6 +89,35 @@ def test_datasource_mapper_imports_meta_database_redacted(tmp_path: Path) -> Non
     assert "ENCRYPTED" not in (row.secret_ref or "")
     assert row.summary_json.get("import_kind") == "legacy_meta_database"
     assert "10.0.0.1" in str((row.summary_json or {}).get("host_display") or row.host_ref or "")
+
+
+def test_datasource_endpoint_org_name_uses_org_projection_and_searches_name_or_code() -> None:
+    ensure_runtime_schema()
+    org_repo = GovernanceProjectionRepository()
+    org_repo.upsert_org({"org_code": "ORG-DS-A", "org_name": "测试数据源所属局"}, tenant_id="sd-default")
+    repo = DatasourceEndpointRepository()
+    record = repo.upsert_endpoint(
+        {
+            "endpoint_id": "ep-org-projection",
+            "display_name": "机构来源测试库",
+            "db_name": "org_src_db",
+            "db_type": "mysql",
+            "org_code": "ORG-DS-A",
+            "org_name": "手写旧名称不应展示",
+            "data_partition": "front",
+            "connectivity_status": "connected",
+        },
+        tenant_id="sd-default",
+    )
+    item = repo.get_endpoint("ep-org-projection", tenant_id="sd-default")
+    assert item is not None
+    assert item.org_name == "测试数据源所属局"
+    assert repo.list_endpoints(tenant_id="sd-default", search="测试数据源所属局")
+    assert repo.list_endpoints(tenant_id="sd-default", search="ORG-DS-A")
+
+    org_repo.upsert_org({"org_code": "ORG-DS-A", "org_name": "测试数据源所属局（新名）"}, tenant_id="sd-default")
+    assert repo.list_endpoints(tenant_id="sd-default", search="测试数据源所属局（新名）")
+    assert not repo.list_endpoints(tenant_id="sd-default", search="手写旧名称不应展示")
 
 
 def test_datasource_table_list_filters_by_metadata_database_id() -> None:

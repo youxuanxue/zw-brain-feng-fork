@@ -501,7 +501,6 @@
       "humanConfirmationRequired": false,
       "auditClass": "read-sensitive",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -2008,7 +2007,6 @@
       "humanConfirmationRequired": true,
       "auditClass": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"

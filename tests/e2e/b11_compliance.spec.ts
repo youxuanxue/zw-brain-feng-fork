@@ -167,7 +167,7 @@ test.describe('B1.3 服务调用监控 smoke', () => {
   test('ROLE_SYSTEM 进 /service-ops 看到网关运行在线/降级/离线计数', async ({ page }) => {
     await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/service-ops');
-    await expect(page.getByRole('heading', { name: '服务调用监控' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '服务调用监控(待接入)', exact: true })).toBeVisible();
     await expect(page.getByRole('group', { name: '网关运行状态汇总' })).toBeVisible();
     // 加载完成后数据源徽标落到「实时数据」（不再停在「加载中」）。
     await expect

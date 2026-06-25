@@ -214,7 +214,6 @@ watch(
           <p v-else-if="!results.length" class="rp-hint">未找到机构，换个关键词试试</p>
           <button v-for="it in results" :key="it.code" type="button" class="rp-item" @click="pickOrgan(it)">
             <span>{{ it.name }}</span>
-            <span class="rp-code">{{ it.code }}</span>
           </button>
         </div>
         <footer class="rp-foot">
@@ -264,7 +263,6 @@ watch(
   font-size: 13px; cursor: pointer; text-align: left; width: 100%;
 }
 .rp-item:hover { background: #f4f8ff; }
-.rp-code { color: #9aa4b2; font-size: 12px; white-space: nowrap; }
 .rp-pick { color: var(--b-primary, #006be6); font-size: 12px; white-space: nowrap; }
 .rp-hint { color: #9aa4b2; font-size: 13px; padding: 12px 4px; }
 .rp-foot { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 8px; font-size: 12px; flex-wrap: wrap; }

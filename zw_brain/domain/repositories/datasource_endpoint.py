@@ -6,6 +6,7 @@ from typing import Any
 from sqlalchemy import select
 
 from zw_brain.domain.models import DatasourceEndpointProjectionRecord
+from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import summary_with_source_kind
 
@@ -28,8 +29,32 @@ def infer_data_partition(row: dict[str, Any]) -> str:
     return "front"
 
 
-def endpoint_to_dict(record: DatasourceEndpointProjectionRecord) -> dict[str, Any]:
+def _endpoint_org_name(
+    record: DatasourceEndpointProjectionRecord,
+    *,
+    org_name_resolver: Any | None = None,
+    reference: ReferenceService | None = None,
+) -> str:
+    org_name = ""
+    if org_name_resolver is not None:
+        org_name = str(org_name_resolver(record.org_code) or "")
+    ref = reference
+    if not org_name and record.org_code:
+        ref = ref or ReferenceService()
+        org_name = ref.display_org_name(record.org_code, tenant_id=record.tenant_id)
+    if not org_name and record.org_name:
+        ref = ref or ReferenceService()
+        org_name = ref.display_org_name(record.org_name, tenant_id=record.tenant_id)
+    return org_name
+
+
+def endpoint_to_dict(
+    record: DatasourceEndpointProjectionRecord,
+    *,
+    org_name_resolver: Any | None = None,
+) -> dict[str, Any]:
     summary = record.summary_json if isinstance(record.summary_json, dict) else {}
+    org_name = _endpoint_org_name(record, org_name_resolver=org_name_resolver)
     return {
         "endpoint_id": record.endpoint_id,
         "connection_ref": record.connection_ref,
@@ -39,7 +64,7 @@ def endpoint_to_dict(record: DatasourceEndpointProjectionRecord) -> dict[str, An
         "host": summary.get("host_display") or record.host_ref,
         "port": record.port,
         "org_code": record.org_code,
-        "org_name": record.org_name,
+        "org_name": org_name,
         "contact_name": record.contact_name,
         "contact_phone": record.contact_phone,
         "data_partition": record.data_partition,
@@ -81,12 +106,15 @@ class DatasourceEndpointRepository:
             rows = list(session.execute(statement).scalars())
         if search:
             q = search.strip().lower()
+            ref = ReferenceService()
+            org_name_resolver = ref.org_name_resolver(tenant_id=tenant_id)
             rows = [
                 row
                 for row in rows
                 if q in (row.display_name or "").lower()
                 or q in (row.db_name or "").lower()
-                or q in (row.org_name or "").lower()
+                or q in (row.org_code or "").lower()
+                or q in _endpoint_org_name(row, org_name_resolver=org_name_resolver, reference=ref).lower()
             ]
         return rows
 
@@ -106,6 +134,8 @@ class DatasourceEndpointRepository:
         SessionLocal = create_session_factory()
         endpoint_id = str(payload["endpoint_id"])
         now = _now()
+        org_code = payload.get("org_code")
+        org_name = ReferenceService().display_org_name(str(org_code), tenant_id=tenant_id) if org_code else ""
         summary_json = summary_with_source_kind(payload.get("summary_json"), payload.get("source_ref"))
         if payload.get("host_display"):
             summary_json = {**summary_json, "host_display": payload["host_display"]}
@@ -128,8 +158,8 @@ class DatasourceEndpointRepository:
                     db_type=str(payload.get("db_type") or "mysql"),
                     host_ref=payload.get("host_ref"),
                     port=payload.get("port"),
-                    org_code=payload.get("org_code"),
-                    org_name=payload.get("org_name"),
+                    org_code=org_code,
+                    org_name=org_name or None,
                     contact_name=payload.get("contact_name") or payload.get("db_linkname"),
                     contact_phone=payload.get("contact_phone") or payload.get("db_linkphone"),
                     data_partition=partition,
@@ -153,8 +183,9 @@ class DatasourceEndpointRepository:
                     record.host_ref = payload.get("host_ref")
                 if payload.get("port") is not None:
                     record.port = payload.get("port")
-                record.org_code = payload.get("org_code", record.org_code)
-                record.org_name = payload.get("org_name", record.org_name)
+                if "org_code" in payload:
+                    record.org_code = org_code
+                    record.org_name = org_name or None
                 record.contact_name = payload.get("contact_name", record.contact_name)
                 record.contact_phone = payload.get("contact_phone", record.contact_phone)
                 record.data_partition = partition

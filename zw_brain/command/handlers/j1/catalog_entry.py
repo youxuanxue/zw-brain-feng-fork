@@ -291,7 +291,7 @@ def _query_catalog_entries(
 
 def _attach_reference_names(entries: list[dict[str, Any]]) -> None:
     """补机构/区划中文名（owner_org_name / region_name），收件箱等列表面不再裸出
-    org id / 区划码（R12）。ReferenceService fail-soft：未命中留空，前端回落原值诚实展示。
+    org id / 区划码（R12）。ReferenceService fail-soft：未命中留空，前端展示空态，不再回落编码。
     唯一码去重后逐个 lookup（一页 ≤20 行、机构/区划基数远小于行数，命中即缓存）。"""
     if not entries:
         return

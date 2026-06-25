@@ -1797,7 +1797,6 @@
       "audit_required": true,
       "audit_class": "read-sensitive",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "mcp",
@@ -7149,7 +7148,6 @@
       "audit_required": true,
       "audit_class": "write-critical",
       "surfaces": [
-        "webui",
         "api",
         "cli",
         "a2a"

@@ -16,6 +16,7 @@ legacy 查找——那是 ``application_service.record_to_request`` 详情序列
 from __future__ import annotations
 
 import copy
+import re
 from typing import Any
 
 from zw_brain.domain import resource_labels
@@ -58,6 +59,14 @@ DISCOVERABLE_STATUSES = _DISCOVERABLE_STATUSES
 
 # 无意义 desc 占位值（真实库 res_desc 82% 是空/「无」/标题复读 → 卡片不渲染噪声）
 _DESC_NOISE = frozenset({"", "无", "-", "暂无", "无。"})
+
+
+def _readable_org_snapshot_name(*values: Any) -> str:
+    for value in values:
+        s = str(value or "").strip()
+        if s and not re.fullmatch(r"[0-9A-Z]{8,}", s) and not re.fullmatch(r"[\d,\s-]+", s):
+            return s
+    return ""
 
 # ───────────────────────────────────────────────────────────────────────────
 # requests — P3RequestFlow 在途申请 + P3RequestDetail 预填底座
@@ -444,9 +453,15 @@ def _asset_to_resource_card(
     record: Any,
     *,
     catalog_share_policies: dict[str, dict[str, Any]] | None = None,
+    org_name: Any | None = None,
 ) -> dict[str, Any]:
     owner = record.owner_org_snapshot_json or {}
     summary = record.summary_json or {}
+    provider = ""
+    if org_name is not None:
+        provider = str(org_name(record.owner_org_id) or "")
+    if not provider:
+        provider = _readable_org_snapshot_name(owner.get("org_name"), owner.get("owner_org_name"))
     raw_desc = str(summary.get("res_desc") or "").strip()
     desc = "" if raw_desc in _DESC_NOISE or raw_desc == (record.title or "").strip() else raw_desc
     access_policy = _asset_share_policy(record, catalog_share_policies)
@@ -461,7 +476,7 @@ def _asset_to_resource_card(
         "shareType": share_type,
         "shareLevel": str(access_policy.get("shareLevel") or ""),
         "accessPolicy": access_policy,
-        "provider": owner.get("org_name") or owner.get("owner_org_name") or record.owner_org_id or "",
+        "provider": provider,
         "providerOrgCode": record.owner_org_id or "",
         "regionCode": record.region_code or "",
         "catalogCode": record.catalog_code or "",
@@ -493,8 +508,9 @@ def project_resource_cards(
     )
     tid = tenant_id or get_runtime_tenant_id()
     policies = catalog_share_policies if catalog_share_policies is not None else _share_policy_by_catalog(tid, records)
+    org_name = ReferenceService().org_name_resolver(tenant_id=tid)
     return [
-        _asset_to_resource_card(r, catalog_share_policies=policies)
+        _asset_to_resource_card(r, catalog_share_policies=policies, org_name=org_name)
         for r in records
         if r.lifecycle_status in _DISCOVERABLE_STATUSES
     ]

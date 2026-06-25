@@ -1,7 +1,7 @@
 /** P5 提供方 snapshot 投影辅助：正式 field_decisions/hookup_reviews/demand_matches
  *  未 land 时，从 catalogs / resources / directAccess 派生可点通列表（仍属真实 seed 数据）。 */
 
-import { displayRecordName, isBareHexId } from './userLanguage';
+import { displayRecordCode, displayRecordName, isBareHexId } from './userLanguage';
 import { resourceKindLabel } from './resourceKind';
 
 export interface ProviderRow {
@@ -53,13 +53,13 @@ export function deriveFieldDecisions(provider: Record<string, unknown>): Provide
         id: String(it.id ?? ''),
         title: safeRecordTitle(it.title ?? it.field_name ?? it.summary, it.id, '反向编目审核'),
         // 部门审被审内容（D57⑧ 去盲批）：责任单位中文名（后端 ReferenceService 解析，
-        // 缺则回落 org id 诚实展示）；旧 catalog_name 键保留兜底。
+        // 缺则空态）；旧 catalog_name 键保留兜底。
         catalog: safeCatalogName(it.owner, it.catalog_name, it.catalog_id),
         status: String(it.status ?? 'pending'),
         source: 'projection' as const,
         detail: {
           kindLabel: '',
-          owner: String(it.owner ?? it.owner_org_id ?? ''),
+          owner: String(it.owner ?? ''),
           sourceRef: '',
           desc: '',
           shareTypeLabel: '',
@@ -317,7 +317,7 @@ export interface ProviderTimelineStep {
 export interface ProviderAssetRow {
   id: string;
   name: string;
-  /** 目录：数据资源目录代码；资源：所属目录代码。 */
+  /** 目录：展示编号；资源：所属目录展示编号。 */
   code: string;
   /** 提供方（org 名优先，无映射诚实回落 org id）。 */
   owner: string;
@@ -356,7 +356,7 @@ export function providerCatalogRows(provider: Record<string, unknown>): Provider
   return catalogs.map((row) => {
     const it = asRecord(row);
     const code = String(it.catalog_code ?? it.id ?? '');
-    // 展示码优先业务码（数据资源目录代码 DRC-…，T3②），缺则回落内部码；跳转仍用内部码（路由键）。
+    // 展示码只短显，跳转/提交仍用内部码（路由键），避免把带机构码前缀的内部目录号摊到页面。
     const displayCode = String(it.data_catalog_code ?? '') || code;
     // C：草稿行（lifecycle=draft）给行内「继续编辑」（带 ?code= 续编向导）+「提交审核」（调能力）。
     // 后端 _update_catalog_entry / submit_review 早已支持续编，原本纯 UI 缺入口（draft 行只读「查看」）。
@@ -370,8 +370,8 @@ export function providerCatalogRows(provider: Record<string, unknown>): Provider
     return {
       id: String(it.id ?? ''),
       name: safeRecordTitle(it.name ?? it.title, it.id, '目录'),
-      code: displayCode || '—',
-      owner: String(it.owner ?? it.owner_org_id ?? '—'),
+      code: displayRecordCode(displayCode, '编号'),
+      owner: String(it.owner ?? '') || '—',
       status: _statusLabel(it.status ?? it.lifecycle_status),
       // 审核理由回显（return_for_fix/reject 落 summary → 投影 review_return_reason）；
       // 目录「驳回」为终态枪毙、无重提路径，理由作终止凭据展示。
@@ -396,8 +396,8 @@ export function providerResourceRows(provider: Record<string, unknown>): Provide
     return {
       id,
       name: safeRecordTitle(it.name ?? it.title, it.id, '资源'),
-      code: String(it.catalog_code ?? '—'),
-      owner: String(it.owner ?? it.owner_org_id ?? '—'),
+      code: displayRecordCode(it.catalog_code, '目录'),
+      owner: String(it.owner ?? '') || '—',
       status: _statusLabel(it.lifecycle_status ?? it.status),
       // 审核理由回显（return_for_fix 落 summary → 投影 review_return_reason）。
       statusNote: String(it.review_return_reason ?? '') ? `驳回理由：${String(it.review_return_reason)}` : '',

@@ -6,6 +6,7 @@ export interface ReverseDraftCatalog {
   catalog_code: string;
   schema_ref: string;
   owner?: string;
+  ownerOrgId?: string;
   status?: string;
   issue?: string;
 }
@@ -66,7 +67,16 @@ export function mapReverseDraftCatalog(raw: Record<string, unknown>): ReverseDra
         ? `${raw.canonical_resource_id}:legacy:${raw.legacy_object_ref}`
         : raw.source_ref ?? catalog_code),
   );
-  return { id, name, catalog_code, schema_ref, owner: raw.owner ? String(raw.owner) : undefined, status: raw.status ? String(raw.status) : undefined, issue: raw.issue ? String(raw.issue) : undefined };
+  return {
+    id,
+    name,
+    catalog_code,
+    schema_ref,
+    owner: raw.owner ? String(raw.owner) : undefined,
+    ownerOrgId: raw.owner_org_id ? String(raw.owner_org_id) : undefined,
+    status: raw.status ? String(raw.status) : undefined,
+    issue: raw.issue ? String(raw.issue) : undefined,
+  };
 }
 
 export function buildReverseDraftSuggestPayload(catalog: ReverseDraftCatalog): Record<string, unknown> {
@@ -91,7 +101,7 @@ export function buildReverseDraftCreatePayload(
     catalog_code: catalog.catalog_code,
     title: catalog.name,
     schema_ref: catalog.schema_ref,
-    owner_org_id: catalog.owner || undefined,
+    owner_org_id: catalog.ownerOrgId || undefined,
     draft_field_suggestions,
   };
 }

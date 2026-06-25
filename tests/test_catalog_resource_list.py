@@ -8,6 +8,7 @@ from tests._trusted_payload import invoke_trusted
 from zw_brain.command.brain import BrainService
 from zw_brain.domain.errors import AccessDeniedError
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.database_store import DatabaseStore
@@ -28,6 +29,9 @@ def temp_db() -> None:
 def _seed() -> None:
     catalog_repo = CatalogRepository()
     asset_repo = ResourceApiRepository()
+    GovernanceProjectionRepository().upsert_org(
+        {"org_code": "11370000MB284651XL", "org_name": "省大数据局"}, tenant_id=TENANT
+    )
     # 有资源的目录 + 挂 7 个资源（真实形态：catalog_code 归属）
     catalog_repo.upsert_from_resource(
         {
@@ -80,6 +84,7 @@ def test_catalog_with_resources(brain: BrainService) -> None:
     assert all(it["accessPolicy"]["shareTypeLabel"] == "有条件共享" for it in res["items"])
     assert all(it["shareType"] == "有条件共享" for it in res["items"])
     assert all(it["shareLevel"] == "conditional" for it in res["items"])
+    assert all(it["owner_org_name"] == "省大数据局" for it in res["items"])
 
 
 def test_empty_catalog_honest_empty(brain: BrainService) -> None:

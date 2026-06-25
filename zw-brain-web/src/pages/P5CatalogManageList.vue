@@ -49,7 +49,7 @@ async function onRowAction({ actionId }: { actionId: string; row: ProviderAssetR
     ]"
     :columns="[
       { label: '目录名称', key: 'name' },
-      { label: '目录代码', key: 'code', mono: true },
+      { label: '目录编号', key: 'code', mono: true },
       { label: '提供方', key: 'owner' },
       { label: '生命周期', key: 'status', pill: true },
     ]"

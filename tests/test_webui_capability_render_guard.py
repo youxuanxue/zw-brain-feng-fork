@@ -29,18 +29,27 @@ def test_r1_dedicated_route_map_includes_system_snapshot() -> None:
     assert all(not p.startswith("/api/skills/") for p in routes.values())
 
 
-def test_r4_pinned_requires_real_frontend_surface_not_manifest_assertion() -> None:
-    """PINNED 只认「手写测试钉死真实前端 surface 文件」的能力，**拒绝循环锚**。
+def test_r4_lit_reaches_actor_governance_and_pinned_rejects_manifest_assertion() -> None:
+    """身份治理 actor 面经 LIT 可达；PINNED 仍拒绝循环锚。
 
     旧实现把「测试断言 manifest 的 compatibility 含 webui」当 PINNED——但 discover_skills()
     读的就是 manifest，断言 manifest=循环信号(等同 pages.generated.ts)。2026-06-14 上帝视角
     trace 坐实 governance.iam_overview / tenant.policy.evaluate 在 web/src 下**无真实 surface**
     （仅出现在生成产物 pages.generated.ts），故**不得**被 PINNED 误判可达。
     """
+    routes, pinned = guard.reachability_index()
+    # 身份治理当前直接在 useActorGovernance.ts 调用这些 skill，因此是 LIT 可达，不依赖 PINNED。
+    for slug in (
+        "governance.actor.list",
+        "governance.access_matrix",
+        "governance.actor.role.assign",
+        "governance.actor.role.revoke",
+        "governance.actor.status.set",
+    ):
+        assert guard.appears_in_src(slug) is True
+        assert guard.is_reachable(slug, routes, pinned) is True
+
     pinned = guard.contract_pinned_webui()
-    # 真实 surface 锚（test_iam_governance_web_surface 钉死 .vue/composable）→ 应在 PINNED。
-    assert "governance.policy_candidate.list" in pinned
-    assert "governance.policy_candidate.review" in pinned
     # 纯 manifest-compatibility 断言的两能力无真实前端落点 → 必须 OUT（消除循环假可达）。
     assert "governance.iam_overview" not in pinned
     assert "tenant.policy.evaluate" not in pinned

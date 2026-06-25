@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import ReferencePicker from '@/components/ReferencePicker.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
@@ -30,6 +31,7 @@ const form = ref({
   db_type: 'mysql',
   host_display: '',
   port: '',
+  org_code: '',
   org_name: '',
   contact_name: '',
   contact_phone: '',
@@ -92,8 +94,9 @@ function resetForm() {
     db_name: '',
     db_type: 'mysql',
     host_display: '',
-    port: '',
-    org_name: '',
+	    port: '',
+	    org_code: '',
+	    org_name: '',
     contact_name: '',
     contact_phone: '',
     data_partition: activePartition.value,
@@ -113,9 +116,10 @@ function openEdit(row: DatasourceEndpointRow) {
     display_name: row.display_name,
     db_name: row.db_name,
     db_type: row.db_type,
-    host_display: String(row.host ?? ''),
-    port: row.port != null ? String(row.port) : '',
-    org_name: row.org_name ?? '',
+	    host_display: String(row.host ?? ''),
+	    port: row.port != null ? String(row.port) : '',
+	    org_code: row.org_code ?? '',
+	    org_name: row.org_name ?? '',
     contact_name: row.contact_name ?? '',
     contact_phone: row.contact_phone ?? '',
     data_partition: row.data_partition,
@@ -162,7 +166,7 @@ async function saveEndpoint() {
         host_display: form.value.host_display.trim() || undefined,
         host_ref: form.value.host_display.trim() ? `host:${form.value.host_display.trim()}:${form.value.port || 0}` : undefined,
         port: form.value.port ? Number(form.value.port) : undefined,
-        org_name: form.value.org_name.trim() || undefined,
+	        org_code: form.value.org_code.trim() || undefined,
         contact_name: form.value.contact_name.trim() || undefined,
         contact_phone: form.value.contact_phone.trim() || undefined,
         data_partition: form.value.data_partition,
@@ -196,6 +200,16 @@ async function deleteRow(row: DatasourceEndpointRow) {
   } finally {
     busy.value = false;
   }
+}
+
+function onOrgPicked(opt: { code: string; name: string }) {
+  form.value.org_code = opt.code;
+  form.value.org_name = opt.name;
+}
+
+function onOrgCleared() {
+  form.value.org_code = '';
+  form.value.org_name = '';
 }
 </script>
 
@@ -289,7 +303,17 @@ async function deleteRow(row: DatasourceEndpointRow) {
             <p v-if="!editingId" class="modal-hint">归属分区：{{ partitionLabel(activePartition) }}（与左侧选中分区一致）</p>
             <label>显示名称<input v-model="form.display_name" required placeholder="例如：省公安厅前置库" /></label>
             <label>库实例名<input v-model="form.db_name" required placeholder="例如：test_gat_qzk" /></label>
-            <label>所属部门<input v-model="form.org_name" placeholder="例如：省公安厅" /></label>
+            <label>所属部门
+              <ReferencePicker
+                v-model="form.org_code"
+                mode="organ"
+                :display-name="form.org_name"
+                placeholder="选择所属部门"
+                testid="datasource-org-picker"
+                @picked="onOrgPicked"
+                @cleared="onOrgCleared"
+              />
+            </label>
             <label>数据库类型
               <select v-model="form.db_type">
                 <option value="mysql">MySQL</option>

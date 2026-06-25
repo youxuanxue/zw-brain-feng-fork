@@ -264,6 +264,13 @@ export function displayRecordName(
   return `未命名${category}`;
 }
 
+/** 面向用户展示记录编号：保留识别锚点但不摊开完整内部码。 */
+export function displayRecordCode(code: unknown, prefix = '编号'): string {
+  const c = String(code ?? '').trim();
+  if (!c) return '—';
+  return `${prefix} ${shortId(c)}`;
+}
+
 // 资源名里夹带的物化形态后缀（"_库表资源" "_文件资源" "_接口资源"）= 工程命名，
 // 类型已由独立标签呈现，列表/卡片标题里抹掉这段冗余后缀（R12 精品）。
 const KIND_SUFFIX_RE = /[_\-—]?(库表|文件|接口|API)资源$/;

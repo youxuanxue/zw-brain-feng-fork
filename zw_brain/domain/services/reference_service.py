@@ -8,6 +8,7 @@ pub_organ/pub_region 真导入，~1.8 万机构）+ DictProjection（pub_dict KI
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -20,6 +21,7 @@ from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_
 _GLOBAL_SCOPE_ROLES = frozenset({"ROLE_BUSIAUDIT", "ROLE_SYSTEM", "ROLE_SECURITY_AUDIT"})
 _DEPT_MANAGER_ROLE = "ROLE_ORGAN_MANAGER"
 _MAX_ORG_TREE_DEPTH = 64  # 下级递归保险栓：父链脏数据成环时兜底，避免无限下钻。
+_MACHINE_ORG_TOKEN_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{1,}$")
 
 
 @dataclass
@@ -78,6 +80,37 @@ class ReferenceService:
             result = rows[0].org_code if len(rows) == 1 else None
         memo[key] = result
         return result
+
+    def display_org_name(self, value: str | None, *, tenant_id: str = _DEFAULT_TENANT_ID) -> str:
+        """机构展示名只从 org_projection 解析。
+
+        ``value`` 可是机构码，也可是不规范旧数据里落入 owner 字段的机构名；命中投影才返回
+        org_name。未知/歧义时返回空串，调用方展示空态，避免把机构码当可读名称漏到页面。
+        """
+        v = str(value or "").strip()
+        if not v:
+            return ""
+        rec = self.repo.get_org_by_code(v, tenant_id=tenant_id)
+        if rec is not None:
+            return str(rec.org_name or "")
+        if _MACHINE_ORG_TOKEN_RE.fullmatch(v):
+            return ""
+        rows = self.repo.list_orgs_by_name(v, tenant_id=tenant_id)
+        return str(rows[0].org_name or "") if len(rows) == 1 else ""
+
+    def org_name_resolver(self, *, tenant_id: str = _DEFAULT_TENANT_ID):
+        """返回带 memo 的 org_projection 展示名解析器，供列表投影消除 N+1 重复点查。"""
+        cache: dict[str, str] = {}
+
+        def resolve(value: Any) -> str:
+            v = str(value or "").strip()
+            if not v:
+                return ""
+            if v not in cache:
+                cache[v] = self.display_org_name(v, tenant_id=tenant_id)
+            return cache[v]
+
+        return resolve
 
     def visible_org_codes(
         self, actor_org_code: str, role: str, *, tenant_id: str = _DEFAULT_TENANT_ID
