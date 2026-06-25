@@ -400,6 +400,14 @@ PERMISSION_ROLES = {
     # schema 发现 — 反向编目入口；操作员 + 管理员 + 业务运营员可拉取候选 schema（D55/P14）
     "metadata.schema.discover.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
 
+    # 数据源管理（编目前置：接入 / 选表 / 连通性探测）
+    "datasource.endpoint.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "datasource.endpoint.upsert.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "datasource.endpoint.delete.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "datasource.connectivity.test.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "datasource.table.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "datasource.table.columns.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+
     # 数据直达（D27 #13：国家平台流程，独立子旅程）
     "direct_access.catalog.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "direct_access.delivery.list.execute": {"ROLE_ORGAN_MANAGER", "ROLE_SECURITY_AUDIT"},

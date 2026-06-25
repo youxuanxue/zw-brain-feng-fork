@@ -20,6 +20,7 @@ from zw_brain.domain.lifecycle_timeline import (
     resource_lifecycle_timeline,
 )
 from zw_brain.domain.repositories.catalog import CatalogRepository
+from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository, endpoint_to_dict
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
@@ -519,6 +520,19 @@ def enrich_zones_snapshot(
     return out
 
 
+def project_datasource_endpoints(
+    *, tenant_id: str | None = None, visible_org_codes: set[str] | None = None,
+) -> list[dict[str, Any]]:
+    tenant_id = tenant_id or get_runtime_tenant_id()
+    repo = DatasourceEndpointRepository()
+    rows = repo.list_endpoints(tenant_id=tenant_id)
+    if visible_org_codes is not None:
+        if not visible_org_codes:
+            return []
+        rows = [row for row in rows if not row.org_code or row.org_code in visible_org_codes]
+    return [endpoint_to_dict(row) for row in rows if row.connectivity_status != "deleted"]
+
+
 def enrich_provider_snapshot(
     snapshot: dict[str, Any], *, tenant_id: str | None = None,
     visible_org_codes: set[str] | None = None,
@@ -573,4 +587,7 @@ def enrich_provider_snapshot(
         provider["resources"] = live_resources
     elif visible_org_codes is not None:
         provider["resources"] = []  # 部门收口空 = 权威空（同 catalogs，不保留 seed resources）
+    provider["datasource_endpoints"] = project_datasource_endpoints(
+        tenant_id=tenant_id, visible_org_codes=visible_org_codes,
+    )
     return out

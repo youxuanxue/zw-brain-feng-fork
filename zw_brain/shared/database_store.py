@@ -20,6 +20,7 @@ from zw_brain.domain.repositories import (
     ApprovalRepository,
     CapabilityPackageRepository,
     CatalogRepository,
+    DatasourceEndpointRepository,
     DeliveryRepository,
     ExternalAdapterRepository,
     GatewayRuntimeRepository,
@@ -71,6 +72,7 @@ class DatabaseStore:
         self.application_repo = ApplicationRepository()
         self.approval_repo = ApprovalRepository()
         self.delivery_repo = DeliveryRepository()
+        self.datasource_endpoint_repo = DatasourceEndpointRepository()
         self.capability_package_repo = CapabilityPackageRepository()
         self.external_adapter_repo = ExternalAdapterRepository()
         self.gateway_runtime_repo = GatewayRuntimeRepository()

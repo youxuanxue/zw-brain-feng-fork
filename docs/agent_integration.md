@@ -78,6 +78,12 @@
 | GET | `/api/skills/credential.query` | 查询访问凭据（P4 凭据领取页） | `get_credential_query` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/credential.sample.render` | 渲染凭据三语调用样例（curl / Python / Java） | `post_credential_sample_render` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/data.search` | 数据资源检索 | `get_data_search` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/datasource.connectivity.test` | 数据源连通性测试 | `get_datasource_connectivity_test` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/datasource.endpoint.delete` | 删除数据源 | `post_datasource_endpoint_delete` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/datasource.endpoint.list` | 数据源列表 | `get_datasource_endpoint_list` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/datasource.endpoint.upsert` | 注册或更新数据源 | `post_datasource_endpoint_upsert` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/datasource.table.columns` | 库表字段列表 | `get_datasource_table_columns` | `zw_brain/entry/rest/openapi.json` |
+| GET | `/api/skills/datasource.table.list` | 数据源库表列表 | `get_datasource_table_list` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.access.grant` | 授权访问交付 | `post_delivery_access_grant` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.exchange.plan` | 生成交换计划 | `post_delivery_exchange_plan` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.exchange.publish` | 发布交换任务 | `post_delivery_exchange_publish` | `zw_brain/entry/rest/openapi.json` |
@@ -240,6 +246,9 @@
 | `catalog.resource_view` | read | False | 查看模板或资源的覆盖率、字段和复用解释，用于 申请人 先复用模板。 | True | `zw_brain/entry/mcp/tools/catalog.resource_view.json` |
 | `catalog.share_zone.query` | read | False | 查询共享专区专题入口和信任说明，不创建第二套目录事实源。 | True | `zw_brain/entry/mcp/tools/catalog.share_zone.query.json` |
 | `data.search` | read | False | 按关键词 / 部门 / 主题域检索共享数据资源目录，返回命中清单与结构化摘要。 | True | `zw_brain/entry/mcp/tools/data.search.json` |
+| `datasource.endpoint.list` | read | False | 只读：按数据分区列出已注册数据源 endpoint（脱敏投影，不含明文密钥）。 | True | `zw_brain/entry/mcp/tools/datasource.endpoint.list.json` |
+| `datasource.table.columns` | read | False | 只读：列出指定库表的字段列（db_meta_column schema 快照），供反向编目生成信息项。 | True | `zw_brain/entry/mcp/tools/datasource.table.columns.json` |
+| `datasource.table.list` | read | False | 只读：列出数据源下已采集的库表候选（db_meta_table schema 快照）。 | True | `zw_brain/entry/mcp/tools/datasource.table.list.json` |
 | `delivery.list` | read | False | 查看预填下发、自动汇总、回流候选和异常交付任务列表。 | True | `zw_brain/entry/mcp/tools/delivery.list.json` |
 | `delivery.view` | read | False | 查看预填下发、自动汇总和回流候选的交付任务详情。 | True | `zw_brain/entry/mcp/tools/delivery.view.json` |
 | `governance.access_matrix` | read | False | 只读派生 角色→能力 授权矩阵（来源 policy.PERMISSION_ROLES 单一事实源）+ 固定角色目录（role_codes），供身份治理可审计性查看，不做任何菜单授权写。 | True | `zw_brain/entry/mcp/tools/governance.access_matrix.json` |
@@ -291,7 +300,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 185 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 191 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -364,6 +373,12 @@
 | `credential.query` | 查询访问凭据（P4 凭据领取页） | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/credential.query.json` |
 | `credential.sample.render` | 渲染凭据三语调用样例（curl / Python / Java） | 1.0.0 | audit | `zw_brain/capability_registry/registered/credential.sample.render.json` |
 | `data.search` | 数据资源检索 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/data.search.json` |
+| `datasource.connectivity.test` | 数据源连通性测试 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/datasource.connectivity.test.json` |
+| `datasource.endpoint.delete` | 删除数据源 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/datasource.endpoint.delete.json` |
+| `datasource.endpoint.list` | 数据源列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/datasource.endpoint.list.json` |
+| `datasource.endpoint.upsert` | 注册或更新数据源 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/datasource.endpoint.upsert.json` |
+| `datasource.table.columns` | 库表字段列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/datasource.table.columns.json` |
+| `datasource.table.list` | 数据源库表列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/datasource.table.list.json` |
 | `delivery.access.grant` | 授权访问交付 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.access.grant.json` |
 | `delivery.exchange.plan` | 生成交换计划 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.exchange.plan.json` |
 | `delivery.exchange.publish` | 发布交换任务 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.exchange.publish.json` |
@@ -487,9 +502,9 @@
 
 ## Statistics
 
-- REST endpoints: 194
+- REST endpoints: 200
 - CLI entries: 1
-- MCP tools: 66
+- MCP tools: 69
 - A2A agent cards: 1
-- Registered Skills (live): 185 / 246 on-disk
+- Registered Skills (live): 191 / 252 on-disk
 

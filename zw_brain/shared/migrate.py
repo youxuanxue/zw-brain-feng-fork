@@ -49,6 +49,7 @@ REQUIRED_TABLES = {
     "quality_evidence_projection",
     "resource_api_test_projection",
     "gateway_runtime_status_projection",
+    "datasource_endpoint_projection",
     "service_invocation_metric_projection",
     "legacy_object_mapping",
     "external_object_mapping",
@@ -100,6 +101,7 @@ REQUIRED_TABLES = {
 # alembic 纳管，允许先按 baseline 表集合判断并 stamp，再由 upgrade head 补建。
 POST_BASELINE_TABLES = {
     "agent_runtime_agent_state",
+    "datasource_endpoint_projection",
 }
 
 REQUIRED_COLUMNS = {
@@ -117,6 +119,7 @@ REQUIRED_COLUMNS = {
     "lineage_relation_projection": {"relation_ref", "relation_scope", "relation_rule_json"},
     "quality_evidence_projection": {"quality_ref", "quality_status", "evidence_json"},
     "gateway_runtime_status_projection": {"runtime_profile"},
+    "datasource_endpoint_projection": {"connection_ref", "display_name", "data_partition", "connectivity_status"},
     "service_invocation_metric_projection": {"provider_region_code", "consumer_region_code", "bucket_granularity", "provider_error_count", "consumer_error_count", "gateway_error_count", "other_error_count", "apply_count", "p95_latency_ms", "last_error_code", "last_error_at", "failed_count"},
     "legacy_object_mapping": {"mapping_status"},
     "external_object_mapping": {"external_system", "direction", "local_aggregate_type", "external_object_id", "last_receipt_json"},

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { invokeActionStub } from '@/composables/useActionStub';
@@ -16,6 +16,11 @@ import {
   resourceFieldColumnToPayload,
   type ResourceFieldColumnDraft,
 } from '@/lib/catalogCompileFields';
+import {
+  datasourceEndpointsFromProvider,
+  formatDatasourceOptionLabel,
+  type DatasourceEndpointRow,
+} from '@/lib/datasourceEndpoints';
 
 // J2 资源挂接（提交侧）— 为已发布目录补挂 库表 / 文件 物化资源。
 // 只做 table / file 两形态；接口资源走「代理服务注册向导」入口（不重复造）。
@@ -81,8 +86,22 @@ const resLocation = ref(''); // 资源所处位置
 const dataProvisionMethod = ref('periodic'); // 数据提供方式（周期/一次性）
 const resUpdateCycle = ref('2'); // 资源更新周期（库表侧；文件侧用 updateFrequency）
 const tableName = ref('');
+const selectedEndpointId = ref('');
 const connHost = ref('');
 const connDatabase = ref('');
+
+const datasourceOptions = computed<DatasourceEndpointRow[]>(() =>
+  [...datasourceEndpointsFromProvider(provider.value as Record<string, unknown>)].sort((a, b) =>
+    a.display_name.localeCompare(b.display_name, 'zh-CN'),
+  ),
+);
+
+watch(selectedEndpointId, (id) => {
+  const ep = datasourceOptions.value.find((row) => row.endpoint_id === id);
+  if (!ep) return;
+  connHost.value = String(ep.host ?? '');
+  connDatabase.value = ep.db_name;
+});
 
 // B2 字段数据模型逐列登记（10 列，对标旧平台 dc_resource_table_column；取代旧「源→目标」
 // 两列映射）。主行 = 高频 6 列（字段名/释义/类型/长度/主键/可空）；低频 5 列（关联目录
@@ -168,7 +187,11 @@ function buildPayload(): Record<string, unknown> {
       data_provision_method: dataProvisionMethod.value || undefined,
       update_cycle: resUpdateCycle.value || undefined,
       table_name: tableName.value.trim(),
-      connection: { host: connHost.value.trim(), database: connDatabase.value.trim() },
+      connection: {
+        host: connHost.value.trim(),
+        database: connDatabase.value.trim(),
+        endpoint_id: selectedEndpointId.value || undefined,
+      },
       field_columns: fieldColumns,
     };
   }
@@ -234,7 +257,11 @@ async function submitReview() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
-      <PageFocusHeader title="资源挂接向导" meta="为已发布目录补挂 库表 / 文件 物化资源（接口资源走「代理服务注册向导」）" />
+      <PageFocusHeader
+        title="资源挂接向导"
+        meta="为已发布目录补挂库表或文件；接口类资源请走「接口服务注册」"
+        :links="[{ label: '数据源管理', href: '#/provider/datasources' }]"
+      />
 
       <!-- C2（0605#4 截图）：标签与切换器同行，避免内容宽度的切换器单独占一行、
            右侧留出大片空白带的观感问题（资源类型已收敛为 库表/文件，API 走独立入口）。 -->
@@ -314,9 +341,23 @@ async function submitReview() {
           </div>
         </div>
         <div class="grid2">
-          <div><label class="field-label">表名</label><input v-model="tableName" class="gov-input" placeholder="t_xxx" /></div>
-          <div><label class="field-label">库主机</label><input v-model="connHost" class="gov-input" placeholder="host" /></div>
-          <div><label class="field-label">库名</label><input v-model="connDatabase" class="gov-input" placeholder="database" /></div>
+          <div class="span2">
+            <label class="field-label">选择数据源（可选）</label>
+            <select v-model="selectedEndpointId" class="gov-input" data-testid="hookup-datasource-select">
+              <option value="">不选，手动填写连接信息</option>
+              <option v-for="ep in datasourceOptions" :key="ep.endpoint_id" :value="ep.endpoint_id">
+                {{ formatDatasourceOptionLabel(ep) }}
+              </option>
+            </select>
+            <p v-if="!datasourceOptions.length" class="field-hint">
+              还没有登记数据源？可先去
+              <a href="#/provider/datasources">数据源管理</a>
+              登记后再回来挂接。
+            </p>
+          </div>
+          <div><label class="field-label">表名</label><input v-model="tableName" class="gov-input" placeholder="例如：t_student_info" /></div>
+          <div><label class="field-label">服务器地址</label><input v-model="connHost" class="gov-input" placeholder="例如：10.0.0.1" /></div>
+          <div><label class="field-label">库实例名</label><input v-model="connDatabase" class="gov-input" placeholder="例如：share_db" /></div>
         </div>
 
         <!-- 库连通性：部署期才能探，中性「待激活」，不传染「没做完」焦虑 -->

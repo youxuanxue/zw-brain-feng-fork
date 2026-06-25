@@ -37,9 +37,10 @@ _DELIVERY = frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"})
 # 另需 resources：T9 供数侧「资源管理清单」只读浏览岗位含部门操作员（业务方 2026-06-09——操作员=
 # 挂接/编制者也需看本部门已挂接资源跟踪状态），故操作员 snapshot 须带 provider.resources（只读，
 # 无行内管理动作；与 requestFlowRoles.PROVIDER_ASSET_VIEWER_ROLES 对齐）。
+# 数据源登记/反向编目/挂接向导（PR #340）：操作员与管理员同走供数主线，须预载 datasource_endpoints。
 _PROVIDER_FULL = frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"})
 _PROVIDER_PARTIAL = frozenset({"ROLE_ORGAN_OPERATER"})
-_PROVIDER_PARTIAL_KEYS = frozenset({"catalogs", "services", "resources"})
+_PROVIDER_PARTIAL_KEYS = frozenset({"catalogs", "services", "resources", "datasource_endpoints"})
 # 查审计页 shell（disputes / alerts / tickets / knowledge_articles 等合规运营内容）。
 # 异议 / 合规 capability 角色由 S5 流处理；此 shell-preload 集本流不收窄（仅审计日志另拆 _AUDIT_LOG）。
 # ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
@@ -79,6 +80,7 @@ _EMPTY_PROVIDER: dict[str, Any] = {
     "catalogs": [],
     "resources": [],
     "services": [],
+    "datasource_endpoints": [],
     "field_decisions": [],
     "hookup_reviews": [],
     "demand_matches": [],

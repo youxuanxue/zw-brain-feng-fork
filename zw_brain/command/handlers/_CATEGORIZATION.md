@@ -133,7 +133,7 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `supplement.submit` | j1 | `submit_supplement` | 6392 |
 | `workbench.view` | j1 | `get_workbench` | 2978 |
 
-## J2 挂数→维数 — 38 caps
+## J2 挂数→维数 — 44 caps
 
 | capability_id | bucket | method_name | method_lines |
 |---|---|---|---|
@@ -146,6 +146,12 @@ F1 拆分前 BrainService 单文件 8155 LOC，`_dispatch_skill` `match skill_id
 | `compliance.investigate_case` | j2 | `investigate_dispute` | 6551 |
 | `compliance.metric.query` | j2 | `query_compliance_metrics` | 971 |
 | `compliance.rule.configure` | j2 | `configure_compliance_rule` | 878 |
+| `datasource.connectivity.test` | j2 | `handler_datasource_connectivity_test` | j2/datasource_endpoint.py |
+| `datasource.endpoint.delete` | j2 | `handler_datasource_endpoint_delete` | j2/datasource_endpoint.py |
+| `datasource.endpoint.list` | j2 | `handler_datasource_endpoint_list` | j2/datasource_endpoint.py |
+| `datasource.endpoint.upsert` | j2 | `handler_datasource_endpoint_upsert` | j2/datasource_endpoint.py |
+| `datasource.table.columns` | j2 | `handler_datasource_table_columns` | j2/datasource_endpoint.py |
+| `datasource.table.list` | j2 | `handler_datasource_table_list` | j2/datasource_endpoint.py |
 | `governance.access_matrix` | j2 | `access_matrix` | 0 |
 | `governance.actor.list` | j2 | `list_actors` | 0 |
 | `governance.actor.role.assign` | j2 | `assign_actor_role` | 0 |

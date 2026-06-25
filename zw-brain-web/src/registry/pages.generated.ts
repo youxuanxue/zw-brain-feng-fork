@@ -136,4 +136,4 @@ export const PAGE_REGISTRY: PageRegistryEntry[] = [
   ] },
 ];
 
-export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "demand.list", "demand.phase.advance", "demand.register", "platform.docs.read", "platform.docs.search", "reference.dict.options", "reference.organ.options", "reference.region.options", "search.intent.parse"];
+export const UNMAPPED_WEBUI_SKILLS: string[] = ["assistant.investigation_summary", "datasource.connectivity.test", "datasource.endpoint.delete", "datasource.endpoint.list", "datasource.endpoint.upsert", "datasource.table.columns", "datasource.table.list", "demand.list", "demand.phase.advance", "demand.register", "platform.docs.read", "platform.docs.search", "reference.dict.options", "reference.organ.options", "reference.region.options", "search.intent.parse"];

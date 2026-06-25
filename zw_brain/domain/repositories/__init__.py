@@ -6,6 +6,7 @@ from zw_brain.domain.repositories.approval import ApprovalRepository
 from zw_brain.domain.repositories.capability_package import CapabilityPackageRepository
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.compliance_ops import ComplianceOpsRepository
+from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository
 from zw_brain.domain.repositories.delivery import DeliveryRepository
 from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
 from zw_brain.domain.repositories.gateway_runtime import GatewayRuntimeRepository
@@ -25,6 +26,7 @@ __all__ = [
     "ComplianceOpsRepository",
     "DeliveryRepository",
     "CapabilityPackageRepository",
+    "DatasourceEndpointRepository",
     "ExternalAdapterRepository",
     "GatewayRuntimeRepository",
     "GovernanceProjectionRepository",

@@ -71,13 +71,14 @@ const showNationalExtElem = computed(
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
-  return '从这里编目、挂接、注册你对外提供的数据（发布/审核去工作台办理）';
+  return '先登记数据源，再编目或挂接；发布与审核在工作台办理';
 });
 
 // 供数主线动作提升到页头药丸区（参考找数据页的入口药丸样式）。
 // 在线编制目录、反向编目、资源挂接、接口服务注册，按角色权限过滤（无权=不可见）。
 const providerHeaderLinks = computed(() => {
   const items = [
+    { label: '数据源管理', href: '#/provider/datasources', route: '/provider/datasources' },
     { label: '在线编制目录', href: '#/provider/wizard/inline-catalog', route: '/provider/wizard/inline-catalog' },
     { label: '反向编目', href: '#/provider/wizard/reverse-catalog', route: '/provider/wizard/reverse-catalog' },
     { label: '资源挂接', href: '#/provider/wizard/hookup-submit', route: '/provider/wizard/hookup-submit' },

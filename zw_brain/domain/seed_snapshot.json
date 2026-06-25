@@ -1,7 +1,7 @@
 {
   "workbench": {
     "ROLE_ORGAN_OPERATER": {
-      "subtitle": "",
+      "subtitle": "你有 1 条停车场信息复用申请待看进度；本周共有 10 条来自 dsp_example 的真政务案例可被订阅；1 条减负提示来自约 1.8 万条 pub_organ projection。",
       "todos": [],
       "highlights": [],
       "aiSummary": {
@@ -11,7 +11,7 @@
       }
     },
     "ROLE_ORGAN_MANAGER": {
-      "subtitle": "",
+      "subtitle": "本周 2 条由省大数据局发起的婚姻登记/出生一件事流转任务等你确认；停车场信息已通过基础目录审核。",
       "todos": [],
       "highlights": [],
       "aiSummary": {
@@ -31,7 +31,7 @@
       }
     },
     "ROLE_SECURITY_AUDIT": {
-      "subtitle": "",
+      "subtitle": "本周 8 条审计事件已锚定（2 条 anchored / 6 pending）；其中 1 条与省公安厅发起的目录异议相关。",
       "todos": [],
       "highlights": [],
       "aiSummary": {
@@ -83,29 +83,4218 @@
         "该目录已关联库表资源与文件资源，适合做客户级演示主线"
       ]
     },
-    "resources": [],
+    "resources": [
+      {
+        "id": "res-jbxx-ledger",
+        "legacyId": "370000308004000000/000001",
+        "name": "停车场信息共享目录",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 99,
+        "updatedAt": "2026-04-27",
+        "subscribers": 31,
+        "approvalRate": "97%",
+        "coverage": "真目录：2 个资源",
+        "desc": "来自旧平台 dsp_catalog 的真实目录“停车场信息”（370000308004000000/000001），已关联库表资源与文件资源，可作为城市治理、交通运行和一网通办场景的默认复用入口。",
+        "fields": [
+          "停车场编号",
+          "停车场名称",
+          "所属区域",
+          "泊位总数",
+          "开放状态",
+          "更新时间",
+          "资源类型",
+          "责任单位"
+        ],
+        "explain": [
+          "命中真目录：停车场信息",
+          "已从 dump 验证库表/文件两类资源存在",
+          "适合作为“先复用目录资源，再补本地差异”的客户级演示主线"
+        ],
+        "nextHints": [
+          "发起停车场信息复用申请",
+          "查看目录与资源来源",
+          "进入营商环境专区"
+        ],
+        "trueData": {
+          "source_schema": "dsp_catalog",
+          "catalog_code": "370000308004000000/000001",
+          "catalog_title": "停车场信息",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "resource_codes": [
+            "39a41e4b4e80439187e0f86218bae5d9",
+            "486fad4640fb44589c05f72df23650d7"
+          ],
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-parking-chengdu",
+        "legacyId": "370000307001040000/000003",
+        "name": "停车场信息表（市级目录样本）",
+        "provider": "市交通运输局",
+        "providerOrgCode": "00510103",
+        "zone": "营商环境专区",
+        "status": "可申请",
+        "score": 92,
+        "updatedAt": "2026-04-27",
+        "subscribers": 7,
+        "approvalRate": "—",
+        "coverage": "真目录：市级表",
+        "desc": "来自真 dump 的“停车场信息表”（370000307001040000/000003），可作为跨地区目录对齐和上级汇聚演示的候选资源。",
+        "fields": [
+          "停车场名称",
+          "区县",
+          "泊位数",
+          "运营状态",
+          "更新时间"
+        ],
+        "explain": [
+          "与省级停车场信息目录同名同域",
+          "适合演示跨层级目录汇聚",
+          "需在申请前确认责任部门与字段口径"
+        ],
+        "nextHints": [
+          "查看跨地区口径",
+          "作为候选资源匹配"
+        ],
+        "trueData": {
+          "source_schema": "dsp_catalog",
+          "catalog_code": "370000307001040000/000003",
+          "catalog_title": "停车场信息表",
+          "owner_org_id": "00510103",
+          "owner_org_name": "市交通运输局",
+          "region_code": "005101",
+          "region_name": "成都市",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-111",
+        "legacyId": "catalog-group:8F1111B8C71F47A49C4083B700C033E5",
+        "name": "111",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "111",
+        "fields": [],
+        "explain": [
+          "真政务案例：111",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:8F1111B8C71F47A49C4083B700C033E5",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-111",
+        "legacyId": "catalog-group:99A9CF2136FD46E5A3097F10A2EA840B",
+        "name": "111",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "111",
+        "fields": [],
+        "explain": [
+          "真政务案例：111",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:99A9CF2136FD46E5A3097F10A2EA840B",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-test1",
+        "legacyId": "catalog-group:B71D7B224640445EA941D1CD0E0DDB9C",
+        "name": "test1",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "test1",
+        "fields": [],
+        "explain": [
+          "真政务案例：test1",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:B71D7B224640445EA941D1CD0E0DDB9C",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-test2",
+        "legacyId": "catalog-group:FACA8ADA43F64A76ACFEA20E958D9F35",
+        "name": "test2",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "test2",
+        "fields": [],
+        "explain": [
+          "真政务案例：test2",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:FACA8ADA43F64A76ACFEA20E958D9F35",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-不动产交易登记一体化平台",
+        "legacyId": "5e0d5a3012a9421b9b1e7c0a084ee36c",
+        "name": "不动产交易登记一体化平台",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "已驳回",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/5e0d5a30",
+        "desc": "以数据共享为攻坚重点，以“一窗通办”为主要抓手，推动不动产交易、登记线上线下深度融合、一步到位，切实以“数据跑”代替“群众跑”",
+        "fields": [
+          "不动产单元编号",
+          "交易当事人",
+          "登记类型",
+          "办理结果",
+          "回流时间"
+        ],
+        "explain": [
+          "真政务案例：不动产交易登记一体化平台（status=rejected）",
+          "field_type=04（不动产/房屋），适合做拒批回流路径演示",
+          "已被旧平台明确拒绝，可作为反面教材展示制度执行边界"
+        ],
+        "nextHints": [
+          "查看驳回原因与改进路径",
+          "进入民生保障专区",
+          "查看不动产相关目录"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "5e0d5a3012a9421b9b1e7c0a084ee36c",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "rejected",
+          "field_type": "04",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-中小学新生入学yjs-yco",
+        "legacyId": "aaa0ad8738544b1a915712c6c0836d5a",
+        "name": "中小学新生入学“一件事一次办”",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/aaa0ad87",
+        "desc": "坚持人民至上　全面推行中小学新生入学“一件事一次办”",
+        "fields": [
+          "学籍编号",
+          "入学年份",
+          "户籍信息",
+          "学区编码",
+          "家长联系方式"
+        ],
+        "explain": [
+          "真政务案例：中小学新生入学“一件事一次办”（published, opinion=通过）",
+          "field_type=05（教育），落地教育条线减负典型",
+          "可作为基层报表减负示范专题包"
+        ],
+        "nextHints": [
+          "进入教育条线专题包",
+          "对齐学籍/户籍口径",
+          "查看减负看板"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "aaa0ad8738544b1a915712c6c0836d5a",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "05",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-主题信息资源目录",
+        "legacyId": "catalog-group:2",
+        "name": "主题信息资源目录",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "主题信息资源目录",
+        "fields": [],
+        "explain": [
+          "真政务案例：主题信息资源目录",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:2",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-交通运输",
+        "legacyId": "catalog-group:219",
+        "name": "交通运输",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "交通运输",
+        "fields": [],
+        "explain": [
+          "真政务案例：交通运输",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:219",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-人口基础信息",
+        "legacyId": "catalog-group:101",
+        "name": "人口基础信息",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "人口基础信息",
+        "fields": [],
+        "explain": [
+          "真政务案例：人口基础信息",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:101",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-信用体系建设",
+        "legacyId": "catalog-group:209",
+        "name": "信用体系建设",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "信用体系建设",
+        "fields": [],
+        "explain": [
+          "真政务案例：信用体系建设",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:209",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-全民住房保障",
+        "legacyId": "catalog-group:202",
+        "name": "全民住房保障",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "全民住房保障",
+        "fields": [],
+        "explain": [
+          "真政务案例：全民住房保障",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:202",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-全民健康保障",
+        "legacyId": "catalog-group:201",
+        "name": "全民健康保障",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "全民健康保障",
+        "fields": [],
+        "explain": [
+          "真政务案例：全民健康保障",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:201",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-全民社会保障",
+        "legacyId": "catalog-group:203",
+        "name": "全民社会保障",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "全民社会保障",
+        "fields": [],
+        "explain": [
+          "真政务案例：全民社会保障",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:203",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-公共资源交易",
+        "legacyId": "catalog-group:216",
+        "name": "公共资源交易",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "公共资源交易",
+        "fields": [],
+        "explain": [
+          "真政务案例：公共资源交易",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:216",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-公司变更登记",
+        "legacyId": "4c26565172614fa7906df573facf2747",
+        "name": "公司变更登记",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "已提交",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/4c265651",
+        "desc": "公司变更登记",
+        "fields": [
+          "统一社会信用代码",
+          "企业名称",
+          "变更类型",
+          "登记时间",
+          "登记机关"
+        ],
+        "explain": [
+          "命中 dsp_example.data_example 真政务案例：公司变更登记",
+          "field_type=01（涉企登记），适合做企业开办/变更链路演示",
+          "已通过 verify --strict（resolved）"
+        ],
+        "nextHints": [
+          "发起涉企登记复用申请",
+          "查看营商环境专区",
+          "对齐上级一表通口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "4c26565172614fa7906df573facf2747",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "submitted",
+          "field_type": "01",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-其他",
+        "legacyId": "catalog-group:221",
+        "name": "其他",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "其他",
+        "fields": [],
+        "explain": [
+          "真政务案例：其他",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:221",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-养老服务",
+        "legacyId": "catalog-group:218,",
+        "name": "养老服务",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "养老服务",
+        "fields": [],
+        "explain": [
+          "真政务案例：养老服务",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:218,",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-养老服务",
+        "legacyId": "catalog-group:30b001",
+        "name": "养老服务",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "养老服务",
+        "fields": [],
+        "explain": [
+          "真政务案例：养老服务",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30b001",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-养老服务",
+        "legacyId": "catalog-group:7CEFC5926FD24BCBB353E07077D0D46E",
+        "name": "养老服务",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "养老服务",
+        "fields": [],
+        "explain": [
+          "真政务案例：养老服务",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:7CEFC5926FD24BCBB353E07077D0D46E",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-养老服务",
+        "legacyId": "catalog-group:3E6769B801AF4DEB9807F79125139344",
+        "name": "养老服务",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "养老服务",
+        "fields": [],
+        "explain": [
+          "真政务案例：养老服务",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:3E6769B801AF4DEB9807F79125139344",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-内蒙古人口库",
+        "legacyId": "catalog-group:36C052F0CABC49DA8AA94A45111F3552",
+        "name": "内蒙古人口库",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "内蒙古人口库",
+        "fields": [],
+        "explain": [
+          "真政务案例：内蒙古人口库",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:36C052F0CABC49DA8AA94A45111F3552",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-出生",
+        "legacyId": "catalog-group:6A58041577AD49DAA49F34E8492FBF22",
+        "name": "出生",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "出生",
+        "fields": [],
+        "explain": [
+          "真政务案例：出生",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:6A58041577AD49DAA49F34E8492FBF22",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-出生yjs",
+        "legacyId": "a1264ad84745455db58c52a9fd30f21f",
+        "name": "出生一件事",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/a1264ad8",
+        "desc": "出生一件事",
+        "fields": [
+          "新生儿编号",
+          "出生时间",
+          "出生医学证明",
+          "户籍登记",
+          "母婴档案"
+        ],
+        "explain": [
+          "真政务案例：出生一件事（status=published, opinion=通过）",
+          "field_type=11,16（人口与教育跨域），跨部门一表通典型",
+          "可作为 申请人 个人专题“一件事”链路标杆"
+        ],
+        "nextHints": [
+          "进入“一件事”专题包",
+          "查看跨部门字段对齐",
+          "申请人口基础信息复用"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "a1264ad84745455db58c52a9fd30f21f",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "11,16",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-刑事判决",
+        "legacyId": "catalog-group:462546D796F542ADA1F6B21ACC3A13CE",
+        "name": "刑事判决",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "刑事判决",
+        "fields": [],
+        "explain": [
+          "真政务案例：刑事判决",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:462546D796F542ADA1F6B21ACC3A13CE",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-北京市",
+        "legacyId": "catalog-group:000521FADE4949A4B956A8170DABB410",
+        "name": "北京市",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "北京市",
+        "fields": [],
+        "explain": [
+          "真政务案例：北京市",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:000521FADE4949A4B956A8170DABB410",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-南昌市",
+        "legacyId": "catalog-group:7FE56A77F69441C6A557D0085F2D2417",
+        "name": "南昌市",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "南昌市",
+        "fields": [],
+        "explain": [
+          "真政务案例：南昌市",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:7FE56A77F69441C6A557D0085F2D2417",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-厦门公安局",
+        "legacyId": "catalog-group:FC2A64E981574807A7D3D8BE36C425BA",
+        "name": "厦门公安局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "厦门公安局",
+        "fields": [],
+        "explain": [
+          "真政务案例：厦门公安局",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:FC2A64E981574807A7D3D8BE36C425BA",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-地市信息资源目录",
+        "legacyId": "catalog-group:307",
+        "name": "地市信息资源目录",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "地市信息资源目录",
+        "fields": [],
+        "explain": [
+          "真政务案例：地市信息资源目录",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:307",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-基础",
+        "legacyId": "catalog-group:4FCC462D270B4C2F849EBFC2FDDBD89D",
+        "name": "基础",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "基础",
+        "fields": [],
+        "explain": [
+          "真政务案例：基础",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:4FCC462D270B4C2F849EBFC2FDDBD89D",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-基础",
+        "legacyId": "catalog-group:CE822C7EC74C424191442049F18E626B",
+        "name": "基础",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "基础",
+        "fields": [],
+        "explain": [
+          "真政务案例：基础",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:CE822C7EC74C424191442049F18E626B",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-基础信息资源目录",
+        "legacyId": "catalog-group:1",
+        "name": "基础信息资源目录",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "基础信息资源目录",
+        "fields": [],
+        "explain": [
+          "真政务案例：基础信息资源目录",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:1",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-大数据局",
+        "legacyId": "catalog-group:DE5EE23930084598B331092001384FD4",
+        "name": "大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:DE5EE23930084598B331092001384FD4",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-大数据局",
+        "legacyId": "catalog-group:30c001",
+        "name": "大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30c001",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-婚姻登记qstb",
+        "legacyId": "e3e35d4d1b96477baf9f1255a0ce7ea3",
+        "name": "婚姻登记“全省通办”",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "民生保障专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/e3e35d4d",
+        "desc": "让数据为爱“多跑腿”,实现婚姻登记“全省通办”更惠民",
+        "fields": [
+          "婚姻状态",
+          "登记机关",
+          "登记时间",
+          "户籍同步状态",
+          "异地办理标识"
+        ],
+        "explain": [
+          "真政务案例：婚姻登记“全省通办”（published）",
+          "field_type=11（婚育），强同步、跨地区协同典型",
+          "适合做“数据替群众跑”的演示主线"
+        ],
+        "nextHints": [
+          "查看跨地区同步链路",
+          "进入民生保障专区",
+          "对齐民政/公安数据口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "e3e35d4d1b96477baf9f1255a0ce7ea3",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "11",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-嫁娶",
+        "legacyId": "catalog-group:7B6FBA6829B649EF8C606392398DDF63",
+        "name": "嫁娶",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "嫁娶",
+        "fields": [],
+        "explain": [
+          "真政务案例：嫁娶",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:7B6FBA6829B649EF8C606392398DDF63",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-安全生产监督",
+        "legacyId": "catalog-group:205",
+        "name": "安全生产监督",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "安全生产监督",
+        "fields": [],
+        "explain": [
+          "真政务案例：安全生产监督",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:205",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-小微企业一次性创业岗位开发补贴申领",
+        "legacyId": "a82e0ea6fffa4f3895cad681a0f5f14b",
+        "name": "小微企业一次性创业岗位开发补贴申领",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "已提交",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/a82e0ea6",
+        "desc": "小微企业一次性创业岗位开发补贴申领",
+        "fields": [
+          "企业名称",
+          "统一社会信用代码",
+          "新增岗位数",
+          "补贴金额",
+          "申领时间"
+        ],
+        "explain": [
+          "真政务案例：小微企业一次性创业岗位开发补贴申领（submitted）",
+          "field_type=05（创业就业），适合做小微企业惠企政策链演示",
+          "已沉淀进真共享专区，可做 申请人→镇街填报人 联审标杆"
+        ],
+        "nextHints": [
+          "发起补贴复用申请",
+          "查看小微企业惠企专题",
+          "对齐人社部门数据口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "a82e0ea6fffa4f3895cad681a0f5f14b",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "submitted",
+          "field_type": "05",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-市交通运输局",
+        "legacyId": "catalog-group:CE9DEE02C87C4072900398104D3A6671",
+        "name": "市交通运输局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "市交通运输局",
+        "fields": [],
+        "explain": [
+          "真政务案例：市交通运输局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:CE9DEE02C87C4072900398104D3A6671",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-市场价格监管",
+        "legacyId": "catalog-group:206",
+        "name": "市场价格监管",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "市场价格监管",
+        "fields": [],
+        "explain": [
+          "真政务案例：市场价格监管",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:206",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-市城管委",
+        "legacyId": "catalog-group:16CA0CF70E10407F9C3C69D96C3DDAA0",
+        "name": "市城管委",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "市城管委",
+        "fields": [],
+        "explain": [
+          "真政务案例：市城管委",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:16CA0CF70E10407F9C3C69D96C3DDAA0",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-市教育局",
+        "legacyId": "catalog-group:4B5AC161FC63470188470C949F3962FC",
+        "name": "市教育局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "市教育局",
+        "fields": [],
+        "explain": [
+          "真政务案例：市教育局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:4B5AC161FC63470188470C949F3962FC",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-市教育局",
+        "legacyId": "catalog-group:67C32411A21743B3976710D32037A224",
+        "name": "市教育局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "市教育局",
+        "fields": [],
+        "explain": [
+          "真政务案例：市教育局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:67C32411A21743B3976710D32037A224",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-市行政审批局",
+        "legacyId": "catalog-group:C7A8F1DEEE1948D9BE6AC7F400379E83",
+        "name": "市行政审批局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "市行政审批局",
+        "fields": [],
+        "explain": [
+          "真政务案例：市行政审批局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:C7A8F1DEEE1948D9BE6AC7F400379E83",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-应急维稳保障",
+        "legacyId": "catalog-group:211",
+        "name": "应急维稳保障",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "应急维稳保障",
+        "fields": [],
+        "explain": [
+          "真政务案例：应急维稳保障",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:211",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-成都市",
+        "legacyId": "catalog-group:D93898D6B91A4321A5656387C3ED6321",
+        "name": "成都市",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "成都市",
+        "fields": [],
+        "explain": [
+          "真政务案例：成都市",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:D93898D6B91A4321A5656387C3ED6321",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-执政能力建设",
+        "legacyId": "catalog-group:214",
+        "name": "执政能力建设",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "执政能力建设",
+        "fields": [],
+        "explain": [
+          "真政务案例：执政能力建设",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:214",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-投资审批",
+        "legacyId": "catalog-group:217",
+        "name": "投资审批",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "投资审批",
+        "fields": [],
+        "explain": [
+          "真政务案例：投资审批",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:217",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-教育",
+        "legacyId": "catalog-group:0DC999457D9C42C8AA87B59F8AA4F33B",
+        "name": "教育",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "教育",
+        "fields": [],
+        "explain": [
+          "真政务案例：教育",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:0DC999457D9C42C8AA87B59F8AA4F33B",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-教育科技",
+        "legacyId": "catalog-group:218",
+        "name": "教育科技",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "教育科技",
+        "fields": [],
+        "explain": [
+          "真政务案例：教育科技",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:218",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-数据查询创新应用",
+        "legacyId": "aab211c83d674a56b8c75fbd25bb5584",
+        "name": "数据查询创新应用",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "治理减负专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/aab211c8",
+        "desc": "针对民政部门所提出的共享数据需求，尽管当前面临政务服务事项缺失及业务系统支撑不足的挑战，我们致力于研发一款高效的政务数据查询系统。此系统旨在全面满足政务部门对于政务数据接口的多元化需求，实现批量查询与精准核验服务。通过创新技术手段，打…",
+        "fields": [
+          "业务系统名称",
+          "目录覆盖范围",
+          "查询频次",
+          "命中率",
+          "字段缺口"
+        ],
+        "explain": [
+          "真政务案例：数据查询创新应用（published, opinion=通过）",
+          "field_type=03,11,15,16（民政/人口/民生/教育跨域），跨域共享治理示范",
+          "适合作为“先复用后补差异”治理减负主线演示"
+        ],
+        "nextHints": [
+          "查看跨域字段缺口报告",
+          "进入治理减负专区",
+          "对齐民政/人社查询口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "aab211c83d674a56b8c75fbd25bb5584",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "03,11,15,16",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-新服务网点",
+        "legacyId": "catalog-group:43A6F1A846AF4C54A1FF017647D0CD3C",
+        "name": "新服务网点",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "新服务网点",
+        "fields": [],
+        "explain": [
+          "真政务案例：新服务网点",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:43A6F1A846AF4C54A1FF017647D0CD3C",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-旅游服务",
+        "legacyId": "catalog-group:220",
+        "name": "旅游服务",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "旅游服务",
+        "fields": [],
+        "explain": [
+          "真政务案例：旅游服务",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:220",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-服务网点",
+        "legacyId": "catalog-group:D634FE120AC84E5F9600087705F6DA70",
+        "name": "服务网点",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "服务网点",
+        "fields": [],
+        "explain": [
+          "真政务案例：服务网点",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:D634FE120AC84E5F9600087705F6DA70",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-民主法治建设",
+        "legacyId": "catalog-group:213",
+        "name": "民主法治建设",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "民主法治建设",
+        "fields": [],
+        "explain": [
+          "真政务案例：民主法治建设",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:213",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-民事判决",
+        "legacyId": "catalog-group:07C0AC5146AB445C9411C681DD4CA1B9",
+        "name": "民事判决",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "民事判决",
+        "fields": [],
+        "explain": [
+          "真政务案例：民事判决",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:07C0AC5146AB445C9411C681DD4CA1B9",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-民生",
+        "legacyId": "catalog-group:3CCE7BF49DAE4C4BB90DA33837A6539E",
+        "name": "民生",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "民生",
+        "fields": [],
+        "explain": [
+          "真政务案例：民生",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:3CCE7BF49DAE4C4BB90DA33837A6539E",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-江西省卫健委",
+        "legacyId": "catalog-group:BF7553CAE18747CC95F392FD8C147CA5",
+        "name": "江西省卫健委",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "江西省卫健委",
+        "fields": [],
+        "explain": [
+          "真政务案例：江西省卫健委",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:BF7553CAE18747CC95F392FD8C147CA5",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-江西省教育厅",
+        "legacyId": "catalog-group:30a002",
+        "name": "江西省教育厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "江西省教育厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：江西省教育厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30a002",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-江西省教育厅",
+        "legacyId": "catalog-group:DDE128FD85E844BD93D37B4F778CC69C",
+        "name": "江西省教育厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "江西省教育厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：江西省教育厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:DDE128FD85E844BD93D37B4F778CC69C",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-江西省数据资源目录",
+        "legacyId": "catalog-group:C41CE4229FCB4DF18F6FF8371A47B266",
+        "name": "江西省数据资源目录",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "江西省数据资源目录",
+        "fields": [],
+        "explain": [
+          "真政务案例：江西省数据资源目录",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:C41CE4229FCB4DF18F6FF8371A47B266",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-江西省民政厅",
+        "legacyId": "catalog-group:7C91B642760C4D5DA73461C3701E8887",
+        "name": "江西省民政厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "江西省民政厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：江西省民政厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:7C91B642760C4D5DA73461C3701E8887",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-法人基础信息",
+        "legacyId": "catalog-group:102",
+        "name": "法人基础信息",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "法人基础信息",
+        "fields": [],
+        "explain": [
+          "真政务案例：法人基础信息",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:102",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-测试目录分类",
+        "legacyId": "catalog-group:A0F2CC3D954A49F1A1B1A04FA2B3A10C",
+        "name": "测试目录分类",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "测试目录分类",
+        "fields": [],
+        "explain": [
+          "真政务案例：测试目录分类",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:A0F2CC3D954A49F1A1B1A04FA2B3A10C",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-生态环境保护",
+        "legacyId": "catalog-group:210",
+        "name": "生态环境保护",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "生态环境保护",
+        "fields": [],
+        "explain": [
+          "真政务案例：生态环境保护",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:210",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-电子证照基础信息",
+        "legacyId": "catalog-group:105",
+        "name": "电子证照基础信息",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "电子证照基础信息",
+        "fields": [],
+        "explain": [
+          "真政务案例：电子证照基础信息",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:105",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-登记",
+        "legacyId": "catalog-group:964BDCAFFA8540068B64DC22EE3C7773",
+        "name": "登记",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "登记",
+        "fields": [],
+        "explain": [
+          "真政务案例：登记",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:964BDCAFFA8540068B64DC22EE3C7773",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省人大",
+        "legacyId": "catalog-group:302",
+        "name": "省人大",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省人大",
+        "fields": [],
+        "explain": [
+          "真政务案例：省人大",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:302",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省人民团体",
+        "legacyId": "catalog-group:304",
+        "name": "省人民团体",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省人民团体",
+        "fields": [],
+        "explain": [
+          "真政务案例：省人民团体",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:304",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省人民政府办公厅",
+        "legacyId": "catalog-group:452893F4F02A4447A3E7828B5011EDDB",
+        "name": "省人民政府办公厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省人民政府办公厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：省人民政府办公厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:452893F4F02A4447A3E7828B5011EDDB",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省公安厅",
+        "legacyId": "catalog-group:89D0A610E4D0439DBF69475A1C7E53FE",
+        "name": "省公安厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省公安厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：省公安厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:89D0A610E4D0439DBF69475A1C7E53FE",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省大数据局",
+        "legacyId": "catalog-group:206,",
+        "name": "省大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：省大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:206,",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省大数据局",
+        "legacyId": "catalog-group:308002",
+        "name": "省大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：省大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:308002",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省大数据局",
+        "legacyId": "catalog-group:9CF49B88698E4066973D844A415D8224",
+        "name": "省大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：省大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:9CF49B88698E4066973D844A415D8224",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省大数据局测试",
+        "legacyId": "catalog-group:307001002001002",
+        "name": "省大数据局测试",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省大数据局测试",
+        "fields": [],
+        "explain": [
+          "真政务案例：省大数据局测试",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:307001002001002",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省委",
+        "legacyId": "catalog-group:301",
+        "name": "省委",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省委",
+        "fields": [],
+        "explain": [
+          "真政务案例：省委",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:301",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省政协",
+        "legacyId": "catalog-group:305",
+        "name": "省政协",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省政协",
+        "fields": [],
+        "explain": [
+          "真政务案例：省政协",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:305",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省政府",
+        "legacyId": "catalog-group:303",
+        "name": "省政府",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省政府",
+        "fields": [],
+        "explain": [
+          "真政务案例：省政府",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:303",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省教育厅",
+        "legacyId": "catalog-group:0F50831222334581847302F479E26517",
+        "name": "省教育厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省教育厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：省教育厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:0F50831222334581847302F479E26517",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省民政",
+        "legacyId": "catalog-group:1BCD51363B714D29BB13B20BA7AA8D58",
+        "name": "省民政",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省民政",
+        "fields": [],
+        "explain": [
+          "真政务案例：省民政",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:1BCD51363B714D29BB13B20BA7AA8D58",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省民政",
+        "legacyId": "catalog-group:7424C04DFEDF4AFBAA92DDEE94781ABE",
+        "name": "省民政",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省民政",
+        "fields": [],
+        "explain": [
+          "真政务案例：省民政",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:7424C04DFEDF4AFBAA92DDEE94781ABE",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省法院",
+        "legacyId": "catalog-group:306",
+        "name": "省法院",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省法院",
+        "fields": [],
+        "explain": [
+          "真政务案例：省法院",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:306",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-省直机关",
+        "legacyId": "catalog-group:7635F5E62C404319AF23541A5E4AECEB",
+        "name": "省直机关",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "省直机关",
+        "fields": [],
+        "explain": [
+          "真政务案例：省直机关",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:7635F5E62C404319AF23541A5E4AECEB",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-社会信用基础信息",
+        "legacyId": "catalog-group:104",
+        "name": "社会信用基础信息",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "社会信用基础信息",
+        "fields": [],
+        "explain": [
+          "真政务案例：社会信用基础信息",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:104",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-社会救助",
+        "legacyId": "catalog-group:30b002",
+        "name": "社会救助",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "社会救助",
+        "fields": [],
+        "explain": [
+          "真政务案例：社会救助",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30b002",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-社会救助",
+        "legacyId": "catalog-group:9670B5434443429896D4AE0F5E30E443",
+        "name": "社会救助",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "社会救助",
+        "fields": [],
+        "explain": [
+          "真政务案例：社会救助",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:9670B5434443429896D4AE0F5E30E443",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-福建省电子证照",
+        "legacyId": "catalog-group:4AFEA0AC6AFF454FBC556728D9B194CD",
+        "name": "福建省电子证照",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "福建省电子证照",
+        "fields": [],
+        "explain": [
+          "真政务案例：福建省电子证照",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:4AFEA0AC6AFF454FBC556728D9B194CD",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-空间地理基础信息",
+        "legacyId": "catalog-group:103",
+        "name": "空间地理基础信息",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "空间地理基础信息",
+        "fields": [],
+        "explain": [
+          "真政务案例：空间地理基础信息",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:103",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-经营",
+        "legacyId": "catalog-group:ABBA9BC18BB04580973B29224CD8F2A0",
+        "name": "经营",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "经营",
+        "fields": [],
+        "explain": [
+          "真政务案例：经营",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:ABBA9BC18BB04580973B29224CD8F2A0",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-能源安全保障",
+        "legacyId": "catalog-group:208",
+        "name": "能源安全保障",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "能源安全保障",
+        "fields": [],
+        "explain": [
+          "真政务案例：能源安全保障",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:208",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-药品安全监管",
+        "legacyId": "catalog-group:204",
+        "name": "药品安全监管",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "药品安全监管",
+        "fields": [],
+        "explain": [
+          "真政务案例：药品安全监管",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:204",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-行政审批服务帮办代办",
+        "legacyId": "eecbc772cd8d408da4407f22b370f033",
+        "name": "行政审批服务帮办代办",
+        "provider": "省大数据局",
+        "providerOrgCode": "11370000MB284651XL",
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/eecbc772",
+        "desc": "行政审批服务帮办代办制,解决德化县农村大量劳动力进城务工、农村空心化、老龄化造成办事不便等问题，结合推进“党建+”邻里中心建设，积极探索推行行政审批服务帮办代办制，打通服务企业和群众的“最后一公里”。",
+        "fields": [
+          "事项名称",
+          "代办人员",
+          "受理状态",
+          "办结时限",
+          "群众反馈"
+        ],
+        "explain": [
+          "真政务案例：行政审批服务帮办代办（published, opinion=同意）",
+          "field_type=01（涉企/审批），适合做帮办代办链路演示",
+          "可作为基层帮办代办看板素材"
+        ],
+        "nextHints": [
+          "进入营商环境专区",
+          "查看帮办代办专题包",
+          "对齐审批口径"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "eecbc772cd8d408da4407f22b370f033",
+          "owner_org_id": "11370000MB284651XL",
+          "owner_org_name": "省大数据局",
+          "region_code": "370000000000",
+          "region_name": "山东省",
+          "topic_status": "published",
+          "field_type": "01",
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-行政执法监督",
+        "legacyId": "catalog-group:212",
+        "name": "行政执法监督",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "行政执法监督",
+        "fields": [],
+        "explain": [
+          "真政务案例：行政执法监督",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:212",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-许可",
+        "legacyId": "catalog-group:01C1508F131F4F4981BA40DBCF4E030C",
+        "name": "许可",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "许可",
+        "fields": [],
+        "explain": [
+          "真政务案例：许可",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:01C1508F131F4F4981BA40DBCF4E030C",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-赔偿判决",
+        "legacyId": "catalog-group:3EDCDE5D178C4A3AA44275E557349D00",
+        "name": "赔偿判决",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "offline",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "赔偿判决",
+        "fields": [],
+        "explain": [
+          "真政务案例：赔偿判决",
+          "field_type=",
+          "导入状态：offline"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:3EDCDE5D178C4A3AA44275E557349D00",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "offline",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录",
+        "legacyId": "catalog-group:3",
+        "name": "部门信息资源目录",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:3",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-地市信息资源目录-南昌市-市教",
+        "legacyId": "catalog-group:30700201",
+        "name": "部门信息资源目录-地市信息资源目录-南昌市-市教育局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-地市信息资源目录-南昌市-市教育局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-地市信息资源目录-南昌市-市教育局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30700201",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-地市信息资源目录-成都市-市交",
+        "legacyId": "catalog-group:30700104",
+        "name": "部门信息资源目录-地市信息资源目录-成都市-市交通运输局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-地市信息资源目录-成都市-市交通运输局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-地市信息资源目录-成都市-市交通运输局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30700104",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-地市信息资源目录-成都市-市城",
+        "legacyId": "catalog-group:202,",
+        "name": "部门信息资源目录-地市信息资源目录-成都市-市城管委",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-地市信息资源目录-成都市-市城管委",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-地市信息资源目录-成都市-市城管委",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:202,",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-地市信息资源目录-成都市-市城",
+        "legacyId": "catalog-group:30700101",
+        "name": "部门信息资源目录-地市信息资源目录-成都市-市城管委",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-地市信息资源目录-成都市-市城管委",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-地市信息资源目录-成都市-市城管委",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30700101",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-地市信息资源目录-成都市-市教",
+        "legacyId": "catalog-group:30700103",
+        "name": "部门信息资源目录-地市信息资源目录-成都市-市教育局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-地市信息资源目录-成都市-市教育局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-地市信息资源目录-成都市-市教育局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30700103",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-地市信息资源目录-成都市-市行",
+        "legacyId": "catalog-group:30700102",
+        "name": "部门信息资源目录-地市信息资源目录-成都市-市行政审批局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-地市信息资源目录-成都市-市行政审批局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-地市信息资源目录-成都市-市行政审批局",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:30700102",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省人大-test2",
+        "legacyId": "catalog-group:302001",
+        "name": "部门信息资源目录-省人大-test2",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省人大-test2",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省人大-test2",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:302001",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省委-test1",
+        "legacyId": "catalog-group:301001",
+        "name": "部门信息资源目录-省委-test1",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省委-test1",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省委-test1",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:301001",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省直机关-省人民政府办公厅",
+        "legacyId": "catalog-group:308001",
+        "name": "部门信息资源目录-省直机关-省人民政府办公厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "configuring",
+        "score": 85,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省直机关-省人民政府办公厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省直机关-省人民政府办公厅",
+          "field_type=",
+          "导入状态：configuring"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:308001",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "configuring",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省直机关-省公安厅",
+        "legacyId": "catalog-group:308004",
+        "name": "部门信息资源目录-省直机关-省公安厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省直机关-省公安厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省直机关-省公安厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:308004",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省直机关-省大数据局",
+        "legacyId": "catalog-group:null",
+        "name": "部门信息资源目录-省直机关-省大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省直机关-省大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省直机关-省大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:null",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省直机关-省大数据局",
+        "legacyId": "catalog-group:102002",
+        "name": "部门信息资源目录-省直机关-省大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省直机关-省大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省直机关-省大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:102002",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省直机关-省大数据局",
+        "legacyId": "catalog-group:102001",
+        "name": "部门信息资源目录-省直机关-省大数据局",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省直机关-省大数据局",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省直机关-省大数据局",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:102001",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-部门信息资源目录-省直机关-省教育厅",
+        "legacyId": "catalog-group:308003",
+        "name": "部门信息资源目录-省直机关-省教育厅",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "部门信息资源目录-省直机关-省教育厅",
+        "fields": [],
+        "explain": [
+          "真政务案例：部门信息资源目录-省直机关-省教育厅",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:308003",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-金融监管",
+        "legacyId": "catalog-group:207",
+        "name": "金融监管",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "金融监管",
+        "fields": [],
+        "explain": [
+          "真政务案例：金融监管",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:207",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-tp-食品安全监管",
+        "legacyId": "catalog-group:215",
+        "name": "食品安全监管",
+        "provider": "省大数据局",
+        "providerOrgCode": null,
+        "zone": "营商环境专区",
+        "status": "可复用",
+        "score": 95,
+        "updatedAt": "2026-04-27",
+        "subscribers": 0,
+        "approvalRate": "—",
+        "coverage": "真案例：dsp_example/catalog-",
+        "desc": "食品安全监管",
+        "fields": [],
+        "explain": [
+          "真政务案例：食品安全监管",
+          "field_type=",
+          "导入状态：published"
+        ],
+        "nextHints": [
+          "发起复用申请",
+          "查看真案例来源"
+        ],
+        "trueData": {
+          "source_schema": "dsp_example",
+          "package_code": "catalog-group:215",
+          "owner_org_id": null,
+          "owner_org_name": null,
+          "region_code": null,
+          "region_name": null,
+          "topic_status": "published",
+          "field_type": null,
+          "legacy_mapping_status": "resolved"
+        }
+      },
+      {
+        "id": "res-market-activity",
+        "name": "市场主体活跃度月度汇总",
+        "provider": "市市场监管局",
+        "zone": "营商环境专区",
+        "status": "可申请",
+        "score": 88,
+        "updatedAt": "2026-04-23",
+        "subscribers": 19,
+        "approvalRate": "93%",
+        "desc": "适合营商环境趋势分析，但不替代法人主体基础信息模板本身。",
+        "fields": [
+          "统计月",
+          "区县",
+          "新增主体数",
+          "注销主体数",
+          "净增长"
+        ],
+        "explain": [
+          "适合做趋势结果，但不是当前复用起点",
+          "更适合作为模板复用后的专题补充"
+        ],
+        "nextHints": [
+          "作为专题补充资源查看"
+        ],
+        "coverage": "趋势汇总"
+      },
+      {
+        "id": "res-company-visit",
+        "name": "企业走访差异补录视图",
+        "provider": "镇街协同填报链路",
+        "zone": "治理减负专区",
+        "status": "可查看",
+        "score": 81,
+        "updatedAt": "2026-04-24",
+        "subscribers": 11,
+        "approvalRate": "—",
+        "desc": "聚合基层补录频次最高的现场差异字段，用于反向指导模板升级与减负治理。",
+        "fields": [
+          "经营状态",
+          "最近走访时间",
+          "现场备注"
+        ],
+        "explain": [
+          "用于观察哪些字段仍需基层反复补录",
+          "适合进入治理视角，不是普通需求的起点"
+        ],
+        "nextHints": [
+          "查看减负热区"
+        ],
+        "coverage": "治理视图"
+      }
+    ],
     "catalogTree": [
       {
-        "name": "共享目录条目",
-        "count": 189,
-        "href": "#/p2-discovery/catalog-browse"
+        "name": "真政务案例（dsp_example）",
+        "count": 113
       },
       {
-        "name": "真实政务案例",
-        "count": 10,
-        "href": "#/p2-discovery/catalog-browse?kind=example"
+        "name": "共享目录条目（dsp_catalog）",
+        "count": 226
       },
       {
-        "name": "组织",
-        "count": 18750,
-        "href": null,
-        "hint": "从组织主数据自动同步"
+        "name": "组织 projection（dsp_bsp.pub_organ）",
+        "count": 18750
       },
       {
-        "name": "区划",
-        "count": 16731,
-        "href": null,
-        "hint": "从区划主数据自动同步"
+        "name": "区划 projection（dsp_bsp.pub_region）",
+        "count": 16731
       }
     ],
     "recallDictionary": {
@@ -180,8 +4369,43 @@
           "lifecycle_status": "active"
         },
         {
+          "title": "职工基本医疗保险、城乡居民基本医疗保险状态信息",
+          "owner_org_id": "360002222211",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "一般固体废物跨省级行政区域贮存、处置审批信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "一般建设项目环境影响评价审批县级权限信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "核与辐射类建设项目环境影响评价审批信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "重新申请领取危险废物综合经营许可证信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
           "title": "2024年普通中小学学籍学历数据信息",
           "owner_org_id": "11360000014501340W",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "废弃电器电子产品处理企业资格审批信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "废弃电器电子产品处理资格证书换发信息",
+          "owner_org_id": "11370000MB284651XL",
           "lifecycle_status": "active"
         },
         {
@@ -190,8 +4414,18 @@
           "lifecycle_status": "active"
         },
         {
+          "title": "申请注销或部分变更辐射安全许可证信息",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
           "title": "规范化、示范性及优质特色中职学校名录",
           "owner_org_id": "36010000876",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "辐射安全许可证有效期届满申请延续信息",
+          "owner_org_id": "11370000MB284651XL",
           "lifecycle_status": "active"
         },
         {
@@ -201,6 +4435,11 @@
         },
         {
           "title": "区县域医疗机构院主要业务情况统计表",
+          "owner_org_id": "11370000MB284651XL",
+          "lifecycle_status": "active"
+        },
+        {
+          "title": "危险废物跨省级行政区域转移审批信息",
           "owner_org_id": "11370000MB284651XL",
           "lifecycle_status": "active"
         },
@@ -215,83 +4454,13 @@
           "lifecycle_status": "active"
         },
         {
-          "title": "企业环境安全隐患排查整改情况数据",
+          "title": "申请延续危险废物综合经营许可证信息",
           "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "全省规模以上工业经济效益主要指标",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "山东省统一社会信用代码数据库信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "生态环境严重失信名单修复记录信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "approved_pending_publish"
-        },
-        {
-          "title": "山东法院宣告失踪或死亡案件信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "山东省宗教活动场所法人登记证书",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "山东省社会保险参保人员基本信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "全省各设区城市AQI实时信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "approved_pending_publish"
-        },
-        {
-          "title": "山东省个体工商户登记基本信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "设立内资演出场所经营单位备案",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "非煤矿矿山企业安全生产许可证",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "2023年物业管理维修资金",
-          "owner_org_id": "00510104",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "学前教育幼儿基本信息-人口",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "山东省社会组织注册登记信息",
-          "owner_org_id": "11370000MB284651XL",
-          "lifecycle_status": "active"
-        },
-        {
-          "title": "普通中小学学籍学历数据信息",
-          "owner_org_id": "11360000014501340W",
           "lifecycle_status": "active"
         }
       ],
-      "source": "共享目录表.data_catalog (via importer.catalog_entry)",
-      "purpose": "NL skill 召回字典：用户搜“人口/不动产/停车场/婚姻/小微企业”等关键词时，召回官方目录候选"
+      "source": "dsp_catalog.data_catalog (via importer.catalog_entry)",
+      "purpose": "NL skill 召回字典：用户搜“人口/不动产/停车场/婚姻/小微企业”等关键词时，召回真目录候选"
     }
   },
   "provider": {
@@ -401,6 +4570,20 @@
         "catalog_code": "30701337000030b001000000/000001",
         "source_ref": "dsp-resource:resource_asset:42b68dfdb01b49bc90e02c91a845cbc3",
         "legacy_object_ref": "42b68dfdb01b49bc90e02c91a845cbc3"
+      },
+      {
+        "id": "res-company-visit",
+        "name": "企业走访差异补录视图",
+        "status": "待审核",
+        "type": "治理视图",
+        "updatedAt": "2026-04-24"
+      },
+      {
+        "id": "res-market-activity",
+        "name": "市场主体活跃度月度汇总",
+        "status": "可共享",
+        "type": "专题资源",
+        "updatedAt": "2026-04-23"
       }
     ],
     "catalog_items": [],
@@ -502,8 +4685,100 @@
       ]
     }
   },
-  "disputes": [],
-  "audit_events": [],
+  "disputes": [
+    {
+      "id": "DSP-2026-04-26-OBJ-PUBSEC",
+      "title": "数据目录纠错_信息项中缺少抽检时间字段",
+      "severity": "mid",
+      "status": "provider_investigating",
+      "owner": "省公安厅 / 信息员（投诉方）→ 省大数据局（提供方）",
+      "timeline": [
+        {
+          "time": "04-26 14:02",
+          "label": "省公安厅信息员提出异议"
+        },
+        {
+          "time": "04-26 17:18",
+          "label": "省大数据局接单 → provider_investigating"
+        }
+      ],
+      "aiSummary": "建议在不动产/抽检类目录上统一补“抽检时间”字段口径；可作为 dsp_catalog 字段治理候选。"
+    }
+  ],
+  "audit_events": [
+    {
+      "id": "AE-2026-04-25-0902",
+      "time": "04-25 09:02",
+      "actor": "system",
+      "type": "discovery.template-match",
+      "target": "停车场信息共享目录 / 370000308004000000/000001",
+      "result": "ok",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-25-0914",
+      "time": "04-25 09:14",
+      "actor": "省大数据局 / 平台管理员",
+      "type": "application.submit",
+      "target": "REQ-2026-04-25-0011（停车场信息复用）",
+      "result": "ok",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-26-1015",
+      "time": "04-26 10:15",
+      "actor": "省大数据局 / 资源审核员",
+      "type": "application.review.start",
+      "target": "REQ-2026-04-26-0006（婚姻登记“全省通办”）",
+      "result": "in_progress",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-26-1402",
+      "time": "04-26 14:02",
+      "actor": "省公安厅 / 信息员",
+      "type": "objection.raised",
+      "target": "OBJ-数据目录纠错_信息项中缺少抽检时间字段",
+      "result": "provider_investigating",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-27-0903",
+      "time": "04-27 09:03",
+      "actor": "省大数据局 / 数据治理岗",
+      "type": "delivery.task.granted",
+      "target": "DLV-2026-04-27-0003（出生一件事推送链路）",
+      "result": "ok",
+      "chain": "anchored"
+    },
+    {
+      "id": "AE-2026-04-27-1148",
+      "time": "04-27 11:48",
+      "actor": "济南市大数据局 / 区县协同员",
+      "type": "delivery.attempt.completed",
+      "target": "EXEC-START_EXCHANGE_TABLE_JOB-通道1（NIFI）",
+      "result": "ok",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-27-1530",
+      "time": "04-27 15:30",
+      "actor": "省人力资源社会保障厅 / 业务对接人",
+      "type": "subscription.confirm",
+      "target": "REQ-2026-04-27-0021（小微企业岗位补贴）",
+      "result": "ok",
+      "chain": "pending"
+    },
+    {
+      "id": "AE-2026-04-28-0830",
+      "time": "04-28 08:30",
+      "actor": "platform / 异议复核",
+      "type": "objection.resolved",
+      "target": "OBJ-停车场信息文件资源显示不全",
+      "result": "resolved",
+      "chain": "anchored"
+    }
+  ],
   "audit_ai": {
     "summary": "当前证据链可以分成三类：模板优先复用的成功闭环、重复要数被准入拦截的治理事件，以及因审计写入失败而主动熔断的保护事件。",
     "evidence": [

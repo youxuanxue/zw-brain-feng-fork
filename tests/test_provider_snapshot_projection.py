@@ -207,6 +207,31 @@ def test_operater_snapshot_includes_registered_api_services(brain: BrainService)
     assert svc["lifecycle_status"] == "draft"
 
 
+def test_operater_snapshot_includes_datasource_endpoints(temp_db: str) -> None:
+    """PR #340：数据源管理/反向编目/挂接 = 操作员供数主线，snapshot 须带 datasource_endpoints。"""
+    from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository
+
+    DatasourceEndpointRepository().upsert_endpoint(
+        {
+            "endpoint_id": "ep-operater-snap-001",
+            "display_name": "操作员可见数据源",
+            "db_name": "op_db",
+            "db_type": "mysql",
+            "org_code": SEED_ORG,
+            "data_partition": "front",
+            "connectivity_status": "connected",
+            "connection_ref": "manual:datasource:ep-operater-snap-001",
+        },
+        tenant_id=TENANT,
+    )
+    brain = BrainService(state_store=StateStore(database_store=DatabaseStore()))
+    DatabaseStore().initialize()
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_OPERATER")
+    endpoints = snap["provider"].get("datasource_endpoints")
+    assert isinstance(endpoints, list)
+    assert any(e.get("endpoint_id") == "ep-operater-snap-001" for e in endpoints)
+
+
 def test_field_decision_projection_item_shape_for_inbox_ui(brain: BrainService) -> None:
     _seed_inbox_rows()
     snap = _dept_snapshot(brain, "ROLE_ORGAN_MANAGER")
@@ -615,6 +640,28 @@ def test_enrich_provider_uses_prefetched_assets(temp_db: str) -> None:
     assert "res-prefetch-db" in {s["id"] for s in out_db["provider"]["services"]}, (
         "assets=None 回落 DB 自查应看到 DB 资源（区分 [] 与 None 语义）"
     )
+
+
+def test_enrich_provider_snapshot_includes_datasource_endpoints(temp_db: str) -> None:
+    from zw_brain.domain.provider_snapshot_projection import enrich_provider_snapshot
+    from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository
+
+    DatasourceEndpointRepository().upsert_endpoint(
+        {
+            "endpoint_id": "ep-enrich-001",
+            "display_name": "挂接源",
+            "db_name": "hook_db",
+            "db_type": "mysql",
+            "data_partition": "service",
+            "connectivity_status": "connected",
+            "connection_ref": "manual:datasource:ep-enrich-001",
+        },
+        tenant_id=TENANT,
+    )
+    out = enrich_provider_snapshot({"provider": {}}, tenant_id=TENANT, copy=True)
+    endpoints = out["provider"]["datasource_endpoints"]
+    assert isinstance(endpoints, list)
+    assert any(item.get("endpoint_id") == "ep-enrich-001" for item in endpoints)
 
 
 def test_enrich_zones_default_copy_does_not_mutate_input(seed_db: str) -> None:

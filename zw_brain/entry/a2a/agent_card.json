@@ -333,6 +333,61 @@
       "sideEffects": []
     },
     {
+      "id": "datasource.connectivity.test",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "datasource.endpoint.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "datasource.table.columns",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
+      "id": "datasource.table.list",
+      "mode": "read",
+      "humanConfirmationRequired": false,
+      "auditClass": "read-trace",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "mcp",
+        "a2a"
+      ],
+      "sideEffects": []
+    },
+    {
       "id": "delivery.list",
       "mode": "read",
       "humanConfirmationRequired": false,
@@ -1569,6 +1624,38 @@
       ],
       "sideEffects": [
         "audit"
+      ]
+    },
+    {
+      "id": "datasource.endpoint.delete",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "datasource.endpoint.upsert",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-critical",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
       ]
     },
     {

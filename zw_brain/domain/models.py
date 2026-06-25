@@ -370,6 +370,41 @@ class GatewayRuntimeStatusProjectionRecord(Base):
     generated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now, index=True)
 
 
+class DatasourceEndpointProjectionRecord(Base):
+    """脱敏数据源连接投影（承接旧 meta_database；密钥只存 secret_ref，禁止明文入库）。"""
+
+    __tablename__ = "datasource_endpoint_projection"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "endpoint_id", name="uq_datasource_endpoint_tenant_id"),
+        Index("ix_datasource_endpoint_partition", "tenant_id", "data_partition"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    tenant_id: Mapped[str] = mapped_column(String(64), index=True)
+    endpoint_id: Mapped[str] = mapped_column(String(64), index=True)
+    connection_ref: Mapped[str] = mapped_column(String(128), index=True)
+    display_name: Mapped[str] = mapped_column(String(128))
+    db_name: Mapped[str] = mapped_column(String(150))
+    db_type: Mapped[str] = mapped_column(String(32), default="mysql")
+    host_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    port: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    org_code: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    org_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contact_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    contact_phone: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    data_partition: Mapped[str] = mapped_column(String(32), index=True, default="front")
+    connectivity_status: Mapped[str] = mapped_column(String(32), index=True, default="unknown")
+    secret_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    metadata_database_id: Mapped[str | None] = mapped_column(String(64), nullable=True, index=True)
+    node_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    node_name: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    remark: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    source_ref: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    summary_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+
 class ServiceInvocationMetricProjectionRecord(Base):
     __tablename__ = "service_invocation_metric_projection"
     __table_args__ = (

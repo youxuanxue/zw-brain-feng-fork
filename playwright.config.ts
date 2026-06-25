@@ -40,6 +40,7 @@ export default defineConfig({
     'b2_field_metadata_10col.spec.ts',
     'd57_permission_batch.spec.ts',
     'dept_isolation_two_account.spec.ts',
+    'catalog_datasource_walkthrough.spec.ts',
   ],
   fullyParallel: false,
   workers: 1,

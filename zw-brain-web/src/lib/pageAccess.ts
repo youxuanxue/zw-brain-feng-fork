@@ -77,6 +77,7 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
     redirectIfDenied: '/provider/wizard/inline-catalog',
   },
   // 反向编目（pages/P5ReverseCatalogWizard.vue → canCreateDraft）D55/P14 操作员也可进
+  { prefix: '/provider/datasources', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'] },
   { prefix: '/provider/wizard/reverse-catalog', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_ORGAN_OPERATER'] },
   // 反向编目审核（D57⑧ 两级管线第一级部门审 = 部门管理员；路由 slug 仍 field-decision）。
   // 业务运营员的反向审核在第二级平台审（目录审核收件箱平台档）→ 对位下一站 catalog-review；

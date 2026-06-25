@@ -2,7 +2,7 @@
 
 反转 D23（drop_all+create_all），用 alembic forward-migration 取代「漂移即 DROP」。
 核心不变量（隔离临时库逐条钉死）：
-  (a) 空库 ensure_runtime_schema() → 全部 76 表 + alembic_version 建好；
+  (a) 空库 ensure_runtime_schema() → 全部 77 表 + alembic_version 建好；
   (b) 灌数据的存量库（无 alembic_version、schema 与模型一致）→ stamp baseline 后
       数据**仍在**、绝不 DROP；
   (c) prod 模式 reset_and_upgrade() 无 ALLOW env → raise（M5 fail-closed）；
@@ -120,7 +120,7 @@ def test_empty_db_ensure_builds_all_tables(isolated_db: str) -> None:
         f"缺表：{sorted(metadata_tables - tables)}"
     )
     assert REQUIRED_TABLES.issubset(tables), "运行时自检清单全部建好"
-    assert len(metadata_tables) == 76, "Base.metadata 应为 76 表（与当前模型对账）"
+    assert len(metadata_tables) == 77, "Base.metadata 应为 77 表（与当前模型对账）"
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -447,7 +447,12 @@ class ObjectionRepository:
             "escalated": "platform_investigating",
             "resolved": "resolved",
         }
-        return mapping.get(status, "submitted")
+        if status in mapping:
+            return mapping[status]
+        # seed/legacy dispute 状态已是 objection 状态机词汇时直通，避免默认 submitted 污染待办计数。
+        if status in self.TRANSITIONS:
+            return status
+        return "submitted"
 
     def _map_action_type(self, label: str) -> str:
         if "受理" in label:

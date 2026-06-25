@@ -97,6 +97,7 @@ class Repos:
     metadata_evidence: Any # MetadataEvidenceRepository
     resource_api: Any      # ResourceApiRepository
     service_invocation: Any # ServiceInvocationMetricRepository
+    datasource_endpoint: Any  # DatasourceEndpointRepository
 
 
 @dataclass(frozen=True)
@@ -290,12 +291,14 @@ class HandlerDeps:
                 metadata_evidence=db_store.metadata_evidence_repo,
                 resource_api=db_store.resource_api_repo,
                 service_invocation=db_store.service_invocation_repo,
+                datasource_endpoint=db_store.datasource_endpoint_repo,
             )
         else:
             from zw_brain.domain.repositories.application import ApplicationRepository
             from zw_brain.domain.repositories.approval import ApprovalRepository
             from zw_brain.domain.repositories.capability_package import CapabilityPackageRepository
             from zw_brain.domain.repositories.catalog import CatalogRepository
+            from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository
             from zw_brain.domain.repositories.delivery import DeliveryRepository
             from zw_brain.domain.repositories.external_adapter import ExternalAdapterRepository
             from zw_brain.domain.repositories.gateway_runtime import GatewayRuntimeRepository
@@ -322,6 +325,7 @@ class HandlerDeps:
                 metadata_evidence=MetadataEvidenceRepository(),
                 resource_api=ResourceApiRepository(),
                 service_invocation=ServiceInvocationMetricRepository(),
+                datasource_endpoint=DatasourceEndpointRepository(),
             )
         services: DomainServices | None = None
 

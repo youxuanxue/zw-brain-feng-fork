@@ -92,9 +92,11 @@ class LegacyImportRunner:
 
             out.append(ObjectionMapper(tenant_id=self.tenant_id))
         if schema == "dsp_pipelines":
+            from zw_brain.adapters.legacy.mappers.datasource_endpoint import DatasourceEndpointMapper
             from zw_brain.adapters.legacy.mappers.pipelines import PipelinesMapper
 
             out.append(PipelinesMapper(tenant_id=self.tenant_id))
+            out.append(DatasourceEndpointMapper(tenant_id=self.tenant_id))
         if schema == "dsp_service":
             from zw_brain.adapters.legacy.mappers.service import ServiceMapper
 

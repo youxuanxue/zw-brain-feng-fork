@@ -664,6 +664,146 @@
       ]
     },
     {
+      "skill_id": "datasource.connectivity.test",
+      "title": "数据源连通性测试",
+      "description": "只读：返回数据源连通性探测结果（导入态 is_connect 快照；真探测走 external 契约）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "connection_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "endpoint_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "datasource.endpoint.list",
+      "title": "数据源列表",
+      "description": "只读：按数据分区列出已注册数据源 endpoint（脱敏投影，不含明文密钥）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "connectivity_status",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "data_partition",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "search",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "datasource.table.columns",
+      "title": "库表字段列表",
+      "description": "只读：列出指定库表的字段列（db_meta_column schema 快照），供反向编目生成信息项。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "schema_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "table_meta_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "datasource.table.list",
+      "title": "数据源库表列表",
+      "description": "只读：列出数据源下已采集的库表候选（db_meta_table schema 快照）。",
+      "mode": "read",
+      "human_confirmation_required": false,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "endpoint_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "limit",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "metadata_database_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "search",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
       "skill_id": "delivery.list",
       "title": "查看交付任务列表",
       "description": "查看预填下发、自动汇总、回流候选和异常交付任务列表。",
@@ -3287,6 +3427,111 @@
         {
           "name": "request_id",
           "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "datasource.endpoint.delete",
+      "title": "删除数据源",
+      "description": "写：删除已注册数据源 endpoint。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "endpoint_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "datasource.endpoint.upsert",
+      "title": "注册或更新数据源",
+      "description": "写：注册/更新数据源 endpoint；密码只落 secret_ref，禁止明文入库。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "contact_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "contact_phone",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "data_partition",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "db_name",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "db_type",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "display_name",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "endpoint_id",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "host_display",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_code",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "org_name",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "port",
+          "required": false,
+          "type": "integer"
+        },
+        {
+          "name": "remark",
+          "required": false,
           "type": "string"
         },
         {

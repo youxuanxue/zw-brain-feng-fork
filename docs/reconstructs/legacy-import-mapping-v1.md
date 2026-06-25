@@ -2,7 +2,7 @@
 
 > 角色权威源：[`docs/approved/zw-brain-roles.md`](../approved/zw-brain-roles.md) | 架构基线：[`docs/approved/zw-brain-architecture.md`](../approved/zw-brain-architecture.md)
 
-> **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->76<!-- /stat --> 个 Record 类）。
+> **范围**：`old/10示例数据/*.sql`（<!-- stat:legacy.import.schemas -->17<!-- /stat --> 个 mysqldump，<!-- stat:legacy.import.tables-total -->740<!-- /stat --> 张旧表，~445 MB）→ `zw_brain/domain/models.py`（<!-- stat:legacy.import.record-classes -->77<!-- /stat --> 个 Record 类）。
 > **单一事实源**：本文是"哪张旧表去哪、哪些字段缺位、哪些不导入、跨 schema 桥接顺序"的单一事实源。专题方案 `dsp-*-reconstruction-plan-v1.md` 是设计依据，本文是执行结论。
 > **治理边界引用**：旧 `dsp_bsp` / `dsp_manage` / `dsp_ucenter` 的 IAF IAM、本地 Governance、租户 / 组织 / 用户 / 角色投影、菜单权限和 token / 密码不迁边界，以 `docs/reconstructs/dsp-bsp-manage-governance-reconstruction-plan-v1.md` 为准。
 > **不在本文范围**：旧 URL/旧 controller/旧菜单兼容（zw-brain 是全新项目，不兼容）。
@@ -570,7 +570,7 @@ A1–A4 已通过 `scripts/build_true_data_seed.py` 一次性生成，从 `.data
 | --- | ---: | --- | --- |
 | `legacy.import.schemas` | <!-- stat:legacy.import.schemas -->17<!-- /stat --> | §范围 | `ls old/10示例数据/*.sql \| wc -l` |
 | `legacy.import.tables-total` | <!-- stat:legacy.import.tables-total -->740<!-- /stat --> | §范围 | sum of `grep -ac '^CREATE TABLE'` over dumps |
-| `legacy.import.record-classes` | <!-- stat:legacy.import.record-classes -->76<!-- /stat --> | §范围 | `grep -cE '^class .*Record' zw_brain/domain/models.py` |
+| `legacy.import.record-classes` | <!-- stat:legacy.import.record-classes -->77<!-- /stat --> | §范围 | `grep -cE '^class .*Record' zw_brain/domain/models.py` |
 | `legacy.import.missing-records` | <!-- stat:legacy.import.missing-records -->12<!-- /stat --> | §如何使用 | count of `M[N]` rows in §二 |
 | `legacy.import.missing-resolved` | <!-- stat:legacy.import.missing-resolved -->6<!-- /stat --> | §如何使用 / §二 阻塞结论 | count of M1–M6 classes present in models.py |
 

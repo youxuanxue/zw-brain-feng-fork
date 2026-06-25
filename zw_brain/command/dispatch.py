@@ -79,6 +79,7 @@ from zw_brain.command.handlers.j1 import (
 )
 from zw_brain.command.handlers.j2 import (
     compliance,
+    datasource_endpoint,
     duplicate_check,
     governance,
     metadata,
@@ -159,6 +160,13 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "metadata.schema.snapshot.upsert": metadata.handler_metadata_schema_snapshot_upsert,
     "metadata.gather.evidence.upsert": metadata.handler_metadata_gather_evidence_upsert,
     "metadata.lineage.upsert": metadata.handler_metadata_lineage_upsert,
+    # J2 数据源 endpoint 投影（编目前置：管理 / 选表 / 连通性）
+    "datasource.endpoint.list": datasource_endpoint.handler_datasource_endpoint_list,
+    "datasource.endpoint.upsert": datasource_endpoint.handler_datasource_endpoint_upsert,
+    "datasource.endpoint.delete": datasource_endpoint.handler_datasource_endpoint_delete,
+    "datasource.connectivity.test": datasource_endpoint.handler_datasource_connectivity_test,
+    "datasource.table.list": datasource_endpoint.handler_datasource_table_list,
+    "datasource.table.columns": datasource_endpoint.handler_datasource_table_columns,
     # turn 4: J2 — topic_package (9 cap; create from turn 2)
     "topic.package.configure": topic_package.handler_topic_package_configure,
     "topic.package.submit": topic_package.handler_topic_package_submit,

@@ -117,6 +117,7 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     # G3：资源挂接向导 / 代理服务注册向导 = 部门操作员 + 部门管理员（供数维护 / API 注册），业务运营员退出。
     ("/provider/wizard/hookup-submit", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
     ("/provider/wizard/api-service", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
+    ("/provider/datasources", frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}), None),
     # D57⑧：反向编目审核两级管线第一级（部门审）= 部门管理员；业务运营员对位下一站 =
     # 目录审核收件箱（平台审档）；操作员无任何反向审核权（做的人不审自己）。
     (
@@ -272,6 +273,12 @@ def test_supply_wizards_operater_and_manager_only() -> None:
         assert _is_route_allowed(route, "ROLE_ORGAN_OPERATER")
         assert _is_route_allowed(route, "ROLE_ORGAN_MANAGER")
         assert not _is_route_allowed(route, "ROLE_BUSIAUDIT")
+
+
+def test_datasource_manage_operater_and_manager_only() -> None:
+    assert _is_route_allowed("/provider/datasources", "ROLE_ORGAN_OPERATER")
+    assert _is_route_allowed("/provider/datasources", "ROLE_ORGAN_MANAGER")
+    assert not _is_route_allowed("/provider/datasources", "ROLE_BUSIAUDIT")
 
 
 def test_field_decision_only_manager() -> None:

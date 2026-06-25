@@ -1,0 +1,46 @@
+{
+  "name": "datasource.table.list",
+  "description": "只读：列出数据源下已采集的库表候选（db_meta_table schema 快照）。",
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "endpoint_id": {
+        "type": "string"
+      },
+      "metadata_database_id": {
+        "type": "string"
+      },
+      "search": {
+        "type": "string"
+      },
+      "limit": {
+        "type": "integer"
+      },
+      "tenant_id": {
+        "type": "string"
+      },
+      "role": {
+        "type": "string"
+      }
+    }
+  },
+  "annotations": {
+    "mode": "read",
+    "humanConfirmationRequired": false,
+    "readOnlyHint": true
+  },
+  "x-zwbrain-side-effects": [],
+  "x-zwbrain-audit-class": "read-trace",
+  "x-zwbrain-surfaces": [
+    "webui",
+    "api",
+    "cli",
+    "mcp",
+    "a2a"
+  ],
+  "x-zwbrain-permissions": [
+    "datasource.table.list.execute"
+  ],
+  "x-zwbrain-auth-policy": "user",
+  "x-zwbrain-tenant-scope": "tenant"
+}

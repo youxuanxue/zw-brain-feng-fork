@@ -1,0 +1,42 @@
+{
+  "slug": "datasource.table.columns",
+  "title": "库表字段列表",
+  "description": "只读：列出指定库表的字段列（db_meta_column schema 快照），供反向编目生成信息项。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "table_meta_id": { "type": "string" },
+      "schema_ref": { "type": "string" },
+      "tenant_id": { "type": "string" },
+      "role": { "type": "string" }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": { "type": "array", "items": { "type": "object" } },
+      "total": { "type": "integer" }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "datasource.table.columns"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["datasource.table.columns.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["datasource", "table", "column", "read"],
+  "product_scope": { "journey": "j2", "status": "live" }
+}

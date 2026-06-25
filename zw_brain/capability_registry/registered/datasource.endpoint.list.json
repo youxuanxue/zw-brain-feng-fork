@@ -1,0 +1,44 @@
+{
+  "slug": "datasource.endpoint.list",
+  "title": "数据源列表",
+  "description": "只读：按数据分区列出已注册数据源 endpoint（脱敏投影，不含明文密钥）。",
+  "version": "1.0.0",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "tenant_id": { "type": "string" },
+      "data_partition": { "type": "string" },
+      "org_code": { "type": "string" },
+      "connectivity_status": { "type": "string" },
+      "search": { "type": "string" },
+      "role": { "type": "string" }
+    }
+  },
+  "output_schema": {
+    "type": "object",
+    "properties": {
+      "items": { "type": "array", "items": { "type": "object" } },
+      "total": { "type": "integer" }
+    }
+  },
+  "side_effects": [],
+  "tenant_scope": "tenant",
+  "auth_policy": "user",
+  "human_confirmation_required": false,
+  "audit_class": "read-trace",
+  "execution_binding": "builtin",
+  "config_change_class": "live",
+  "compatibility": ["webui", "api", "cli", "mcp", "a2a"],
+  "runtime_binding": {
+    "kind": "brain_service",
+    "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
+    "method": "datasource.endpoint.list"
+  },
+  "rollback_target": null,
+  "audit_required": true,
+  "permissions": ["datasource.endpoint.list.execute"],
+  "author": { "org": "inspur-cloud", "contact": "zw-brain@inspur.com" },
+  "registry_source": "internal",
+  "tags": ["datasource", "read"],
+  "product_scope": { "journey": "j2", "status": "live" }
+}

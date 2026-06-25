@@ -1,75 +1,208 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
-import { displayRecordName } from '@/lib/userLanguage';
-import { mapReverseDraftCatalog } from '@/lib/reverseDraftPayload';
-import { providerLifecycleBucket, providerLifecycleLabel } from '@/lib/providerProjection';
+import { invokeActionStub, pushToast } from '@/composables/useActionStub';
+import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction, isRouteAllowedForRole } from '@/lib/pageAccess';
+import { mintResourceCode } from '@/lib/providerActionPayload';
+import {
+  datasourceEndpointsFromProvider,
+  endpointsForOrigin,
+  partitionLabel,
+} from '@/lib/datasourceEndpoints';
+import {
+  buildReverseDraftCreatePayload,
+  parseFieldSuggestions,
+  parseTitleSuggestion,
+} from '@/lib/reverseDraftPayload';
 
-interface ResourceRow {
-  id: string;
-  name: string;
-  provider: string;
-  catalogued: boolean;
-  catalogId: string;
-  catalogCode: string;
-  statusLabel: string;
+type Step = 1 | 2 | 3;
+type ResourceOrigin = 'front' | 'landed';
+
+interface TableRow {
+  table_meta_id: string;
+  table_name: string;
+  table_comment: string;
+  schema_ref: string;
 }
+
+interface ColumnRow {
+  column_name: string;
+  comment: string;
+  data_type: string;
+}
+
+const step = ref<Step>(1);
+const resourceOrigin = ref<ResourceOrigin>('front');
+const selectedEndpointId = ref('');
+const tableSearch = ref('');
+const selectedTable = ref<TableRow | null>(null);
+const columns = ref<ColumnRow[]>([]);
+const catalogTitle = ref('');
+const catalogCode = ref(mintResourceCode('reverse'));
+const busy = ref(false);
 
 const { source } = useSnapshot();
 const provider = useProvider();
+const role = getProductRole();
 
-const searchQuery = ref('');
-const statusFilter = ref('');
-const providerFilter = ref('');
+const canCreateDraft = computed(() => canPerformAction('catalog.entry.reverse_draft.create', role.value));
 
-const rawResources = computed<ResourceRow[]>(() => {
-  const list = (provider.value.catalogs as unknown[] | undefined) ?? [];
-  return list
-    .map((c) => {
-      const raw = c as Record<string, unknown>;
-      const mapped = mapReverseDraftCatalog(raw);
-      const lifecycleStatus = raw.lifecycle_status ?? mapped.status;
-      return { mapped, lifecycleStatus };
-    })
-    .filter((c) => c.mapped.schema_ref.trim().length > 0)
-    .map((c) => ({
-      id: c.mapped.id,
-      name: displayRecordName(c.mapped.name, c.mapped.catalog_code, '目录'),
-      provider: c.mapped.owner ?? '—',
-      catalogued: providerLifecycleBucket(c.lifecycleStatus) === 'published',
-      catalogId: c.mapped.id,
-      catalogCode: c.mapped.catalog_code,
-      statusLabel: providerLifecycleLabel(c.lifecycleStatus),
+const endpoints = computed(() =>
+  endpointsForOrigin(
+    datasourceEndpointsFromProvider(provider.value as Record<string, unknown>),
+    resourceOrigin.value,
+  ),
+);
+
+const selectedEndpoint = computed(() =>
+  endpoints.value.find((e) => e.endpoint_id === selectedEndpointId.value) ?? null,
+);
+
+const tables = ref<TableRow[]>([]);
+const tablesLoading = ref(false);
+const columnsLoading = ref(false);
+
+async function loadTables() {
+  if (!selectedEndpoint.value) {
+    tables.value = [];
+    return;
+  }
+  tablesLoading.value = true;
+  try {
+    const res = await invokeActionStub({
+      skillId: 'datasource.table.list',
+      payload: {
+        endpoint_id: selectedEndpoint.value.endpoint_id,
+        metadata_database_id: selectedEndpoint.value.metadata_database_id ?? selectedEndpoint.value.endpoint_id,
+        search: tableSearch.value.trim() || undefined,
+      },
+      role: role.value,
+      suppressSuccessToast: true,
+      refreshSnapshotAfter: false,
+    });
+    const data = res.data as { items?: TableRow[] } | undefined;
+    tables.value = Array.isArray(data?.items) ? data.items : [];
+  } finally {
+    tablesLoading.value = false;
+  }
+}
+
+watch(resourceOrigin, () => {
+  selectedEndpointId.value = '';
+  selectedTable.value = null;
+  columns.value = [];
+  tables.value = [];
+  step.value = 1;
+});
+
+watch(selectedEndpointId, () => {
+  selectedTable.value = null;
+  columns.value = [];
+  if (selectedEndpointId.value) void loadTables();
+});
+
+watch(tableSearch, () => {
+  if (selectedEndpointId.value) void loadTables();
+});
+
+async function loadColumns(table: TableRow) {
+  selectedTable.value = table;
+  columnsLoading.value = true;
+  columns.value = [];
+  try {
+    const res = await invokeActionStub({
+      skillId: 'datasource.table.columns',
+      payload: { table_meta_id: table.table_meta_id, schema_ref: table.schema_ref },
+      role: role.value,
+      suppressSuccessToast: true,
+      refreshSnapshotAfter: false,
+    });
+    const data = res.data as { items?: ColumnRow[] } | undefined;
+    columns.value = Array.isArray(data?.items) ? data.items : [];
+    catalogTitle.value = table.table_comment || table.table_name;
+    const suggest = await invokeActionStub({
+      skillId: 'catalog.entry.reverse_draft.suggest',
+      payload: { schema_ref: table.schema_ref, table_name: table.table_name },
+      role: role.value,
+      suppressSuccessToast: true,
+      refreshSnapshotAfter: false,
+    });
+    const sdata = suggest.data as Record<string, unknown> | undefined;
+    const title = parseTitleSuggestion(sdata ?? {});
+    if (title) catalogTitle.value = title;
+    const fields = parseFieldSuggestions(sdata ?? {});
+    if (fields.length && !columns.value.length) {
+      columns.value = fields.map((f) => ({
+        column_name: f.field_en,
+        comment: f.field_cn,
+        data_type: f.data_type,
+      }));
+    }
+  } finally {
+    columnsLoading.value = false;
+  }
+}
+
+function goStep(next: Step) {
+  step.value = next;
+}
+
+async function createReverseDraft() {
+  if (!canCreateDraft.value) {
+    pushToast({ kind: 'info', title: '暂无创建权限' });
+    return;
+  }
+  if (!selectedTable.value) {
+    pushToast({ kind: 'info', title: '请先选择库表' });
+    return;
+  }
+  busy.value = true;
+  try {
+    const decisions = columns.value.map((col) => ({
+      field_en: col.column_name,
+      field_cn: col.comment || col.column_name,
+      sensitive_level: '1',
+      source: 'schema',
+      selected: Boolean(col.column_name.trim()),
     }));
-});
-
-const providerOptions = computed<string[]>(() => {
-  const set = new Set(rawResources.value.map((r) => r.provider).filter((p) => p && p !== '—'));
-  return [...set].sort();
-});
-
-const filteredResources = computed<ResourceRow[]>(() => {
-  let list = rawResources.value;
-  if (searchQuery.value.trim()) {
-    const q = searchQuery.value.trim().toLowerCase();
-    list = list.filter((r) => r.name.toLowerCase().includes(q));
+    const payload = buildReverseDraftCreatePayload(
+      {
+        id: catalogCode.value,
+        name: catalogTitle.value.trim() || selectedTable.value.table_name,
+        catalog_code: catalogCode.value,
+        schema_ref: selectedTable.value.schema_ref,
+      },
+      decisions,
+    );
+    const res = await invokeActionStub({
+      skillId: 'catalog.entry.reverse_draft.create',
+      payload,
+      successTitle: '反向编目草稿已创建',
+      role: role.value,
+      refreshSnapshotAfter: true,
+    });
+    if (res.ok) {
+      const canReview = isRouteAllowedForRole('/provider/inbox/field-decision', role.value);
+      pushToast({
+        kind: 'ok',
+        title: '反向编目草稿已创建',
+        detail: canReview ? undefined : '已保存，请通知部门管理员审核',
+      });
+      window.location.hash = canReview
+        ? `#/provider/inbox/field-decision/${encodeURIComponent(catalogCode.value)}`
+        : '#/provider';
+    }
+  } finally {
+    busy.value = false;
   }
-  if (statusFilter.value === 'catalogued') {
-    list = list.filter((r) => r.catalogued);
-  } else if (statusFilter.value === 'uncatalogued') {
-    list = list.filter((r) => !r.catalogued);
-  }
-  if (providerFilter.value) {
-    list = list.filter((r) => r.provider === providerFilter.value);
-  }
-  return list;
-});
+}
 
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
-  const total = rawResources.value.length;
-  return total ? `共 ${total} 项可反向编目目录` : '暂无可反向编目目录';
+  return '已有物理表时，从数据源选表，一键生成目录与信息项';
 });
 </script>
 
@@ -80,68 +213,102 @@ const headerMeta = computed(() => {
       <PageFocusHeader
         title="反向编目"
         :meta="headerMeta"
-        :links="[{ label: '反向编目审核收件箱', href: '#/provider/inbox/field-decision' }]"
+        :links="[
+          { label: '数据源管理', href: '#/provider/datasources' },
+          { label: '反向编目审核', href: '#/provider/inbox/field-decision' },
+        ]"
       />
 
+      <ol class="steps" aria-label="编目步骤">
+        <li :class="{ active: step === 1, done: step > 1 }">1. 选择数据源</li>
+        <li :class="{ active: step === 2, done: step > 2 }">2. 选择库表</li>
+        <li :class="{ active: step === 3 }">3. 确认并创建草稿</li>
+      </ol>
+
       <template v-if="source === 'live'">
-        <div class="filter-bar">
-          <input
-            v-model="searchQuery"
-            type="search"
-            class="filter-input"
-            placeholder="按目录名称搜索"
-          />
-          <select v-model="statusFilter" class="filter-select">
-            <option value="">全部状态</option>
-            <option value="catalogued">已编目</option>
-            <option value="uncatalogued">未编目</option>
-          </select>
-          <select v-model="providerFilter" class="filter-select">
-            <option value="">全部提供方</option>
-            <option v-for="p in providerOptions" :key="p" :value="p">{{ p }}</option>
-          </select>
-        </div>
+        <section v-if="step === 1" class="step-panel">
+          <fieldset class="origin-group">
+            <legend>资源来源</legend>
+            <label><input v-model="resourceOrigin" type="radio" value="front" /> 前置资源</label>
+            <label><input v-model="resourceOrigin" type="radio" value="landed" /> 已落地资源（标准库 / 服务库）</label>
+          </fieldset>
+          <label class="field">
+            数据源
+            <select v-model="selectedEndpointId" data-testid="reverse-datasource-select">
+              <option value="">请选择数据源</option>
+              <option v-for="ep in endpoints" :key="ep.endpoint_id" :value="ep.endpoint_id">
+                {{ ep.display_name }}（{{ partitionLabel(ep.data_partition) }}）
+              </option>
+            </select>
+          </label>
+          <p v-if="!endpoints.length" class="hint">
+            还没有可用数据源。请先到
+            <a href="#/provider/datasources">数据源管理</a>
+            登记，或联系管理员同步旧平台连接。
+          </p>
+          <p v-else class="hint">还没有物理表、只想先建目录？请走
+            <a href="#/provider/wizard/inline-catalog">在线编制目录</a>。
+          </p>
+          <DetailActions>
+            <button type="button" class="btn-primary" :disabled="!selectedEndpointId" @click="goStep(2)">下一步</button>
+          </DetailActions>
+        </section>
 
-        <table class="data-table">
-          <thead>
-            <tr>
-              <th>数据名称</th>
-              <th>提供方</th>
-              <th>状态</th>
-              <th>操作</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="!filteredResources.length">
-              <td colspan="4" class="empty-cell">暂无匹配的目录数据</td>
-            </tr>
-            <tr v-for="r in filteredResources" :key="r.id">
-              <td class="cell-name">{{ r.name }}</td>
-              <td>{{ r.provider }}</td>
-              <td>
-                <span :class="['status-tag', r.catalogued ? 'status-done' : 'status-pending']">
-                  {{ r.catalogued ? '已编目' : '未编目' }}
-                </span>
-                <span class="status-detail">{{ r.statusLabel }}</span>
-              </td>
-              <td class="cell-actions">
-                <a
-                  v-if="r.catalogued"
-                  :href="`#/provider/catalog/${encodeURIComponent(r.catalogCode)}`"
-                  class="action-link"
-                >查看目录</a>
-                <a
-                  v-else
-                  :href="`#/provider/wizard/reverse-catalog/detail?catalogId=${encodeURIComponent(r.catalogId)}`"
-                  class="action-link action-primary"
-                  data-testid="reverse-catalog-start"
-                >反向编目</a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <section v-else-if="step === 2" class="step-panel">
+          <p class="hint">数据源：{{ selectedEndpoint?.display_name }}（{{ selectedEndpoint?.db_name }}）</p>
+          <input v-model="tableSearch" type="search" class="filter-input" placeholder="库表名称" />
+          <table class="data-table">
+            <thead>
+              <tr><th>表名称</th><th>表注释</th><th>操作</th></tr>
+            </thead>
+            <tbody>
+              <tr v-if="tablesLoading"><td colspan="3" class="empty">正在加载库表……</td></tr>
+              <tr v-else-if="!tables.length">
+                <td colspan="3" class="empty">
+                  该数据源下还没有可用表。请确认已完成库表采集，或改选其他数据源。
+                </td>
+              </tr>
+              <tr v-for="t in tables" :key="t.table_meta_id">
+                <td>{{ t.table_name }}</td>
+                <td>{{ t.table_comment || '—' }}</td>
+                <td><button type="button" class="link-btn" @click="loadColumns(t); goStep(3)">选择</button></td>
+              </tr>
+            </tbody>
+          </table>
+          <DetailActions>
+            <button type="button" class="btn-secondary" @click="goStep(1)">上一步</button>
+          </DetailActions>
+        </section>
+
+        <section v-else class="step-panel">
+          <label class="field">目录名称<input v-model="catalogTitle" placeholder="例如：学生基本信息" /></label>
+          <p class="hint">来源表：{{ selectedTable?.table_name }} · 信息项 {{ columns.length }} 个</p>
+          <table class="data-table">
+            <thead><tr><th>字段名</th><th>中文释义</th><th>类型</th></tr></thead>
+            <tbody>
+              <tr v-if="columnsLoading"><td colspan="3" class="empty">正在加载字段……</td></tr>
+              <tr v-else-if="!columns.length"><td colspan="3" class="empty">未读取到字段，请返回上一步重选表</td></tr>
+              <tr v-for="col in columns" :key="col.column_name">
+                <td>{{ col.column_name }}</td>
+                <td>{{ col.comment || '—' }}</td>
+                <td>{{ col.data_type || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+          <DetailActions>
+            <button type="button" class="btn-secondary" @click="goStep(2)">上一步</button>
+            <button
+              type="button"
+              class="btn-primary"
+              data-testid="reverse-catalog-create"
+              :disabled="busy || columnsLoading || !canCreateDraft || !catalogTitle.trim() || !columns.length"
+              @click="createReverseDraft"
+            >
+              创建反向编目草稿
+            </button>
+          </DetailActions>
+        </section>
       </template>
-
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>
@@ -150,115 +317,19 @@ const headerMeta = computed(() => {
 <style scoped>
 .crumbs { margin-bottom: 4px; }
 .crumbs a { font-size: 13px; color: var(--b-primary, #006be6); text-decoration: none; }
-.crumbs a:hover { text-decoration: underline; }
-.filter-bar {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 14px;
-  margin-bottom: 16px;
-}
-.filter-input {
-  flex: 1 1 200px;
-  min-width: 160px;
-  padding: 7px 12px;
-  border: 1px solid var(--b-border, #d4e2f4);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--b-neutral-text, #1a1d21);
-  background: #fff;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.filter-input:focus {
-  border-color: var(--b-primary, #006be6);
-}
-.filter-select {
-  flex: 0 0 auto;
-  padding: 7px 10px;
-  border: 1px solid var(--b-border, #d4e2f4);
-  border-radius: 6px;
-  font-size: 13px;
-  color: var(--b-neutral-text, #1a1d21);
-  background: #fff;
-  cursor: pointer;
-  outline: none;
-}
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-  border: 1px solid var(--b-border, #d4e2f4);
-  border-radius: 8px;
-  overflow: hidden;
-}
-.data-table thead {
-  background: #f5f9fe;
-}
-.data-table th {
-  text-align: left;
-  padding: 10px 14px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--b-muted, #5c6370);
-  border-bottom: 1px solid var(--b-border, #d4e2f4);
-  white-space: nowrap;
-}
-.data-table td {
-  padding: 12px 14px;
-  color: var(--b-neutral-text, #1a1d21);
-  border-bottom: 1px solid var(--b-border-subtle, #e6eef8);
-}
-.data-table tbody tr:last-child td {
-  border-bottom: none;
-}
-.data-table tbody tr:hover {
-  background: #fafcff;
-}
-.cell-name {
-  font-weight: 500;
-}
-.empty-cell {
-  text-align: center;
-  color: var(--b-muted, #5c6370);
-  padding: 40px 14px !important;
-}
-.status-tag {
-  display: inline-flex;
-  padding: 2px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.status-done {
-  background: #e8f5e9;
-  color: #2e7d32;
-}
-.status-pending {
-  background: #fff3e0;
-  color: #e65100;
-}
-.status-detail {
-  display: block;
-  margin-top: 4px;
-  font-size: 12px;
-  color: var(--b-muted, #5c6370);
-}
-.cell-actions {
-  display: flex;
-  gap: 10px;
-}
-.action-link {
-  color: var(--b-primary, #006be6);
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-}
-.action-link:hover {
-  text-decoration: underline;
-}
-.action-primary {
-  font-weight: 600;
-}
+.steps { display: flex; gap: 16px; list-style: none; padding: 0; margin: 14px 0; font-size: 13px; color: var(--b-muted, #5c6370); }
+.steps li.active { color: var(--b-primary, #006be6); font-weight: 600; }
+.steps li.done { color: #2e7d32; }
+.step-panel { display: grid; gap: 12px; }
+.origin-group { border: none; display: flex; gap: 16px; padding: 0; }
+.field { display: grid; gap: 6px; font-size: 13px; }
+.field input, .field select, .filter-input { padding: 8px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; }
+.hint { font-size: 13px; color: var(--b-muted, #5c6370); }
+.data-table { width: 100%; border-collapse: collapse; font-size: 13px; border: 1px solid var(--b-border, #d4e2f4); }
+.data-table th, .data-table td { padding: 10px 12px; border-bottom: 1px solid var(--b-border-subtle, #e6eef8); text-align: left; }
+.empty { text-align: center; color: var(--b-muted, #5c6370); }
+.link-btn, .btn-primary, .btn-secondary { font-size: 13px; cursor: pointer; border-radius: 6px; padding: 7px 14px; border: none; }
+.btn-primary { background: var(--b-primary, #006be6); color: #fff; }
+.btn-secondary { background: #eef3fb; }
+.link-btn { background: none; color: var(--b-primary, #006be6); padding: 0; }
 </style>
