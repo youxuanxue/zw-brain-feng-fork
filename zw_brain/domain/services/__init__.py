@@ -57,6 +57,7 @@ from zw_brain.domain.services.topic_package_service import TopicPackageService
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+    from zw_brain.command.deps import DomainPorts
 
 
 @dataclass(frozen=True)
@@ -77,7 +78,7 @@ class DomainServices:
     conditional_approval: ConditionalApprovalService
 
     @classmethod
-    def from_brain(cls, brain: BrainService) -> DomainServices:
+    def from_brain(cls, brain: BrainService, *, ports: DomainPorts) -> DomainServices:
         """Build the 7 services bound to a BrainService.
 
         Each service receives the brain reference verbatim for now; in Action
@@ -87,9 +88,9 @@ class DomainServices:
         return cls(
             catalog=CatalogService(brain=brain),
             topic_package=TopicPackageService(brain=brain),
-            delivery=DeliveryService(brain=brain),
+            delivery=DeliveryService(brain=brain, ports=ports),
             application=ApplicationService(brain=brain),
-            request=RequestService(brain=brain),
+            request=RequestService(brain=brain, ports=ports),
             provider=ProviderService(brain=brain),
             governance=GovernanceService(brain=brain),
             conditional_approval=ConditionalApprovalService(brain=brain),

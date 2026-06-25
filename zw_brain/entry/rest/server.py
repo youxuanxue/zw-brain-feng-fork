@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import logging
-import mimetypes
 import os
 import secrets
 import ssl
@@ -28,6 +27,7 @@ from zw_brain.command.brain import (
 from zw_brain.command.runtime import get_service
 from zw_brain.domain.policy import DomainAccessDeniedError
 from zw_brain.domain.repositories.governance_projection import ActorMatchError
+from zw_brain.entry.rest import static_assets
 from zw_brain.shared.auth_context import auth_context_from_claims, get_auth_context, reset_auth_context, set_auth_context
 from zw_brain.shared.auth_session import (
     CSRF_HEADER_NAME,
@@ -105,22 +105,12 @@ def _dev_iam_bypass_role_codes() -> list[str]:
 
 
 def _web_root() -> Path:
-    package_root = Path(__file__).resolve().parents[2]
-    repo_root = package_root.parents[0]
-    repo_path = repo_root / "zw-brain-web"
-    if repo_path.exists():
-        return repo_path
-    packaged_path = package_root / "_assets" / "zw-brain-web"
-    return packaged_path
+    return static_assets.web_root()
 
 
 def _web_public_root(web_root: Path | None = None) -> Path:
     """Serve Vite production bundle when dist-vite/ exists; else dev index (needs Vite :5173)."""
-    root = web_root or _web_root()
-    built = root / "dist-vite"
-    if (built / "index.html").is_file():
-        return built
-    return root
+    return static_assets.web_public_root(web_root)
 
 
 def _spa_index_path() -> Path:
@@ -150,19 +140,12 @@ def _validate_webui_shell() -> None:
     refuse to boot. Non-prod (dev / test / pure-API) logs and continues — the API answers
     without a built bundle, so only prod treats a missing shell as fatal.
     """
-    if _webui_index_readable():
-        return
-    _LOGGER.error(
-        "WebUI shell missing: %s does not exist. The REST API will answer but the browser "
-        "gets a blank page. Build the bundle with `npm run build` in zw-brain-web/ (produces "
-        "dist-vite/index.html), or run the Vite dev server on :5173 for the dev shell.",
-        _spa_index_path(),
+    static_assets.validate_webui_shell(
+        logger=_LOGGER,
+        is_prod_deploy_mode=_is_prod_deploy_mode,
+        index_readable=_webui_index_readable,
+        index_path=_spa_index_path,
     )
-    if _is_prod_deploy_mode():
-        raise SystemExit(
-            "WebUI shell missing under a prod/production deploy mode — refusing to boot. "
-            f"Build the production bundle so {_spa_index_path()} exists before deploying."
-        )
 
 
 WEB_ROOT = _web_root()
@@ -1456,41 +1439,13 @@ class RestHandler(BaseHTTPRequestHandler):
         return path == APP_PATH_PREFIX or path.startswith(f"{APP_PATH_PREFIX}/")
 
     def _serve_file(self, path: Path, *, enforce_web_root: bool = False) -> None:
-        try:
-            if enforce_web_root:
-                try:
-                    resolved = path.resolve()
-                    for root in (WEB_ROOT.resolve(), WEB_PUBLIC_ROOT.resolve()):
-                        try:
-                            resolved.relative_to(root)
-                            break
-                        except ValueError:
-                            continue
-                    else:
-                        raise ValueError("outside web roots")
-                except (ValueError, FileNotFoundError):
-                    self._json(404, {"error": "not_found", "path": str(path)})
-                    return
-            if not path.exists() or not path.is_file():
-                self._json(404, {"error": "not_found", "path": str(path)})
-                return
-            payload = path.read_bytes()
-            content_type, _ = mimetypes.guess_type(path.name)
-            self.send_response(200)
-            self.send_header("Content-Type", content_type or "application/octet-stream")
-            try:
-                _ = path.resolve().relative_to(WEB_ROOT.resolve())
-            except ValueError:
-                pass
-            else:
-                suf = path.suffix.lower()
-                if suf in {".js", ".css"} or path.name.lower() == "index.html":
-                    self.send_header("Cache-Control", "no-cache")
-            self.send_header("Content-Length", str(len(payload)))
-            self.end_headers()
-            self.wfile.write(payload)
-        except (BrokenPipeError, ConnectionResetError):
-            pass  # client disconnected — nothing to do
+        static_assets.serve_file(
+            self,
+            path,
+            enforce_web_root=enforce_web_root,
+            web_root_path=WEB_ROOT,
+            web_public_root_path=WEB_PUBLIC_ROOT,
+        )
 
     def _read_json_body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))

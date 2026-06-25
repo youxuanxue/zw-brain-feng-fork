@@ -135,6 +135,44 @@ class SkillContext:
 
 
 @dataclass(frozen=True)
+class DomainPorts:
+    """Minimal command-side ports used by domain write services.
+
+    This is intentionally narrower than ``HandlerDeps``: domain services should
+    depend on business-facing operations, not BrainService private helpers. The
+    first slice covers request approval + delivery attempt/download writes.
+    """
+
+    brain_legacy: BrainService
+    delivery_repo: DeliveryRepository
+    delivery_by_request_id: Callable[[str], dict[str, Any] | None]
+
+    def write(
+        self,
+        skill_id: str,
+        role: str,
+        confirmed: bool,
+        payload: dict[str, Any],
+        mutation: Callable[[str, str], dict[str, Any]],
+    ) -> dict[str, Any]:
+        return self.brain_legacy._mutate(skill_id, role, confirmed, payload, mutation)
+
+    def append_audit_feed(
+        self, event_type: str, target: str, result: str, actor: str
+    ) -> None:
+        self.brain_legacy._append_audit_feed(event_type, target, result, actor)
+
+    def current_role(self, default: str) -> str:
+        return str(self.brain_legacy._ui_state.get("role", default))
+
+    def actor_for_role(self, role: str) -> str:
+        return self.brain_legacy._actor_for_role(role)
+
+    def issue_credential_on_approval(self, request_id: str, role: str, actor: str) -> None:
+        self.brain_legacy._auto_issue_credential_on_approval(request_id, role, actor)
+
+
+@dataclass(frozen=True)
 class HandlerDeps:
     """Process-wide dependency container for skill handlers.
 
@@ -285,6 +323,19 @@ class HandlerDeps:
                 resource_api=ResourceApiRepository(),
                 service_invocation=ServiceInvocationMetricRepository(),
             )
+        services: DomainServices | None = None
+
+        def _delivery_by_request_id(request_id: str) -> dict[str, Any] | None:
+            if services is None:  # pragma: no cover - construction-order guard
+                raise RuntimeError("DomainServices not initialized")
+            return services.delivery.by_request_id(request_id)
+
+        ports = DomainPorts(
+            brain_legacy=brain,
+            delivery_repo=repos.delivery,
+            delivery_by_request_id=_delivery_by_request_id,
+        )
+        services = DomainServices.from_brain(brain, ports=ports)
         return cls(
             repos=repos,
             state_store=store,
@@ -292,6 +343,6 @@ class HandlerDeps:
             queue=queue,
             pipeline=build_default_pipeline(brain),
             view=ReadViews.from_brain(brain),
-            services=DomainServices.from_brain(brain),
+            services=services,
             brain_legacy=brain,
         )

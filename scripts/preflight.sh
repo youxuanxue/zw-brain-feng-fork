@@ -141,6 +141,7 @@ done <<'CHECKS'
 段 47	scripts/check_brain_no_domain_method.py	brain-no-domain-method (BrainService 域方法必须是 1 行 delegate shim，实现住 zw_brain/domain/services/ — Action D)
 段 48	scripts/check_brain_no_cross_cutting.py	brain-no-cross-cutting (BrainService 跨切关注 / 状态同步 helper 必须是 shim，实现住 zw_brain/command/{pipeline_ops,sync}.py — Action E)
 段 49	scripts/check_domain_no_command_import.py	domain-no-command-import (zw_brain/domain/ 不得 runtime import zw_brain.command — 4 层 entry→command→domain→shared，Action H R-001)
+段 49b	scripts/check_domain_service_brain_boundary.py	domain-service-brain-boundary (BrainService/domain 对象级反向依赖 baseline 棘轮：domain service 不得新增 self.brain 私有通道，后续 ports 拆分只能收敛)
 段 50	scripts/check_no_skill_identifier_in_zw_brain.py	no-skill-identifier-in-zw-brain (D33 — 防 skill 命名回潮，新增 class/def 标识符须在白名单)
 段 51	scripts/check_agentruntime_bundles.py	agentruntime-bundles (D33.b / D30 — agents/*/AGENT.yaml + capabilities.json schema 持续守卫)
 段 52	scripts/check_webui_capability_rendered.py	webui-capability-rendered (god's-eye #161 — live+webui 能力须有 .vue/.ts 渲染消费者，baseline 棘轮防净新增"声称UI无渲染"漂移；台账 scripts/webui_capability_rendered_exemptions.txt)

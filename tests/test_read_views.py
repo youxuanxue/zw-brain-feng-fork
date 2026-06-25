@@ -87,6 +87,25 @@ def test_requests_list_all_returns_deepcopy(db_brain: BrainService) -> None:
     assert "__view_sentinel" not in (rec.payload_json or {})
 
 
+def test_requests_list_copy_does_not_alias_find_card(db_brain: BrainService) -> None:
+    """The read projection copy must not be the same object as the mutable write card."""
+    db_views = ReadViews.from_brain(db_brain)
+    listed_card = db_views.requests.list_all()[0]
+    live_card = db_views.requests.find_by_id("appRV001")
+
+    assert listed_card is not live_card
+    listed_card["status"] = "listed-copy-only"
+    listed_card["__view_sentinel"] = "not-tracked"
+    assert live_card["status"] == "pending"
+    assert "__view_sentinel" not in live_card
+
+    live_card["status"] = "granted"
+    db_brain._card_session.flush()
+    rec = db_brain._state_store.database_store.application_repo.get_record("appRV001", tenant_id=TENANT)
+    assert rec.status == "granted"
+    assert "__view_sentinel" not in (rec.payload_json or {})
+
+
 @pytest.mark.no_db
 def test_packages_list_all_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     listed = views.packages.list_all()
@@ -196,6 +215,23 @@ def test_delivery_find_by_request_id_returns_live_or_none(db_brain: BrainService
     # miss returns None
     miss = db_views.delivery.find_by_request_id("REQ-DOES-NOT-EXIST")
     assert miss is None, "miss must return None (not raise)"
+
+
+def test_delivery_find_by_request_id_card_is_mutable_and_flushes(db_brain: BrainService) -> None:
+    """The request-indexed delivery lookup returns the same mutable CardSession card."""
+    db_views = ReadViews.from_brain(db_brain)
+    by_request = db_views.delivery.find_by_request_id("appRV001")
+    assert by_request is not None
+    by_id = db_views.delivery.find_by_id("DLV-appRV001")
+
+    assert by_request is by_id
+    by_request["status"] = "online"
+    by_request["note"] = "mutated through request-indexed card"
+    db_brain._card_session.flush()
+
+    rec = db_brain._state_store.database_store.delivery_repo.get_task("DLV-appRV001", tenant_id=TENANT)
+    assert rec.state == "online"
+    assert rec.payload_json["note"] == "mutated through request-indexed card"
 
 
 # ── §C NotFoundError contract ──────────────────────────────────────────────

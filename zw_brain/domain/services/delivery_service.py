@@ -18,6 +18,7 @@ from zw_brain.shared.sensitive_mask import mask_default as _mask
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+    from zw_brain.command.deps import DomainPorts
 
 
 def _delivery_resource_kind(res_type: Any, channel: Any = None) -> str | None:
@@ -90,6 +91,7 @@ class DeliveryService:
     """Delivery task lifecycle + projection (P4 delivery)."""
 
     brain: BrainService
+    ports: DomainPorts
 
     # --- Projection from delivery record ---
 
@@ -216,7 +218,7 @@ class DeliveryService:
         """
         from zw_brain.shared import clock  # noqa: PLC0415
 
-        role = str(payload.get("role", self.brain._ui_state["role"]))
+        role = str(payload.get("role") or self.ports.current_role("ROLE_ORGAN_OPERATER"))
         confirmed = bool(payload.get("confirmed"))
         task_id = str(payload["task_id"])
 
@@ -228,7 +230,7 @@ class DeliveryService:
             download_time = clock.now_datetime()
             # 自签受控下载链接：带 task / audit 锚，平台侧凭此校验授权后放行（非外部直链）。
             file_link = f"/api/delivery/{task_id}/file/{audit_id}/download"
-            delivery_repo = self.brain._delivery_repo()
+            delivery_repo = self.ports.delivery_repo
             receipt = delivery_repo.append_receipt(
                 {
                     "delivery_code": task_id,
@@ -244,7 +246,7 @@ class DeliveryService:
                     },
                 }
             )
-            self.brain._append_audit_feed(skill_id, task_id, "ok", actor)
+            self.ports.append_audit_feed(skill_id, task_id, "ok", actor)
             return {
                 "task_id": task_id,
                 "file_link": file_link,
@@ -255,7 +257,7 @@ class DeliveryService:
                 "audit_id": audit_id,
             }
 
-        return self.brain._mutate(skill_id, role, confirmed, payload, mutation)
+        return self.ports.write(skill_id, role, confirmed, payload, mutation)
 
     # --- Attempt recording (write path) ---
 
@@ -269,22 +271,22 @@ class DeliveryService:
         """Record a delivery attempt (publish / pause / replay / stop / retry)."""
         from zw_brain.shared import clock  # noqa: PLC0415
 
-        role = str(payload.get("role", self.brain._ui_state["role"]))
+        role = str(payload.get("role") or self.ports.current_role("ROLE_ORGAN_OPERATER"))
         confirmed = bool(payload.get("confirmed"))
         task_id = str(payload["task_id"])
 
         def mutation(audit_id: str, actor: str) -> dict[str, Any]:
             task = self.by_id(task_id)
-            delivery_repo = self.brain._delivery_repo()
+            delivery_repo = self.ports.delivery_repo
             attempt = delivery_repo.upsert_attempt({"attempt_code": payload.get("attempt_id") or f"{task_id}:{attempt_kind}:{audit_id}", "delivery_code": task_id, "subscription_code": payload.get("subscription_id"), "attempt_kind": attempt_kind, "state": state, "executor_ref": payload.get("executor_ref"), "evidence_ref": audit_id, "payload_json": payload.get("plan") or payload})
             task["updatedAt"] = clock.now_datetime()
             task.setdefault("history", []).append({"time": clock.now_short_time(), "state": f"交换交付{state}", "detail": str(payload.get("reason") or payload.get("mode") or attempt_kind)})
             delivery_repo.add_execution_evidence({"evidence_ref": audit_id, "delivery_code": task_id, "attempt_code": attempt.attempt_code, "executor_kind": "builtin_exchange", "executor_ref": payload.get("executor_ref"), "evidence_kind": attempt_kind, "result_status": state, "payload_json": payload})
             delivery_repo.upsert_exchange_metric({"metric_scope": "delivery", "delivery_code": task_id, "resource_code": payload.get("resource_id") or task.get("resourceId"), "subscription_code": payload.get("subscription_id"), "status": state, "success_count": 1 if state in {"published", "running", "planned"} else 0, "failed_count": 1 if state == "stopped" else 0, "summary_json": {"skill_id": skill_id, "state": state}})
-            self.brain._append_audit_feed(skill_id, task_id, "ok", actor)
+            self.ports.append_audit_feed(skill_id, task_id, "ok", actor)
             return {"task_id": task_id, "attempt_code": attempt.attempt_code, "state": attempt.state, "audit_id": audit_id}
 
-        return self.brain._mutate(skill_id, role, confirmed, payload, mutation)
+        return self.ports.write(skill_id, role, confirmed, payload, mutation)
 
     # --- Card lookups (Action D: DB 单一事实源，经 CardSession) ---
 

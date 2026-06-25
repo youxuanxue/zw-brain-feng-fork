@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import pytest
 
-from zw_brain.command.deps import HandlerDeps, Repos, SkillContext
+from zw_brain.command.deps import DomainPorts, HandlerDeps, Repos, SkillContext
 
 pytestmark = pytest.mark.no_db
 
@@ -40,4 +40,12 @@ def test_repos_frozen() -> None:
         "Repos must be @dataclass(frozen=True) — the 6 repo handles bind "
         "to a single BrainService at construction time; reassigning them "
         "would silently change which DB store handlers talk to."
+    )
+
+
+def test_domain_ports_frozen() -> None:
+    assert DomainPorts.__dataclass_params__.frozen, (
+        "DomainPorts must be @dataclass(frozen=True) — command-side ports "
+        "are the stable boundary that lets domain services stop reaching "
+        "directly into BrainService private helpers."
     )

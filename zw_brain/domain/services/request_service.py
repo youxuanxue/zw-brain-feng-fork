@@ -17,6 +17,7 @@ from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_
 
 if TYPE_CHECKING:
     from zw_brain.command.brain import BrainService
+    from zw_brain.command.deps import DomainPorts
 
 
 def derive_platform_credential(request_id: str, seed: str | None = None) -> dict[str, Any]:
@@ -60,6 +61,7 @@ class RequestService:
     """Request approval flow + status (P3 application + B1 review)."""
 
     brain: BrainService
+    ports: DomainPorts
 
     # --- Batch prefetch (D-9 N+1 elimination) ---
 
@@ -482,7 +484,7 @@ class RequestService:
 
         request = self.by_id(request_id)
         approval = self.approval_by_id(request_id)
-        delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
+        delivery = self.ports.delivery_by_request_id(request_id)
         if request["status"] != "pending":
             raise InvalidStateError("current request cannot be approved")
 
@@ -517,12 +519,12 @@ class RequestService:
                 delivery["aiSummary"]["impact"] = "补录完成后会自动生成汇总结果并沉淀回流候选。"
                 delivery["backflow"]["status"] = "待补录完成"
                 delivery["backflow"]["note"] = "待基层补录和审核汇总完成后，再决定是否纳入模板。"
-            self.brain._append_audit_feed("request.approve", request_id, "ok", actor)
+            self.ports.append_audit_feed("request.approve", request_id, "ok", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        result = self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
+        result = self.ports.write(skill_id, role, confirmed, {"request_id": request_id, "decision": decision}, mutation)
         # R-006 fix: 凭据签发作为审批之后的独立动作；audit 失败不污染审批 mutation
-        self.brain._auto_issue_credential_on_approval(request_id, role, self.brain._actor_for_role(role))
+        self.ports.issue_credential_on_approval(request_id, role, self.ports.actor_for_role(role))
         return result
 
     def return_for_fix(
@@ -544,7 +546,7 @@ class RequestService:
 
         request = self.by_id(request_id)
         approval = self.approval_by_id(request_id)
-        delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
+        delivery = self.ports.delivery_by_request_id(request_id)
         if request["status"] not in {"pending", "summary-pending"}:
             raise InvalidStateError("current request cannot be returned for fix")
         reason = (note or "").strip()
@@ -579,10 +581,10 @@ class RequestService:
                 delivery["aiSummary"]["nextAction"] = "请申请方或基层先补齐说明，再重新进入下一步。"
                 delivery["backflow"]["status"] = "不适用"
                 delivery["backflow"]["note"] = "当前未形成可确认的回流候选。"
-            self.brain._append_audit_feed("request.return-for-fix", request_id, "warning", actor)
+            self.ports.append_audit_feed("request.return-for-fix", request_id, "warning", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason}, mutation)
+        return self.ports.write(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason}, mutation)
 
     def reject(
         self,
@@ -603,7 +605,7 @@ class RequestService:
         from zw_brain.shared import clock  # noqa: PLC0415
 
         request = self.by_id(request_id)
-        delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
+        delivery = self.ports.delivery_by_request_id(request_id)
         if request["status"] not in {"pending", "summary-pending"}:
             raise InvalidStateError("current request cannot be rejected")
         reason = (note or "").strip()
@@ -635,10 +637,10 @@ class RequestService:
                 delivery["aiSummary"]["nextAction"] = "请查看驳回理由后再决定是否重新发起。"
                 delivery["backflow"]["status"] = "不适用"
                 delivery["backflow"]["note"] = "驳回后不生成回流候选。"
-            self.brain._append_audit_feed("request.reject", request_id, "warning", actor)
+            self.ports.append_audit_feed("request.reject", request_id, "warning", actor)
             return {"request_id": request_id, "status": request["status"], "reject_reason": reason}
 
-        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason}, mutation)
+        return self.ports.write(skill_id, role, confirmed, {"request_id": request_id, "decision": decision, "reason": reason}, mutation)
 
     def route_for_catalog_confirmation(
         self,
@@ -652,7 +654,7 @@ class RequestService:
 
         request = self.by_id(request_id)
         approval = self.approval_by_id(request_id)
-        delivery = self.brain._get_handler_deps().services.delivery.by_request_id(request_id)
+        delivery = self.ports.delivery_by_request_id(request_id)
         if request["status"] not in {"pending", "summary-pending"}:
             raise InvalidStateError("current request cannot be routed for catalog confirmation")
 
@@ -682,10 +684,10 @@ class RequestService:
                 )
                 delivery["backflow"]["status"] = "不适用"
                 delivery["backflow"]["note"] = "转办确认前不形成回流候选或授权变更。"
-            self.brain._append_audit_feed("request.route-to-provider-or-catalog-admin", request_id, "warning", actor)
+            self.ports.append_audit_feed("request.route-to-provider-or-catalog-admin", request_id, "warning", actor)
             return {"request_id": request_id, "status": request["status"]}
 
-        return self.brain._mutate(skill_id, role, confirmed, {"request_id": request_id, "decision": "route_to_provider_or_catalog_admin"}, mutation)
+        return self.ports.write(skill_id, role, confirmed, {"request_id": request_id, "decision": "route_to_provider_or_catalog_admin"}, mutation)
 
     def review_application_record(
         self,
