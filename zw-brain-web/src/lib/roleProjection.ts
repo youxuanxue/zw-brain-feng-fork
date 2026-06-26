@@ -1,5 +1,5 @@
 /**
- * 角色投影层 — 「办共享申请」按当前岗位拆成三个清晰视图（缺陷 1）+ 供方质量队列明细（缺陷 3）。
+ * 角色投影层 — 「办共享申请」按当前岗位拆成三个清晰视图（缺陷 1）。
  * （缺陷 2 角色待办语义与计数 = 后端 workbench_backlog_projection 机制单源，前端不自算。）
  *
  * 客户试用反馈（0604，业务方试用反馈）：「是看我的已办？还是我的申请？我的授权，里面的数据没分角色，
@@ -14,7 +14,7 @@
  *   - 第二组（流程收口）：待办「可点可办 + 真实库现算机制」；本层只产**投影口径**（哪类进哪视图、
  *     按 status 分桶），不重做机制。
  *   - 第一组（用户语言层）：hex 派生名 / 时间格式 / 术语映射渲染规则；本层不渲染、只分类。
- *   - 用途脏值降级走 dataQuality.ts（缺陷 3），本层只在「待我办理」侧暴露供方数据质量计数。
+ *   - 用途脏值降级走 dataQuality.ts（缺陷 3）；本层只负责申请/授权视图分流。
  *
  * 计数口径**只读快照投影**（snapshot.requests / approvals + provider 队列），不裸 SQL、
  * 不在页内 filter（避免漂移）。requests/approvals 投影来自 DB 单一事实源
@@ -22,7 +22,7 @@
  */
 
 import type { Snapshot } from '@/composables/useSnapshot';
-import { displayPurpose, isDirtyPurpose } from '@/lib/dataQuality';
+import { displayPurpose } from '@/lib/dataQuality';
 import { deriveRecordName, formatTime } from '@/lib/userLanguage';
 
 // status 分桶（口径单一来源）。三视图据此把同一批真实导入单分流，不再一锅炖。
@@ -126,16 +126,5 @@ export function myGrants(snapshot: Snapshot | null): RequestCard[] {
 }
 
 // 注：角色→待办语义与计数已下沉后端 workbench_backlog_projection（机制单源，真实库现算）；
-// 前端不再自算待办计数。本层只保留三视图分流 + 供方质量队列明细投影。语义定义见
+// 前端不再自算待办计数。本层只保留三视图分流。语义定义见
 // docs/decisions/role-projection-views-business-review-package.md（D28，pending 签字）。
-
-/** 供方数据质量队列明细（P5Provider 渲染：哪些单子用途待补全）。 */
-export function supplierDataQualityRows(snapshot: Snapshot | null): RequestCard[] {
-  return requests(snapshot)
-    .filter((r) => {
-      const it = asRecord(r);
-      if (typeof it.purposeDirty === 'boolean') return it.purposeDirty;
-      return isDirtyPurpose((it.purpose as string | undefined) ?? '');
-    })
-    .map(toRequestCard);
-}

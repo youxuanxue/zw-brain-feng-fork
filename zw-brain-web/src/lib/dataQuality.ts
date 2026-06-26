@@ -6,7 +6,7 @@
  * 的固定样例（测试 / 167 / 169,167 / 空）守住一致——改一侧规则须同改另一侧。
  *
  * 客户试用反馈（0604，业务方试用反馈 + 截图）：「用途列出现『测试』『167』这类脏值」。
- * 裁决：列表脏值降级显示「未填写用途」次要样式；脏单计入供方数据质量队列。
+ * 裁决：列表脏值降级显示「未填写用途」次要样式，不再把历史脏值伪装成供数据页待办。
  */
 
 /** 列表降级文案（与后端 MISSING_PURPOSE_LABEL 一致）。 */
@@ -49,7 +49,7 @@ export function classifyPurpose(raw: string | null | undefined): PurposeQuality 
   return 'clean';
 }
 
-/** 脏值判定：非 clean → true（列表降级 + 计入供方质量队列）。 */
+/** 脏值判定：非 clean → true（列表降级）。 */
 export function isDirtyPurpose(raw: string | null | undefined): boolean {
   return classifyPurpose(raw) !== 'clean';
 }

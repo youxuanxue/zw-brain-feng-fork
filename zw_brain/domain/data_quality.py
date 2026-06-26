@@ -4,7 +4,7 @@
 「169,167」这类脏值裸奔在需方/办理视图。乔布斯裁决（本组）：
 
   1) 列表渲染时脏值**降级显示**（「未填写用途」次要样式），不让噪音污染需方视图；
-  2) 「用途缺失/无效」的单子计入**供方数据质量队列**（数据质量是供方的待办，不是需方的噪音）。
+  2) 不把历史导入脏值投成供数据页待办；补正应回到原申请链路或离线清洗。
 
 本模块是「什么算脏值」的**唯一规则源**（Python 权威 + 前端 dataQuality.ts 镜像 +
 tests/test_data_quality_classifier.py 守一致）。规则机械化，不靠散文：
@@ -14,7 +14,7 @@ tests/test_data_quality_classifier.py 守一致）。规则机械化，不靠散
   - 占位测试词（枚举）        → placeholder（如 "测试" "test" "demo" "无" "暂无" "1"）
   - 过短（去空白后 < 2 字符）  → too_short
 
-任一非空类目 → 视为脏值（``is_dirty`` True），列表降级 + 进供方质量队列。
+任一非空类目 → 视为脏值（``is_dirty`` True），列表降级。
 """
 
 from __future__ import annotations
@@ -62,7 +62,7 @@ _NUMERIC_ONLY = re.compile(r"^[\d\s,，、\-/\.]+$")
 def classify_purpose(raw: str | None) -> str:
     """返回脏值类目：clean | empty | numeric_only | placeholder | too_short。
 
-    clean = 合法用途（不降级）；其余 = 脏值（降级 + 进供方质量队列）。
+    clean = 合法用途（不降级）；其余 = 脏值（降级）。
     """
     text = (raw or "").strip()
     if not text:
@@ -79,7 +79,7 @@ def classify_purpose(raw: str | None) -> str:
 
 
 def is_dirty_purpose(raw: str | None) -> bool:
-    """脏值判定：任一非 clean 类目 → True（列表降级 + 计入供方质量队列）。"""
+    """脏值判定：任一非 clean 类目 → True（列表降级）。"""
     return classify_purpose(raw) != "clean"
 
 

@@ -233,10 +233,6 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   // catalog.entry.reverse_draft.create）—— v5 操作员+管理员，与后端 policy
   // catalog.entry.reverse_draft.create.execute set-equal（R-014 收硬编码角色比对）。
   'catalog.entry.reverse_draft.create': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
-  // 供方数据质量待办可见（pages/P5Provider.vue → canSeeDataQuality）—— 用途脏值的
-  // 真实导入单是供方数据质量 owner（业务运营员）的待办，其余岗位不可见（无权=不渲染）。
-  // 视图级可见门，无对应写 capability；R-014 收硬编码 role.value==='ROLE_BUSIAUDIT'。
-  'provider.data_quality.view': ['ROLE_BUSIAUDIT'],
 };
 
 export function canPerformAction(action: keyof typeof ACTION_ROLE_GATES | string, role: string): boolean {

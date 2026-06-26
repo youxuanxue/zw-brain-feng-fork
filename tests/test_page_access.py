@@ -450,12 +450,11 @@ def test_p5_provider_is_management_surface_no_action_queues() -> None:
 
     背景（2026-06-17 收口）：工作台行内化后，供数据页仍重复留着「待审核目录/待发布目录/
     待发布资源」三张逐条带按钮的办理队列卡——同一简单是/否两处维护。本轮删三张队列、供数据
-    页定位收敛为管理面（编目/挂接/注册向导 + 目录/资源管理概览 + 协作待办导航 + 数据质量）；
+    页定位收敛为管理面（编目/挂接/注册向导 + 目录/资源管理概览 + 协作待办导航）；
     发布/审核等"点一下就办"统一收口工作台行内办理（P1Workbench 的 decision-list）。
     chokepoint 守卫（保留）：
       1) 协作待办卡 → pageAccess.filterByRouteAccess（route-based，无权 inbox 不可见）；
-      2) 数据质量门 → pageAccess.canPerformAction（action-based，与后端 policy 对齐）；
-      3) 禁 page 内 role 字面比对（一律走能力 chokepoint）。
+      2) 禁 page 内 role 字面比对（一律走集中权限/角色 chokepoint）。
     退役防回潮：发布/审核办理队列不得重现于本页（避免与工作台两处维护）。
     """
     from pathlib import Path
@@ -464,9 +463,9 @@ def test_p5_provider_is_management_surface_no_action_queues() -> None:
         Path(__file__).resolve().parent.parent
         / "zw-brain-web" / "src" / "pages" / "P5Provider.vue"
     ).read_text(encoding="utf-8")
-    # 保留的 chokepoint：协作待办卡过滤 + 能力门 + 禁 role 字面比对。
-    assert "filterByRouteAccess" in src and "canPerformAction" in src, (
-        "P5Provider.vue 必须 import filterByRouteAccess + canPerformAction 两个 chokepoint"
+    # 保留的 chokepoint：协作待办卡过滤 + 禁 role 字面比对。
+    assert "filterByRouteAccess" in src, (
+        "P5Provider.vue 必须 import filterByRouteAccess chokepoint"
     )
     assert "visibleStatCards" in src and 'v-for="c in visibleStatCards"' in src, (
         "协作待办卡须经 visibleStatCards（filterByRouteAccess 派生）过滤，无权 inbox 卡不渲染"
@@ -482,7 +481,7 @@ def test_p5_provider_is_management_surface_no_action_queues() -> None:
         )
     # 纵深守卫：P5Provider.vue 模板/JS 不得出现 page 内 role 字面比对（一律走能力 chokepoint）。
     assert "role.value === 'ROLE_" not in src and "role === 'ROLE_" not in src, (
-        "P5Provider.vue 禁出现 role 字面比对（role === 'ROLE_...'）——一律走 canPerformAction 能力 chokepoint"
+        "P5Provider.vue 禁出现 role 字面比对（role === 'ROLE_...'）——一律走集中权限/角色 chokepoint"
     )
 
 
@@ -528,7 +527,7 @@ def test_action_role_gates_aligned_with_backend_policy() -> None:
         be_key = f"{action}.execute"
         be_roles = policy.PERMISSION_ROLES.get(be_key)
         if action.endswith(".view"):
-            # 纯视图可见门（无对应写 capability，如 provider.data_quality.view）：仅控卡片/CTA 是否
+            # 纯视图可见门（无对应写 capability）：仅控卡片/CTA 是否
             # 渲染、不发起 capability 调用，故后端无 `.execute` 权威可对账。断言它**确无**后端写
             # capability（写门误打 .view 后缀会被这条逮住），并跳过 set-equal。
             assert be_roles is None, (
