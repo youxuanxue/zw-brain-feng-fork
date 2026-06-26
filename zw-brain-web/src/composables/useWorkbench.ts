@@ -28,10 +28,30 @@ export interface UseWorkbenchResult {
 // #213 follow-up（本 PR）：把拉取下沉为模块级、加并发去重 + 预取 + 写后失效——
 //   FU-1 _inflight 在途合并；FU-4 prefetchWorkbench 静默填缓存；FU-3 invalidateWorkbench
 //   作废缓存并经 _invalidationTick 通知已挂载实例重拉（写后待办不再陈旧）。
-const _viewCache = new Map<string, WorkbenchView>();
+const WORKBENCH_CACHE_FRESH_MS = 5_000;
+
+interface WorkbenchCacheEntry {
+  data: WorkbenchView;
+  fetchedAt: number;
+}
+
+const _viewCache = new Map<string, WorkbenchCacheEntry>();
 const _inflight = new Map<string, Promise<WorkbenchView>>();
 // 写后失效信号：bump 后所有已挂载的 useWorkbench 实例重拉（覆盖 P1 工作台等）。
 const _invalidationTick = ref(0);
+
+function readCachedWorkbench(role: string): WorkbenchView | null {
+  return _viewCache.get(role)?.data ?? null;
+}
+
+function isFreshCachedWorkbench(role: string): boolean {
+  const cached = _viewCache.get(role);
+  return Boolean(cached && Date.now() - cached.fetchedAt <= WORKBENCH_CACHE_FRESH_MS);
+}
+
+function writeCachedWorkbench(role: string, data: WorkbenchView): void {
+  _viewCache.set(role, { data, fetchedAt: Date.now() });
+}
 
 /** 模块级拉取 + FU-1 并发去重：同 role 在途请求复用同一 promise，settle 后清除。 */
 async function fetchWorkbenchView(role: string): Promise<WorkbenchView> {
@@ -61,7 +81,7 @@ async function fetchWorkbenchView(role: string): Promise<WorkbenchView> {
 export async function prefetchWorkbench(role: string): Promise<void> {
   if (_viewCache.has(role)) return;
   try {
-    _viewCache.set(role, await fetchWorkbenchView(role));
+    writeCachedWorkbench(role, await fetchWorkbenchView(role));
   } catch {
     // 预取失败静默——主动进工作台时 refresh() 会正常重试并回落 fixture/显错。
   }
@@ -93,17 +113,20 @@ export function useWorkbench(roleOverride?: string): UseWorkbenchResult {
     }
     const role = resolveRole();
     // SWR：有缓存先即时呈现（live），后台静默刷新替换；无缓存才显 loading。
-    const cached = _viewCache.get(role);
+    const cached = readCachedWorkbench(role);
     if (cached) {
       data.value = cached;
       source.value = 'live';
+      // 刚预取/刚切角色后的缓存足够新鲜，重新挂载工作台时不立刻重复校验。
+      // 写后失效会先删缓存再触发 refresh，因此不会挡住真实待办变更。
+      if (isFreshCachedWorkbench(role)) return;
     } else {
       source.value = 'loading';
     }
     error.value = null;
     try {
       const payload = await fetchWorkbenchView(role);
-      _viewCache.set(role, payload);
+      writeCachedWorkbench(role, payload);
       data.value = payload;
       source.value = 'live';
     } catch (e) {
