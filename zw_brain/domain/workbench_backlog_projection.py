@@ -49,6 +49,7 @@ from zw_brain.domain.models import (
     ObjectionCaseRecord,
     ResourceAssetRecord,
 )
+from zw_brain.domain.objection_case_queues import project_pending_objection_cases
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
@@ -445,7 +446,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     publish_assets = resource_repo.list_assets(
         tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
     )
-    objection_cases = objection_repo.list_cases(tenant_id=tenant_id, status="submitted")
+    objection_cases = project_pending_objection_cases(tenant_id=tenant_id)
     national_escalate = _national_escalate_records(application_repo, tenant_id)
 
     pending_applications = _count_pending_applications(application_repo, tenant_id)
@@ -524,7 +525,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 label="待受理异议",
                 count=len(objection_cases),
                 status="待受理",
-                href="#/provider/inbox/objection",
+                href="#/provider/inbox/objection?scope=pending",
                 action_clause=f"{len(objection_cases)} 条异议待受理",
                 action=_decision_list_action(
                     [_objection_item(c) for c in objection_cases]

@@ -121,11 +121,13 @@ def test_submitted_case_enters_provider_objection_inbox(brain: BrainService) -> 
     case_id = _seed_submitted_case()
     snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
     rows = snap["provider"]["objection_cases"]
+    pending_rows = snap["provider"]["pending_objection_cases"]
     row = next((item for item in rows if item["id"] == case_id), None)
     assert row is not None, "submitted 态案件应出现在异议收件箱"
     assert row["status"] == "submitted"
     assert row["target_label"] == "catalog:cat-obj-accept-001"
     assert row["target_href"] == "#/provider/catalog/cat-obj-accept-001"
+    assert [item["id"] for item in pending_rows] == [case_id]
 
 
 def test_provider_objection_inbox_target_link_encodes_catalog_code(brain: BrainService) -> None:
@@ -138,18 +140,22 @@ def test_provider_objection_inbox_target_link_encodes_catalog_code(brain: BrainS
 
 
 def test_workbench_objection_todo_counts_pending_acceptance_only(brain: BrainService) -> None:
-    """工作台待办是“待受理异议”，只等于 submitted；异议响应收件箱还包含核查中在办案。"""
+    """工作台“待受理异议”和收件箱待受理筛选共用 submitted 单一事实源。"""
     pending_id = _seed_submitted_case(target_id="cat-obj-wb-pending")
     investigating_id = _seed_provider_investigating_case()
 
     snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
     inbox_ids = {row["id"] for row in snap["provider"]["objection_cases"]}
     assert {pending_id, investigating_id}.issubset(inbox_ids)
+    pending_inbox_ids = {row["id"] for row in snap["provider"]["pending_objection_cases"]}
+    assert pending_inbox_ids == {pending_id}
 
     wb = invoke_trusted(brain, "workbench.view", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
     todo = next(item for item in wb["todos"] if item["id"] == "backlog-objection")
     assert todo["title"] == "待受理异议 1 条"
-    assert todo["href"] == "#/provider/inbox/objection"
+    assert todo["href"] == "#/provider/inbox/objection?scope=pending"
+    action_ids = {item["id"] for item in todo["action"]["items"]}
+    assert action_ids == pending_inbox_ids
 
 
 def test_busiaudit_accept_transitions_to_platform_investigating(brain: BrainService) -> None:
@@ -170,6 +176,7 @@ def test_busiaudit_accept_transitions_to_platform_investigating(brain: BrainServ
     row = next((item for item in rows if item["id"] == case_id), None)
     assert row is not None, "受理后案件应保留在收件箱（platform_investigating 在办态）"
     assert row["status"] == "platform_investigating"
+    assert not any(item["id"] == case_id for item in snap["provider"]["pending_objection_cases"])
 
 
 def test_operater_denied_objection_accept(brain: BrainService) -> None:

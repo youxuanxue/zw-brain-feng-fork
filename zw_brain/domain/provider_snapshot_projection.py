@@ -19,6 +19,7 @@ from zw_brain.domain.lifecycle_timeline import (
     objection_timeline,
     resource_lifecycle_timeline,
 )
+from zw_brain.domain.objection_case_queues import project_pending_objection_cases
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository, endpoint_to_dict
 from zw_brain.domain.repositories.metadata_evidence import MetadataEvidenceRepository
@@ -372,7 +373,6 @@ def project_provider_inbox(
     catalog_repo = CatalogRepository()
     resource_repo = ResourceApiRepository()
     supply_repo = SupplyDemandRepository()
-    objection_repo = ObjectionRepository()
     ref = ReferenceService()
 
     org_name = _org_name_resolver(tenant_id)
@@ -445,14 +445,16 @@ def project_provider_inbox(
     objection_cases = [
         _case_to_objection_inbox(record)
         for status in _OBJECTION_INBOX_STATUSES
-        for record in objection_repo.list_cases(tenant_id=tenant_id, status=status)
+        for record in ObjectionRepository().list_cases(tenant_id=tenant_id, status=status)
     ]
+    pending_objection_cases = [_case_to_objection_inbox(record) for record in project_pending_objection_cases(tenant_id=tenant_id)]
     return {
         "field_decisions": field_decisions,
         "publish_queue": publish_queue,
         "hookup_reviews": hookup_reviews,
         "demand_matches": demand_matches,
         "objection_cases": objection_cases,
+        "pending_objection_cases": pending_objection_cases,
     }
 
 
@@ -545,6 +547,7 @@ def enrich_provider_snapshot(
     provider["hookup_reviews"] = inbox["hookup_reviews"]
     provider["demand_matches"] = inbox["demand_matches"]
     provider["objection_cases"] = inbox["objection_cases"]
+    provider["pending_objection_cases"] = inbox["pending_objection_cases"]
     # D2：API 服务列表来自真实 resource_asset(kind=api)，不再读 seed 写死的演示 services
     # （承 D47 演示诚实化）。注册产出（resource.api.register）即时在此可见。
     provider["services"] = project_api_services(

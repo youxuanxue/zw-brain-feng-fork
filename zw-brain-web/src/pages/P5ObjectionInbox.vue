@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { getProductRole } from '@/composables/useProductRole';
@@ -7,13 +8,15 @@ import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { formatObjectionType } from '@/lib/objectionLabels';
 import { acceptObjectionCase } from '@/lib/objectionActions';
-import { shortId, displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
+import { shortId, displayRecordName } from '@/lib/userLanguage';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
 const provider = useProvider();
 const { source } = useSnapshot();
 const role = getProductRole();
+const route = useRoute();
+const isPendingScope = computed(() => route.query.scope === 'pending');
 
 // D57①（R6）：收件箱纳入 submitted 态案件并接通受理动作（v5 异议受理=业务运营员；
 // 与后端 objection.case.accept={MANAGER,BUSIAUDIT} set-equal，经 ACTION_ROLE_GATES chokepoint）。
@@ -37,15 +40,13 @@ function _currentHolder(raw: unknown): string {
 }
 
 const items = computed((): InboxRow[] => {
-  const raw = (provider.value as { objection_cases?: unknown[] }).objection_cases;
+  const raw = (provider.value as { objection_cases?: unknown[]; pending_objection_cases?: unknown[] })[
+    isPendingScope.value ? 'pending_objection_cases' : 'objection_cases'
+  ];
   if (!Array.isArray(raw)) return [];
-  // 过滤明显的测试/样例/乱码异议行（保守判定，命中须 log，不静默吞行）。
-  const kept = raw.filter((row) => !isTestMarkerName(String((row as Record<string, unknown>).title ?? '')));
-  const filteredCount = raw.length - kept.length;
-  if (filteredCount > 0) {
-    console.debug(`[P5ObjectionInbox] 过滤测试样例异议行 ${filteredCount} 条（共 ${raw.length} 条）`);
-  }
-  return kept.map((row) => {
+  // 收件箱只渲染后端 projection 的权威队列，不再按标题做本地丢行；真实用户异议也可能以「测试」
+  // 开头，前端过滤会让工作台计数与收件箱列表漂移。
+  return raw.map((row) => {
     const it = row as Record<string, unknown>;
     const id = String(it.id ?? '');
     return {
@@ -64,7 +65,7 @@ const items = computed((): InboxRow[] => {
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   const n = items.value.length;
-  if (!n) return '暂无待办理异议';
+  if (!n) return isPendingScope.value ? '暂无待受理异议' : '暂无待办理异议';
   const pending = items.value.filter((it) => it.status === 'submitted').length;
   const investigating = items.value.filter((it) => it.status !== 'submitted').length;
   if (pending && investigating) return `${pending} 条待受理 · ${investigating} 条核查中`;
@@ -81,7 +82,7 @@ async function accept(objectionId: string) {
   <main class="focus-page">
     <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
     <section class="panel">
-      <PageFocusHeader title="异议响应收件箱" :meta="headerMeta" />
+      <PageFocusHeader :title="isPendingScope ? '待受理异议' : '异议响应收件箱'" :meta="headerMeta" />
 
       <table v-if="source === 'live' && items.length" class="focus-table">
         <thead>
@@ -112,7 +113,7 @@ async function accept(objectionId: string) {
           </tr>
         </tbody>
       </table>
-      <p v-else-if="source === 'live'" class="focus-empty">暂无待办理异议</p>
+      <p v-else-if="source === 'live'" class="focus-empty">{{ isPendingScope ? '暂无待受理异议' : '暂无待办理异议' }}</p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>

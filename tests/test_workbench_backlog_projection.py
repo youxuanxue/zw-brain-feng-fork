@@ -147,6 +147,7 @@ def test_busiaudit_workbench_todos_are_operator_duties(temp_db: None) -> None:
     # 聚合「待受理申请」候选被剔除——逐单受理待办已逐条覆盖，避免双算。
     assert "backlog-application" not in todos
     assert todos["backlog-objection"]["title"] == "待受理异议 1 条"
+    assert todos["backlog-objection"]["href"] == "#/provider/inbox/objection?scope=pending"
     assert todos["backlog-demand"]["title"] == "待汇总需求 1 条"
     # D57⑧：平台审待办归业务运营员（正向部门审通过 + 反向部门审通过共用平台档），
     # 深链目录审核收件箱（BUSIAUDIT 档=平台审）。
@@ -241,6 +242,7 @@ def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: No
     # 其余聚合候选保留（category=backlog）。异议受理经 M5 re-grain 为行内 decision-list（经 BUSIAUDIT
     # 增量 enrich 存活）；督办/需求汇总未 re-grain（多步）仍为深链、不带 action。G4 行动分句叫 actionClause。
     assert todos["backlog-objection"]["category"] == "backlog"
+    assert todos["backlog-objection"]["href"] == "#/provider/inbox/objection?scope=pending"
     assert todos["backlog-demand"]["category"] == "backlog"
     assert todos["backlog-objection"]["action"]["kind"] == "decision-list"
     assert todos["backlog-objection"]["action"]["items"][0]["capability"] == "objection.case.accept"

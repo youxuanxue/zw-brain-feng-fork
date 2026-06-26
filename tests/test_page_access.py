@@ -556,6 +556,7 @@ def test_action_role_gates_aligned_with_backend_policy() -> None:
 def _href_to_path(href: str) -> str:
     """`#/foo/bar/<id>` → `/foo/bar`（去锚点 + 去末尾 <id> 占位段）。"""
     path = href[1:] if href.startswith("#") else href
+    path = path.split("?", 1)[0]
     # 去掉形如 /<id> 的尾随占位（投影深链里 review/<id> 的 <id> 不影响 shell 归属）。
     return path
 
@@ -577,7 +578,7 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
             "/provider/inbox/demand-match",  # 待汇总需求 backlog
             # G6（D55 查缺补漏）：异议收件箱按 v5「异议核查 = 业务运营员 + 部门管理员」开放
             # BUSIAUDIT 后深链激活，移入 must-pass（原 known-debt 锁定断言随校准删除）。
-            "/provider/inbox/objection",   # 待受理异议 backlog
+            "/provider/inbox/objection?scope=pending",   # 待受理异议 backlog
             # D57⑧：待平台审核目录 backlog（正向部门审通过 + 反向部门审通过共用平台档）。
             "/provider/inbox/catalog-review",
         }

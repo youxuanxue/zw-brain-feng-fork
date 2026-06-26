@@ -85,6 +85,7 @@ _EMPTY_PROVIDER: dict[str, Any] = {
     "hookup_reviews": [],
     "demand_matches": [],
     "objection_cases": [],
+    "pending_objection_cases": [],
     "aiGovernance": {
         "summary": "",
         "priorities": [],
