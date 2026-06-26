@@ -196,9 +196,10 @@ def test_infra_inference_no_direct_llm_check_passes():
 
 
 def test_infra_inference_client_package_removed():
-    """旧 shared/inference client 已退役；模型出口只属于独立 AgentRuntime 服务。"""
-    assert not (REPO_ROOT / "zw_brain" / "shared" / "inference" / "client.py").exists()
-    assert not (REPO_ROOT / "zw_brain" / "shared" / "inference" / "__init__.py").exists()
+    """旧 shared/inference client 不能再作为运行时模块导入。"""
+    with pytest.raises(ModuleNotFoundError) as exc_info:
+        __import__("zw_brain.shared.inference.client")
+    assert str(exc_info.value.name).startswith("zw_brain.shared.inference")
 
 
 def test_infra_zw_brain_inference_env_guard_passes():

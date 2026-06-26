@@ -20,6 +20,7 @@ import PlatformGuideChatPanel from '@/components/PlatformGuideChatPanel.vue';
 import ProductSideNav from '@/components/ProductSideNav.vue';
 import { getProductRole, setProductRole } from '@/composables/useProductRole';
 import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
+import logoMarkUrl from '../assets/zw-brain-mark.svg?url';
 
 const router = useRouter();
 const route = useRoute();
@@ -200,7 +201,7 @@ watch(
   <header class="global-header">
     <div class="global-header-inner">
       <RouterLink to="/workbench" class="global-brand">
-        <span class="gov-logo-mark" aria-hidden="true"></span>
+        <img class="gov-logo-mark" :src="logoMarkUrl" alt="" aria-hidden="true" />
         <div>
           <div class="brand-title">政务数据大脑</div>
           <div class="brand-subtitle">一脑通数智，万事惠民生</div>
@@ -363,8 +364,10 @@ watch(
   width: 24px;
   height: 24px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #006be6, #0048a8);
-  display: inline-block;
+  display: block;
+  object-fit: contain;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 2px rgba(0, 107, 230, 0.12);
 }
 .sr-only {
   position: absolute;
