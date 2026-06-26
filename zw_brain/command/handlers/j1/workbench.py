@@ -45,6 +45,29 @@ def _session_greeting(payload: dict[str, Any]) -> str:
     return f"{name}，{tod}" if name else tod
 
 
+def _visible_org_codes_for_workbench(payload: dict[str, Any], role: str, tenant_id: str) -> set[str] | None:
+    ref = ReferenceService()
+    base = ref.visible_org_codes(caller_org_code(payload), role, tenant_id=tenant_id)
+    if base is None:
+        return None
+    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
+    contexts = snapshot.get("available_contexts") if isinstance(snapshot.get("available_contexts"), list) else []
+    role_orgs = {
+        str(item.get("org_code") or "")
+        for item in contexts
+        if isinstance(item, dict) and str(item.get("role_code") or "") == role and str(item.get("org_code") or "")
+    }
+    if not role_orgs:
+        return base
+    visible: set[str] = set()
+    for org_code in role_orgs:
+        scoped = ref.visible_org_codes(org_code, role, tenant_id=tenant_id)
+        if scoped is None:
+            return None
+        visible.update(scoped)
+    return visible
+
+
 def _get_workbench(brain, deps, ctx, role: str, payload: dict[str, Any]) -> dict[str, Any]:
     # Action C — WorkbenchView.get_for_role defaults to {"todos": []} for missing
     # roles; we need explicit NotFoundError, so go through brain_legacy escape
@@ -60,9 +83,7 @@ def _get_workbench(brain, deps, ctx, role: str, payload: dict[str, Any]) -> dict
     # 投影口径单一事实源见 workbench_backlog_projection.enrich_workbench_backlog。
     # 部门数据可见域：管理员待办按本机构(+下级)收口（M8 落），全局角色 None 放行平台待办。
     tenant_id = str(payload.get("tenant_id") or get_runtime_tenant_id())
-    visible_org_codes = ReferenceService().visible_org_codes(
-        caller_org_code(payload), role, tenant_id=tenant_id
-    )
+    visible_org_codes = _visible_org_codes_for_workbench(payload, role, tenant_id)
     enriched = enrich_workbench_backlog(
         view, role, tenant_id=tenant_id, visible_org_codes=visible_org_codes, caller_actor=ctx.actor
     )
@@ -128,4 +149,3 @@ def handler_subscription_terminate(deps: HandlerDeps, ctx: SkillContext, payload
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _terminate_subscription(brain, deps, ctx, payload)
-

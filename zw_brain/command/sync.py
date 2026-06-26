@@ -53,6 +53,7 @@ from typing import TYPE_CHECKING, Any
 
 from zw_brain.command import demo_state_sync
 from zw_brain.domain import resource_labels
+from zw_brain.domain.services.reference_service import ReferenceService
 
 if TYPE_CHECKING:
     from zw_brain.shared.state_store import StateStore
@@ -110,11 +111,52 @@ def sync_database_aggregates(state_store: StateStore, snapshot: dict[str, Any], 
 # （dispatch.py 已注册），不新铸标识符。
 # ───────────────────────────────────────────────────────────────────────────
 
+def _org_display(value: Any) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    try:
+        return ReferenceService().display_org_name(raw) or raw
+    except Exception:
+        return raw
+
+
+def _resource_owner_for_request(store: Any, request: dict[str, Any]) -> str:
+    resource_id = str(request.get("resourceId") or request.get("resource_id") or "")
+    if not resource_id:
+        return ""
+    repo = getattr(store, "resource_api_repo", None) or getattr(store, "resource_repo", None)
+    if repo is None or not hasattr(repo, "get_asset"):
+        return ""
+    try:
+        asset = repo.get_asset(resource_id, tenant_id=str(request.get("tenant_id") or "sd-default"))
+    except TypeError:
+        try:
+            asset = repo.get_asset(resource_id)
+        except Exception:
+            return ""
+    except Exception:
+        return ""
+    return str(getattr(asset, "owner_org_id", "") or "")
+
+
 def _decision_context(request: dict[str, Any], shared_type: int) -> list[dict[str, str]]:
     """组装行内决策面板的上下文行（<=6 行，源值缺失/空则跳过该行——不渲染「—」空行）。"""
+    applicant_org = (
+        request.get("applicantDept")
+        or request.get("applicant_org_name")
+        or _org_display(request.get("applicant_org_code"))
+    )
+    provider_org = (
+        request.get("provider_org_name")
+        or request.get("owner_org_name")
+        or _org_display(request.get("owner_org_code") or request.get("provider_org_id"))
+    )
     rows: list[tuple[str, Any]] = [
         ("资源", request.get("resourceName")),
         ("申请人", request.get("applicant")),
+        ("申请部门", applicant_org),
+        ("提供部门", provider_org),
         ("用途", request.get("purpose")),
         (
             "共享方式",
@@ -133,11 +175,15 @@ def _dept_approve_action(request: dict[str, Any], request_id: str) -> dict[str, 
     """
     capability = "application.dept_approve"
     shared_type = resource_labels.share_type_int(request.get("shared_type", request.get("sharedType", 0))) or 0
+    base_payload = {"request_id": request_id}
+    provider_org = str(request.get("owner_org_code") or request.get("provider_org_id") or "")
+    if provider_org:
+        base_payload["org_code"] = provider_org
     return {
         "kind": "decision",
         "capability": capability,
         "gate": capability,
-        "basePayload": {"request_id": request_id},
+        "basePayload": base_payload,
         "context": _decision_context(request, shared_type),
         "decisions": [
             {"label": "审核通过", "tone": "primary", "success": "审核通过（已授权）", "payload": {"decision": "approve"}},
@@ -277,6 +323,10 @@ def sync_request_todos(
         # 第二级部门审核（部门管理员）：仅受理通过待部门审（dept_approved）才投，深链审核详情。
         # 挂行内决策载荷（审核通过/驳回），供前端展开成内联部门审核面板；离开 dept_approved 须剔除。
         if status == "dept_approved":
+            if not (request.get("owner_org_code") or request.get("provider_org_id")):
+                owner_org = _resource_owner_for_request(store, request)
+                if owner_org:
+                    request["owner_org_code"] = owner_org
             demo_state_sync.upsert_todo(
                 snapshot,
                 "ROLE_ORGAN_MANAGER", request_id,

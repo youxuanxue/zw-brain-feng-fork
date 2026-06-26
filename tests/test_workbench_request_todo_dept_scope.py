@@ -19,6 +19,7 @@ from __future__ import annotations
 import pytest
 
 from zw_brain.domain.repositories.application import ApplicationRepository
+from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
 from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -44,8 +45,30 @@ def _seed_app(code: str, *, org: str, applicant: str, status: str) -> None:
             "kind": "apply",
             "status": status,
             "applicant": applicant,
+            "applicant_org_code": org,
             "applicantDept": org,
+            "owner_org_code": org,
             "resourceName": f"申请{code}",
+            "resourceId": f"res-{code}",
+        },
+        tenant_id=TENANT,
+    )
+
+
+def _seed_app_with_provider(
+    code: str, *, applicant_org: str, provider_org: str, applicant: str, status: str, resource_id: str | None = None
+) -> None:
+    ApplicationRepository().upsert_from_request(
+        {
+            "id": code,
+            "kind": "apply",
+            "status": status,
+            "applicant": applicant,
+            "applicant_org_code": applicant_org,
+            "applicantDept": applicant_org,
+            "owner_org_code": provider_org,
+            "resourceName": f"申请{code}",
+            "resourceId": resource_id or f"res-{code}",
         },
         tenant_id=TENANT,
     )
@@ -112,6 +135,82 @@ def test_manager_unbacked_review_todo_dropped(temp_db: None) -> None:
     view = {"todos": [_todo("APP-GHOST", "review")]}
     out = enrich_workbench_backlog(view, MANAGER, tenant_id=TENANT, visible_org_codes={ORG_A})
     assert "APP-GHOST" not in _ids(out)
+
+
+def test_manager_review_todos_scoped_to_provider_org_not_applicant_org(temp_db: None) -> None:
+    _seed_app_with_provider(
+        "APP-INBOUND",
+        applicant_org=ORG_B,
+        provider_org=ORG_A,
+        applicant="op-b",
+        status="dept_approved",
+    )
+    _seed_app_with_provider(
+        "APP-OUTBOUND",
+        applicant_org=ORG_A,
+        provider_org=ORG_B,
+        applicant="op-a",
+        status="dept_approved",
+    )
+    view = {"todos": [_todo("APP-INBOUND", "review"), _todo("APP-OUTBOUND", "review")]}
+    out = enrich_workbench_backlog(view, MANAGER, tenant_id=TENANT, visible_org_codes={ORG_A})
+    ids = _ids(out)
+    assert "APP-INBOUND" in ids, "别部门申请本部门资源：本部门管理员应看到待审核"
+    assert "APP-OUTBOUND" not in ids, "本部门申请别部门资源：本部门管理员不应看到别部门审核单"
+
+
+def test_manager_review_todos_fallback_to_resource_owner_when_payload_provider_missing(temp_db: None) -> None:
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-owned-by-a",
+            "title": "A 资源",
+            "owner_org_id": ORG_A,
+            "lifecycle_status": "active",
+            "access_policy_json": {"share_type": 2},
+        },
+        tenant_id=TENANT,
+    )
+    ResourceApiRepository().upsert_asset(
+        {
+            "resource_code": "res-owned-by-b",
+            "title": "B 资源",
+            "owner_org_id": ORG_B,
+            "lifecycle_status": "active",
+            "access_policy_json": {"share_type": 2},
+        },
+        tenant_id=TENANT,
+    )
+    ApplicationRepository().upsert_from_request(
+        {
+            "id": "APP-LEGACY-A",
+            "kind": "apply",
+            "status": "dept_approved",
+            "applicant": "op-b",
+            "applicant_org_code": ORG_B,
+            "applicantDept": ORG_B,
+            "resourceName": "老单 A",
+            "resourceId": "res-owned-by-a",
+        },
+        tenant_id=TENANT,
+    )
+    ApplicationRepository().upsert_from_request(
+        {
+            "id": "APP-LEGACY-B",
+            "kind": "apply",
+            "status": "dept_approved",
+            "applicant": "op-a",
+            "applicant_org_code": ORG_A,
+            "applicantDept": ORG_A,
+            "resourceName": "老单 B",
+            "resourceId": "res-owned-by-b",
+        },
+        tenant_id=TENANT,
+    )
+    view = {"todos": [_todo("APP-LEGACY-A", "review"), _todo("APP-LEGACY-B", "review")]}
+    out = enrich_workbench_backlog(view, MANAGER, tenant_id=TENANT, visible_org_codes={ORG_A})
+    ids = _ids(out)
+    assert "APP-LEGACY-A" in ids, "payload 缺 provider 时用资源 owner 判定本部门审核单"
+    assert "APP-LEGACY-B" not in ids, "资源 owner 在别部门时不能因 applicant 在本部门而泄漏"
 
 
 # ── 部门操作员：申请进度/补录待办按本机构可见域收口（D61 裁决②，同 MANAGER + 快照 requests 面）─

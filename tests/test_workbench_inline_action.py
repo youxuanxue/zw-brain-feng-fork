@@ -162,6 +162,9 @@ def test_dept_approve_todo_carries_dept_approve_action() -> None:
             "id": "REQ-m",
             "resourceName": "库乙",
             "applicant": "市规划局",
+            "applicantDept": "市规划局信息中心",
+            "provider_org_name": "省大数据局",
+            "owner_org_code": "ORG-PROVIDER",
             "purpose": "项目选址核验",
             "shared_type": 2,
         },
@@ -176,7 +179,7 @@ def test_dept_approve_todo_carries_dept_approve_action() -> None:
     assert action["kind"] == "decision"
     assert action["capability"] == "application.dept_approve"
     assert action["gate"] == "application.dept_approve"
-    assert action["basePayload"] == {"request_id": "REQ-m"}
+    assert action["basePayload"] == {"request_id": "REQ-m", "org_code": "ORG-PROVIDER"}
     labels = [d["label"] for d in action["decisions"]]
     assert labels == ["审核通过", "驳回"]
     assert action["decisions"][0]["payload"] == {"decision": "approve"}
@@ -188,6 +191,8 @@ def test_dept_approve_todo_carries_dept_approve_action() -> None:
     ctx = {row["label"]: row["value"] for row in action["context"]}
     assert ctx["资源"] == "库乙"
     assert ctx["申请人"] == "市规划局"
+    assert ctx["申请部门"] == "市规划局信息中心"
+    assert ctx["提供部门"] == "省大数据局"
     assert ctx["用途"] == "项目选址核验"
     assert ctx["共享方式"] == "有条件共享"
 

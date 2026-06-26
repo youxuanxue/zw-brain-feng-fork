@@ -92,6 +92,40 @@ def test_build_trusted_skill_payload_rejects_client_role_escalation() -> None:
         build_trusted_skill_payload({"role": "ROLE_SYSTEM"}, actor_snapshot=snapshot)
 
 
+@pytest.mark.no_db
+def test_build_trusted_skill_payload_switches_to_requested_role_context() -> None:
+    snapshot = {
+        "tenant_id": "sd-default",
+        "available_contexts": [
+            {"org_code": "ORG-OPS", "role_code": "ROLE_SYSTEM", "actor_tags": {}},
+            {"org_code": "ORG-DEPT", "role_code": "ROLE_ORGAN_MANAGER", "actor_tags": {"tag_lead_dept": True}},
+        ],
+        "current_org_code": "ORG-OPS",
+        "current_role": "ROLE_SYSTEM",
+    }
+    payload = build_trusted_skill_payload({"role": "ROLE_ORGAN_MANAGER"}, actor_snapshot=snapshot)
+    assert payload["role"] == "ROLE_ORGAN_MANAGER"
+    assert payload["org_code"] == "ORG-DEPT"
+    assert payload["actor_snapshot"]["current_org_code"] == "ORG-DEPT"
+    assert payload["actor_snapshot"]["current_role"] == "ROLE_ORGAN_MANAGER"
+    assert payload["actor_tags"] == {"tag_lead_dept": True}
+
+
+@pytest.mark.no_db
+def test_build_trusted_skill_payload_rejects_unbound_requested_org_context() -> None:
+    snapshot = {
+        "tenant_id": "sd-default",
+        "available_contexts": [{"org_code": "ORG-A", "role_code": "ROLE_ORGAN_MANAGER", "actor_tags": {}}],
+        "current_org_code": "ORG-A",
+        "current_role": "ROLE_ORGAN_MANAGER",
+    }
+    with pytest.raises(DomainAccessDeniedError, match="not allowed"):
+        build_trusted_skill_payload(
+            {"role": "ROLE_ORGAN_MANAGER", "org_code": "ORG-B"},
+            actor_snapshot=snapshot,
+        )
+
+
 def test_bearer_path_rejects_smuggled_trusted_session_context_key() -> None:
     """R-201 回归：Bearer / A2A / MCP / CLI entry path 下，
     客户端在 payload 里塞 `_trusted_session_context: True` + 自构造 actor_snapshot

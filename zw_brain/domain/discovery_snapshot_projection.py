@@ -106,6 +106,24 @@ def _share_type_by_resource(tenant_id: str, assets: list[Any] | None = None) -> 
     return out
 
 
+def resource_owner_org_by_id(tenant_id: str, assets: list[Any] | None = None) -> dict[str, str]:
+    """resource_asset(id/resource_code) → owner_org_id.
+
+    申请单老数据可能只带 resourceId，不带 owner_org_code/provider_org_id。审批收口必须按
+    提供方/资源归属机构判定，不能在 provider 字段缺失时退回申请方口径。
+    """
+    out: dict[str, str] = {}
+    rows = assets if assets is not None else ResourceApiRepository().list_assets(tenant_id=tenant_id)
+    for asset in rows:
+        owner = str(getattr(asset, "owner_org_id", "") or "")
+        if not owner:
+            continue
+        for key in (str(getattr(asset, "resource_code", "") or ""), str(getattr(asset, "id", "") or "")):
+            if key:
+                out[key] = owner
+    return out
+
+
 def shared_type_for_resource(resource_id: str, tenant_id: str | None = None) -> int | None:
     """单资源共享方式回源（access_policy_json.share_type，与申请卡投影同源口径）。
 
@@ -165,6 +183,8 @@ def _record_to_request_card(
     request_service: Any = None,
     *,
     caller_actor: str | None = None,
+    resource_owner_by_id: dict[str, str] | None = None,
+    org_name: Any | None = None,
 ) -> dict[str, Any]:
     """application_record → 轻量申请卡（snake→camel；applicant PII 走 mask_default）。
 
@@ -187,11 +207,16 @@ def _record_to_request_card(
     applicant = mask_default(
         {"applicant_name": record.applicant_name, "applicant_org": record.applicant_org}
     )
+    resource_id = str(payload.get("resourceId") or payload.get("resource_id") or "")
+    provider_org_code = _provider_org_from_payload(payload) or (resource_owner_by_id or {}).get(resource_id, "")
+    provider_org_name = str(payload.get("provider_org_name") or payload.get("owner_org_name") or "")
+    if not provider_org_name and provider_org_code and org_name is not None:
+        provider_org_name = str(org_name(provider_org_code) or "")
     raw_purpose = purpose_from_payload(payload)
     is_legacy_import = bool(payload.get("source_ref") or payload.get("legacy_object_ref"))
     card: dict[str, Any] = {
         "id": payload.get("id") or record.application_code,
-        "resourceId": payload.get("resourceId") or payload.get("resource_id") or "",
+        "resourceId": resource_id,
         "resourceName": payload.get("resource_name") or payload.get("resourceName") or "",
         "applicant": applicant["applicant_name"],
         "applicantOrgId": payload.get("applicant_org_id") or "",
@@ -201,8 +226,8 @@ def _record_to_request_card(
         "providerOrgId": payload.get("provider_org_id") or "",
         # 提供方机构**码**（审批 R11 收口的 owner 源 + requests 部门收口同源，单一取法见
         # _provider_org_from_payload）。取码不取展示名 providerOrgName（名无法做行级机构成员判定）。
-        "providerOrgCode": _provider_org_from_payload(payload),
-        "providerOrgName": payload.get("provider_org_name") or "",
+        "providerOrgCode": provider_org_code,
+        "providerOrgName": provider_org_name,
         # M5「我的申请」标记（按个人 id；取未脱敏 payload.applicant，见函数 docstring）。
         "mine": mine,
         "purpose": raw_purpose,
@@ -253,6 +278,7 @@ def request_party_in_scope(
     *,
     tenant_id: str | None = None,
     ref: ReferenceService | None = None,
+    resource_owner_by_id: dict[str, str] | None = None,
 ) -> bool:
     """申请单是否落在调用者部门可见域内（D61 裁决②，applicant∨provider）.
 
@@ -273,7 +299,30 @@ def request_party_in_scope(
     if ref.org_in_scope(applicant_owner, visible_org_codes, tenant_id=tid):
         return True
     # provider 机构码源同申请卡 providerOrgCode（_provider_org_from_payload 单一取法）。
-    return ref.org_in_scope(_provider_org_from_payload(payload), visible_org_codes, tenant_id=tid)
+    resource_id = str(payload.get("resourceId") or payload.get("resource_id") or "")
+    provider_owner = _provider_org_from_payload(payload) or (resource_owner_by_id or {}).get(resource_id, "")
+    return ref.org_in_scope(provider_owner, visible_org_codes, tenant_id=tid)
+
+
+def request_provider_in_scope(
+    record: Any,
+    visible_org_codes: set[str] | None,
+    *,
+    tenant_id: str | None = None,
+    ref: ReferenceService | None = None,
+    resource_owner_by_id: dict[str, str] | None = None,
+) -> bool:
+    """申请单是否由调用者部门作为提供方/资源归属方负责审核。
+
+    部门管理员二级审核只看 provider 侧，不能因为申请方在本部门就看到别部门资源的待审单。
+    provider 字段缺失的老数据用 resource_asset.owner_org_id 兜底。
+    """
+    ref = ref or ReferenceService()
+    tid = tenant_id or get_runtime_tenant_id()
+    payload = record.payload_json or {}
+    resource_id = str(payload.get("resourceId") or payload.get("resource_id") or "")
+    provider_owner = _provider_org_from_payload(payload) or (resource_owner_by_id or {}).get(resource_id, "")
+    return ref.org_in_scope(provider_owner, visible_org_codes, tenant_id=tid)
 
 
 def enrich_requests_snapshot(
@@ -325,17 +374,35 @@ def enrich_requests_snapshot(
             return False
         return bool(caller_actor) and str((rec.payload_json or {}).get("applicant") or "") == str(caller_actor or "")
 
+    owner_map = resource_owner_org_by_id(tid, assets)
     # 共享一个 ReferenceService（带 resolve memo）逐行过滤，消 per-record N+1（同批 org 只查一次）。
     _scope_ref = ReferenceService()
     records = [
         r
         for r in ApplicationRepository().list_records(tenant_id=tid)
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
-        and (_is_mine(r) or request_party_in_scope(r, visible_org_codes, tenant_id=tid, ref=_scope_ref))
+        and (
+            _is_mine(r)
+            or request_party_in_scope(
+                r,
+                visible_org_codes,
+                tenant_id=tid,
+                ref=_scope_ref,
+                resource_owner_by_id=owner_map,
+            )
+        )
     ]
     share_map = _share_type_by_resource(tid, assets)
+    org_name = ReferenceService().org_name_resolver(tenant_id=tid)
     out["requests"] = [
-        _record_to_request_card(r, share_map, request_service, caller_actor=caller_actor)
+        _record_to_request_card(
+            r,
+            share_map,
+            request_service,
+            caller_actor=caller_actor,
+            resource_owner_by_id=owner_map,
+            org_name=org_name,
+        )
         for r in records
     ]
     return out

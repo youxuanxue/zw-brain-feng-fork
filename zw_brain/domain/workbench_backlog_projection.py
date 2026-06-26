@@ -43,7 +43,11 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from zw_brain.domain.discovery_snapshot_projection import request_party_in_scope
+from zw_brain.domain.discovery_snapshot_projection import (
+    request_party_in_scope,
+    request_provider_in_scope,
+    resource_owner_org_by_id,
+)
 from zw_brain.domain.models import (
     CatalogEntryRecord,
     ObjectionCaseRecord,
@@ -103,7 +107,11 @@ _DEMAND_PROVIDER_PHASES = frozenset(
 # 标记承载，与 #294 一致——当前 actor 为 role 级身份[user:gov:<role>:*]，按个人 drop 在跨部门
 # 操作员间无隔离效果，dept-scope 才真隔离；per-person 收敛属 IAM 身份补全后另立，见 actor 身份债）。
 # BUSIAUDIT 受理待办（category=accept）保持全局（D61 裁决④），不在此收口集内。
-_MANAGER_REQUEST_CATEGORIES = frozenset({"review", "summary"})
+_MANAGER_REVIEW_REQUEST_CATEGORIES = frozenset({"review"})
+_MANAGER_SUMMARY_REQUEST_CATEGORIES = frozenset({"summary"})
+_MANAGER_REQUEST_CATEGORIES = frozenset(
+    _MANAGER_REVIEW_REQUEST_CATEGORIES | _MANAGER_SUMMARY_REQUEST_CATEGORIES
+)
 _OPERATER_REQUEST_CATEGORIES = frozenset(
     {"apply-progress", "supplement-township", "supplement-village"}
 )
@@ -132,6 +140,27 @@ def _org_visible_request_ids(
         if request_party_in_scope(record, visible_org_codes, tenant_id=tenant_id, ref=scope_ref):
             visible.add(rid)
         elif caller_actor and not fail_closed and str(payload.get("applicant") or "") == str(caller_actor):
+            visible.add(rid)
+    return visible
+
+
+def _org_provider_visible_request_ids(tenant_id: str, visible_org_codes: set[str] | None) -> set[str]:
+    """现算部门管理员可审核的 request-id 集合：仅 provider/资源归属方在可见域内才保留。"""
+    scope_ref = ReferenceService()
+    owner_map = resource_owner_org_by_id(tenant_id)
+    visible: set[str] = set()
+    for record in ApplicationRepository().list_records(tenant_id=tenant_id):
+        payload = record.payload_json or {}
+        rid = str(payload.get("id") or "")
+        if not rid:
+            continue
+        if request_provider_in_scope(
+            record,
+            visible_org_codes,
+            tenant_id=tenant_id,
+            ref=scope_ref,
+            resource_owner_by_id=owner_map,
+        ):
             visible.add(rid)
     return visible
 
@@ -729,6 +758,7 @@ def _enrich_manager_backlog(
     tenant_id: str,
     *,
     visible_org_codes: set[str] | None = None,
+    org_provider_visible_request_ids: set[str] | None = None,
     org_visible_request_ids: set[str] | None = None,
 ) -> dict[str, Any]:
     """部门管理员（D55/P10·G4）：在既投部门审核待办上叠加供数侧审核待办（目录/挂接/服务审核）。
@@ -739,17 +769,23 @@ def _enrich_manager_backlog(
     「涉企采集准入待判定」叙事）。
 
     M8 部门隔离：供数侧审核待办计数按 visible_org_codes 收口到本机构可见域（None=全局）。
-    「第七面」收口：``sync_request_todos`` 已投的申请审核/汇总待办（category review/summary，
-    办别部门的单）按 ``org_visible_request_ids`` 收口到本机构可见域——None=全量放行（全局视角）、
-    传集即只留域内单，剔除越界单（消除「看见别部门待办 + 行内审核按钮点了 403」反模式）。
+    「第七面」收口：``sync_request_todos`` 已投的申请审核待办（category review）按提供方
+    ``org_provider_visible_request_ids`` 收口；汇总待办（category summary）仍按申请方∨提供方
+    参与口径 ``org_visible_request_ids`` 收口。None=全量放行（全局视角），传集即只留域内单。
     """
     out = copy.deepcopy(view)
     review_todos = _manager_review_todos(tenant_id, visible_org_codes=visible_org_codes)
     existing = out.get("todos") or []
+    if org_provider_visible_request_ids is not None:
+        existing = _drop_unscoped_request_todos(
+            existing,
+            categories=_MANAGER_REVIEW_REQUEST_CATEGORIES,
+            scoped_ids=org_provider_visible_request_ids,
+        )
     if org_visible_request_ids is not None:
         existing = _drop_unscoped_request_todos(
             existing,
-            categories=_MANAGER_REQUEST_CATEGORIES,
+            categories=_MANAGER_SUMMARY_REQUEST_CATEGORIES,
             scoped_ids=org_visible_request_ids,
         )
     existing_ids = {t.get("id") for t in existing}
@@ -1019,10 +1055,11 @@ def enrich_workbench_backlog(
     # M8 部门隔离：仅部门管理员审核待办计数按 visible_org_codes 收口到本机构可见域；
     # 平台队列（BUSIAUDIT 待平台审核/待发布/待受理/待汇总）保持全局，不消费 visible_org_codes。
     # 「第七面」收口：部门管理员/操作员的申请待办（sync_request_todos 平行路径）按本机构可见域
-    # 收口——现算一次域内 request-id 集合，二者同口径（D61 裁决②；同快照 requests 面）。
+    # 收口；管理员 review 用 provider-only，summary/操作员进度仍用申请方∨提供方参与口径。
     if role == _MANAGER_ROLE:
         return _enrich_manager_backlog(
             view, tid, visible_org_codes=visible_org_codes,
+            org_provider_visible_request_ids=_org_provider_visible_request_ids(tid, visible_org_codes),
             org_visible_request_ids=_org_visible_request_ids(tid, visible_org_codes),
         )
     if role == "ROLE_ORGAN_OPERATER":

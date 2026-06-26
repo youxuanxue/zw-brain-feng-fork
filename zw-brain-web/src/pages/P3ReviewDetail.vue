@@ -39,6 +39,14 @@ const sharedType = computed(() => {
     ?? (req.value as Record<string, unknown> | null)?.sharedType;
   return Number(raw ?? 0);
 });
+const providerOrgCode = computed(() =>
+  String(
+    (req.value as Record<string, unknown> | null)?.providerOrgCode
+      ?? (req.value as Record<string, unknown> | null)?.owner_org_code
+      ?? (req.value as Record<string, unknown> | null)?.provider_org_id
+      ?? '',
+  ).trim(),
+);
 
 // J1 有条件共享 (shared_type=2) 受理/审核两级（受理在前）：
 //   第一级 业务运营员受理 (platform_approve)：submitted → dept_approved / rejected
@@ -69,6 +77,17 @@ const rows = computed(() => {
     { label: '资源', value: String(r.resourceName ?? '—') },
     { label: '申请人', value: formatPersonLabel(r.applicant ?? '—') },
     { label: '申请部门', value: String(r.applicantDept ?? '—') },
+    {
+      label: '提供部门',
+      value: String(
+        r.providerOrgName
+          ?? r.provider_org_name
+          ?? r.owner_org_name
+          ?? r.providerOrgCode
+          ?? r.owner_org_code
+          ?? '—',
+      ),
+    },
     { label: '用途', value: String(r.purpose ?? '—') },
     { label: '共享方式', value: isConditional.value ? '有条件共享' : '无条件共享' },
     { label: '当前状态', value: formatTodoStatus(String(r.status ?? '—')) },
@@ -112,9 +131,13 @@ async function dispatchReject(skillId: string, decision: string, successTitle: s
     pushToast({ kind: 'warn', title: '请先填写理由', detail: '驳回 / 退回需向申请人说明依据，理由不能为空。' });
     return;
   }
+  const payload: Record<string, unknown> = { request_id: id.value, decision, note };
+  if (skillId === 'application.dept_approve' && providerOrgCode.value) {
+    payload.org_code = providerOrgCode.value;
+  }
   const res = await invokeActionStub({
     skillId,
-    payload: { request_id: id.value, decision, note },
+    payload,
     successTitle,
   });
   if (res.ok) cancelReason();
@@ -134,9 +157,11 @@ function confirmAcceptReject() {
 
 // --- 第二级：部门审核（提供方部门管理员）dept_approved → granted ---
 async function deptReview() {
+  const payload: Record<string, unknown> = { request_id: id.value, decision: 'approve' };
+  if (providerOrgCode.value) payload.org_code = providerOrgCode.value;
   await invokeActionStub({
     skillId: 'application.dept_approve',
-    payload: { request_id: id.value, decision: 'approve' },
+    payload,
     successTitle: '审核通过（已授权）',
   });
 }
