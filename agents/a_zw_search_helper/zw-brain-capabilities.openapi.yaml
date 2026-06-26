@@ -4,7 +4,7 @@ info:
   description: 数据发现副驾在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
   version: 1.0.0
 servers:
-- url: "http://127.0.0.1:8800"
+- url: "http://zw-brain-rest:8800"
 paths:
   /api/skills/search.intent.parse:
     post:

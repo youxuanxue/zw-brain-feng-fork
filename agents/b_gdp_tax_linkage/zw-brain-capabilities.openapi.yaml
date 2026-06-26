@@ -4,7 +4,7 @@ info:
   description: 区域 GDP 税收联动洞察在独立 AgentRuntime 进程内运行，经此 OpenAPI 把 zw-brain 已发布的只读能力声明为 kind:api 工具。
   version: 1.0.0
 servers:
-- url: "http://127.0.0.1:8800"
+- url: "http://zw-brain-rest:8800"
 paths:
   /api/skills/data.search:
     post:
