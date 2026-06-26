@@ -45,43 +45,78 @@ const rows = computed(() => {
   return mapDetailRows(raw);
 });
 
+const MATCH_STOP_WORDS = new Set(['信息', '数据', '资源', '目录', '共享', '查询', '服务', '需求', '申请']);
+const MATCH_DOMAIN_WORDS = ['不动产', '交易', '登记', '备案', '房屋', '房产', '医疗', '救助', '低保', '户籍', '法人', '企业'];
+
+function addMatchTerm(out: string[], seen: Set<string>, raw: string) {
+  const term = raw.trim();
+  if (term.length < 2) return;
+  if (MATCH_STOP_WORDS.has(term)) return;
+  if (seen.has(term)) return;
+  seen.add(term);
+  out.push(term.slice(0, 24));
+}
+
+function matchQueries(): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const hint = item.value?.target_resource_hint ?? '';
+  const title = item.value?.title ?? '';
+  addMatchTerm(out, seen, hint);
+  addMatchTerm(out, seen, title);
+  for (const word of MATCH_DOMAIN_WORDS) {
+    if (`${hint} ${title}`.includes(word)) addMatchTerm(out, seen, word);
+  }
+  const compact = title.replace(/[^\u4e00-\u9fffA-Za-z0-9]/g, '');
+  for (const size of [4, 3, 2]) {
+    for (let i = 0; i <= compact.length - size; i += 1) {
+      addMatchTerm(out, seen, compact.slice(i, i + size));
+      if (out.length >= 8) return out;
+    }
+  }
+  return out;
+}
+
 async function matchCatalog() {
-  const q = (item.value?.target_resource_hint || item.value?.title || '').slice(0, 24);
-  if (!q) {
+  const queries = matchQueries();
+  if (!queries.length) {
     pushToast({ kind: 'info', title: '无法检索', detail: '该需求缺少标题，无法检索匹配目录。' });
     return;
   }
   matching.value = true;
   try {
-    const resp = await authFetch(
-      apiUrl('/api/skills/catalog.entry.query'),
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body: JSON.stringify({
-          role: getProductRole().value,
-          confirmed: true,
-          query: q,
-          limit: 1,
-        }),
-      },
-    );
-    if (!resp.ok) {
-      // R-005a：不漏原始 HTTP 码（R12）。
-      pushToast({ kind: 'error', title: '检索失败', detail: '目录检索暂不可用，请稍后重试。' });
-      return;
+    for (const q of queries) {
+      const resp = await authFetch(
+        apiUrl('/api/skills/catalog.entry.query'),
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+          body: JSON.stringify({
+            role: getProductRole().value,
+            confirmed: true,
+            query: q,
+            lifecycle_status: 'active',
+            limit: 1,
+          }),
+        },
+      );
+      if (!resp.ok) {
+        // R-005a：不漏原始 HTTP 码（R12）。
+        pushToast({ kind: 'error', title: '检索失败', detail: '目录检索暂不可用，请稍后重试。' });
+        return;
+      }
+      const data = (await resp.json()) as { items?: Array<Record<string, unknown>>; result?: { items?: Array<Record<string, unknown>> } };
+      const first = (data.items ?? data.result?.items ?? [])[0];
+      if (first && first.catalog_code) {
+        matchedResourceId.value = String(first.catalog_code);
+        matchedResourceName.value = String(first.title ?? first.catalog_code);
+        pushToast({ kind: 'ok', title: '已匹配目录', detail: `命中「${matchedResourceName.value}」，可起草申请。` });
+        return;
+      }
     }
-    const data = (await resp.json()) as { items?: Array<Record<string, unknown>>; result?: { items?: Array<Record<string, unknown>> } };
-    const first = (data.items ?? data.result?.items ?? [])[0];
-    if (first && first.catalog_code) {
-      matchedResourceId.value = String(first.catalog_code);
-      matchedResourceName.value = String(first.title ?? first.catalog_code);
-      pushToast({ kind: 'ok', title: '已匹配目录', detail: `命中「${matchedResourceName.value}」，可起草申请。` });
-    } else {
-      matchedResourceId.value = null;
-      matchedResourceName.value = null;
-      pushToast({ kind: 'info', title: '未命中', detail: '本地目录暂无可匹配资源；请登记需求或人工对接。' });
-    }
+    matchedResourceId.value = null;
+    matchedResourceName.value = null;
+    pushToast({ kind: 'info', title: '未命中', detail: '本地目录暂无可匹配资源；请登记需求或人工对接。' });
   } catch {
     pushToast({ kind: 'error', title: '检索失败', detail: '目录检索暂不可用，请稍后重试。' });
   } finally {

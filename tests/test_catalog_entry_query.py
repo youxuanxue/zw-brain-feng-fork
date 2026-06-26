@@ -133,3 +133,30 @@ def test_catalog_entry_query_order_updated_desc_surfaces_newest(brain: BrainServ
     )
     assert recency["items"][0]["catalog_code"] == "j2-inline-9999-newest"
     assert recency["total"] == default_order["total"]
+
+
+def test_catalog_entry_query_recalls_related_chinese_terms(brain: BrainService) -> None:
+    """供需对接详情页用业务标题检索时，不能只靠完整标题精确包含。"""
+    CatalogRepository().upsert_from_resource(
+        {
+            "id": "cat-house-trade-filing",
+            "name": "房屋交易备案目录",
+            "status": "active",
+            "provider": "11370000MB284651XL",
+            "summary_json": {
+                "description": "覆盖不动产登记、房屋交易备案和权属核验字段。",
+                "fields": ["不动产单元号", "交易备案号"],
+            },
+        },
+        tenant_id=TENANT,
+    )
+
+    result = invoke_trusted(
+        brain,
+        "catalog.entry.query",
+        {"query": "不动产交易信息共享", "lifecycle_status": "active", "limit": 1},
+        role="ROLE_BUSIAUDIT",
+    )
+
+    assert result["total"] >= 1
+    assert result["items"][0]["catalog_code"] == "cat-house-trade-filing"

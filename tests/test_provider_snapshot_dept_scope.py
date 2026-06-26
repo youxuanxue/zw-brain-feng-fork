@@ -26,6 +26,8 @@ from zw_brain.domain.provider_snapshot_projection import (
 from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
+from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
+from zw_brain.domain.supply_demand_phase import PHASE_REGISTERED
 from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -164,6 +166,53 @@ def test_inbox_field_decisions_and_hookups_scoped_to_org_a(temp_db) -> None:
     assert hookup_ids == {"res-a-001"}
     assert "rev-b-001" not in field_ids
     assert "res-b-001" not in hookup_ids
+
+
+def test_inbox_demand_matches_scoped_by_target_provider_org(temp_db) -> None:
+    _seed()
+    supply = SupplyDemandRepository()
+    supply.register_demand(
+        demand_id="dem-target-org-a",
+        title="不动产交易信息共享",
+        applicant="u-demo",
+        applicant_dept="申请部门",
+        tenant_id=TENANT,
+        phase=PHASE_REGISTERED,
+        target_resource_hint="不动产登记",
+        target_org_code=ORG_A,
+    )
+    supply.register_demand(
+        demand_id="dem-target-org-b",
+        title="别家部门需求",
+        applicant="u-demo",
+        applicant_dept="申请部门",
+        tenant_id=TENANT,
+        phase=PHASE_REGISTERED,
+        target_resource_hint="别家资源",
+        target_org_code=ORG_B,
+    )
+    supply.register_demand(
+        demand_id="dem-legacy-no-target",
+        title="历史无目标部门需求",
+        applicant="u-demo",
+        applicant_dept="申请部门",
+        tenant_id=TENANT,
+        phase=PHASE_REGISTERED,
+    )
+
+    scoped_a = project_provider_inbox(tenant_id=TENANT, visible_org_codes={ORG_A})
+    ids_a = {r["id"] for r in scoped_a["demand_matches"]}
+    assert "dem-target-org-a" in ids_a
+    assert "dem-target-org-b" not in ids_a
+    assert "dem-legacy-no-target" in ids_a
+
+    global_view = project_provider_inbox(tenant_id=TENANT, visible_org_codes=None)
+    global_ids = {r["id"] for r in global_view["demand_matches"]}
+    assert {"dem-target-org-a", "dem-target-org-b", "dem-legacy-no-target"} <= global_ids
+
+    fail_closed = project_provider_inbox(tenant_id=TENANT, visible_org_codes=set())
+    fail_closed_ids = {r["id"] for r in fail_closed["demand_matches"]}
+    assert fail_closed_ids == set()
 
 
 # ── 2. None → 全量放行 ─────────────────────────────────────────────────────────

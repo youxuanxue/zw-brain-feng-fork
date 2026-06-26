@@ -119,8 +119,34 @@ def _demand_to_match(payload: dict[str, Any]) -> dict[str, Any]:
         "title": str(payload.get("title") or ""),
         "status": str(payload.get("demand_phase") or payload.get("status") or ""),
         "target_resource_hint": str(payload.get("target_resource_hint") or ""),
+        "target_org_code": str(payload.get("target_org_code") or payload.get("provider_org_code") or payload.get("owner_org_code") or ""),
+        "target_org_name": str(payload.get("target_org_name") or payload.get("provider_org_name") or payload.get("owner_org_name") or ""),
         "applicant_dept": str(payload.get("applicantDept") or ""),
     }
+
+
+def _demand_in_provider_scope(
+    payload: dict[str, Any],
+    *,
+    ref: ReferenceService,
+    visible_org_codes: set[str] | None,
+    tenant_id: str,
+) -> bool:
+    target_org = str(
+        payload.get("target_org_code")
+        or payload.get("provider_org_code")
+        or payload.get("owner_org_code")
+        or payload.get("target_org_name")
+        or payload.get("provider_org_name")
+        or payload.get("owner_org_name")
+        or ""
+    ).strip()
+    # Historical demand rows did not carry a target provider org. Keep the prior
+    # inbox behavior for valid global/dept contexts instead of hiding production
+    # data; missing caller org still fail-closes as an empty visible set.
+    if not target_org:
+        return visible_org_codes != set()
+    return ref.org_in_scope(target_org, visible_org_codes, tenant_id=tenant_id)
 
 
 def _case_to_objection_inbox(record: Any) -> dict[str, Any]:
@@ -430,11 +456,15 @@ def project_provider_inbox(
         )
         for record in hookup_assets
     ]
-    # M4 不按部门收口：供需对接属 J2 供需脊柱（需求侧驱动），非供数方部门管理面，本切片不纳入。
+    # 带目标提供部门的供需需求按部门可见域收口；历史行未带 target_org_* 时保留旧全局口径，
+    # 避免缺字段生产数据被 fail-closed 隐藏。
     demand_matches = [
         _demand_to_match(item)
         for item in supply_repo.list_demands(tenant_id=tenant_id)
         if item.get("demand_phase") in _DEMAND_PROVIDER_PHASES
+        and _demand_in_provider_scope(
+            item, ref=ref, visible_org_codes=visible_org_codes, tenant_id=tenant_id
+        )
     ]
     # 异议收件箱（D57①，R-6）：纳入在办全态——submitted（待受理，接 objection.case.accept）、
     # platform_investigating（受理后平台核查中，受理动作的落点态，不纳则案件受理即从唯一

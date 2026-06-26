@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from sqlalchemy import and_, func, or_, select
@@ -14,6 +15,67 @@ from zw_brain.domain.models import (
 from zw_brain.domain.repositories.legacy_mapping import upsert_legacy_mapping_in_session
 from zw_brain.shared.db import create_session_factory
 from zw_brain.shared.sanitization import safe_json
+
+_SEARCH_STOP_TOKENS = {
+    "信息",
+    "数据",
+    "资源",
+    "目录",
+    "共享",
+    "查询",
+    "服务",
+    "需求",
+    "申请",
+    "相关",
+    "政务",
+    "本地",
+    "平台",
+}
+
+_SEARCH_DOMAIN_TOKENS = {
+    "不动产",
+    "交易",
+    "登记",
+    "备案",
+    "房屋",
+    "房产",
+    "医疗",
+    "救助",
+    "低保",
+    "对象",
+    "户籍",
+    "婚姻",
+    "企业",
+    "法人",
+    "信用",
+    "停车",
+    "社保",
+    "医保",
+    "公积金",
+    "营业执照",
+}
+
+
+def _catalog_search_tokens(query: str) -> list[str]:
+    """Small deterministic Chinese recall tokenizer for catalog search."""
+    raw = query.strip()
+    if not raw:
+        return []
+    tokens: set[str] = set()
+    for part in re.findall(r"[A-Za-z0-9_./-]+|[\u4e00-\u9fff]+", raw):
+        if len(part) < 2:
+            continue
+        tokens.add(part.lower())
+        if re.fullmatch(r"[\u4e00-\u9fff]+", part):
+            for token in _SEARCH_DOMAIN_TOKENS:
+                if token in part:
+                    tokens.add(token)
+            for size in (4, 3, 2):
+                for idx in range(0, max(len(part) - size + 1, 0)):
+                    token = part[idx : idx + size]
+                    if token not in _SEARCH_STOP_TOKENS:
+                        tokens.add(token)
+    return sorted(tokens, key=lambda item: (-len(item), item))
 
 
 class CatalogRepository:
@@ -397,8 +459,8 @@ class CatalogRepository:
             if not query:
                 return records
             lowered = query.lower()
-            tokens = [token for token in ["法人", "企业", "模板", "复用"] if token in query]
-            matched: list[CatalogEntryRecord] = []
+            tokens = _catalog_search_tokens(query)
+            scored: list[tuple[int, CatalogEntryRecord]] = []
             for record in records:
                 summary = record.summary_json
                 text = " ".join(
@@ -407,15 +469,23 @@ class CatalogRepository:
                         record.title,
                         record.owner_org_id or "",
                         str(summary.get("desc", "")),
+                        str(summary.get("description", "")),
+                        str(summary.get("application_scenario", "")),
+                        str(summary.get("source_system", "")),
+                        str(summary.get("data_catalog_name", "")),
                         str(summary.get("provider", "")),
                         str(summary.get("zone", "")),
                         " ".join(summary.get("fields", [])),
                         " ".join(summary.get("explain", [])),
                     ]
                 ).lower()
-                if lowered in text or any(token in text for token in tokens):
-                    matched.append(record)
-            return matched
+                score = 0
+                if lowered in text:
+                    score += 100
+                score += sum(8 for token in tokens if token in text)
+                if score > 0:
+                    scored.append((score, record))
+            return [record for _, record in sorted(scored, key=lambda it: (-it[0], it[1].catalog_code))]
 
     def list_items(self, catalog_code: str | None = None, *, tenant_id: str = "sd-default") -> list[CatalogItemRecord]:
         # full-scan-ok: catalog_code 可选；None 时 tenant-only 全量 item；当前单租户 <1k

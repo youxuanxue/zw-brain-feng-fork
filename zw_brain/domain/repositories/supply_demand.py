@@ -57,6 +57,8 @@ class SupplyDemandRepository:
         applicant_dept: str,
         tenant_id: str = "sd-default",
         target_resource_hint: str | None = None,
+        target_org_code: str | None = None,
+        target_org_name: str | None = None,
         channel_class: str = "internal",
         phase: str = PHASE_GAP_DISCOVERED,
     ) -> dict[str, Any]:
@@ -70,6 +72,8 @@ class SupplyDemandRepository:
             "title": title,
             "demand_phase": phase,
             "target_resource_hint": target_resource_hint,
+            "target_org_code": target_org_code,
+            "target_org_name": target_org_name,
             "channel_class": channel_class,
         }
         self.app_repo.upsert_from_request(payload, tenant_id=tenant_id)

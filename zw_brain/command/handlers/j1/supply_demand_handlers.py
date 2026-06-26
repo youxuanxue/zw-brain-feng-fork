@@ -34,6 +34,8 @@ def handler_demand_register(deps: HandlerDeps, ctx: SkillContext, payload: dict[
             applicant_dept=str(payload.get("applicant_dept") or "申请部门"),
             tenant_id=_DEFAULT_TENANT_ID,
             target_resource_hint=payload.get("target_resource_hint"),
+            target_org_code=payload.get("target_org_code") or payload.get("provider_org_code") or payload.get("owner_org_code"),
+            target_org_name=payload.get("target_org_name") or payload.get("provider_org_name") or payload.get("owner_org_name"),
         )
         deps.append_audit_feed("demand.register", demand_id, "ok", actor)
         return record | {"audit_id": audit_id}
