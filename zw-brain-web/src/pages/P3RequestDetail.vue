@@ -151,6 +151,11 @@ const productRole = computed(() => getProductRole().value);
 // 两个按钮变体），不在 page 内硬编码 role 比对；「能不能」仍由 canPerformAction 判。
 const isBusiAudit = computed(() => hasRole(productRole.value, 'ROLE_BUSIAUDIT'));
 const isApplicant = computed(() => hasRole(productRole.value, 'ROLE_ORGAN_OPERATER'));
+const detailBackLink = computed(() =>
+  isBusiAudit.value
+    ? { href: '#/workbench', label: '工作台' }
+    : { href: '#/delivery-exchange', label: '我的申请' },
+);
 const canRevokeGrant = computed(() => canPerformAction('application.grant.revoke', productRole.value));
 const canSuspendGrant = computed(() => canPerformAction('application.grant.suspend', productRole.value));
 // debt j1-legacy-record-actionability：历史导入申请 = 只读迁移记录，无运行时交付实体，
@@ -267,7 +272,7 @@ async function supplement() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/delivery-exchange">← 我的申请</a></nav>
+    <nav class="crumbs"><a :href="detailBackLink.href">← {{ detailBackLink.label }}</a></nav>
     <section class="panel">
       <PageFocusHeader :title="headerTitle" :meta="headerMeta">
         <p v-if="id" class="record-code">编号 <span :title="id">{{ shortId(id) }}</span></p>

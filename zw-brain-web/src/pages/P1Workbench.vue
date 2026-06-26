@@ -170,6 +170,7 @@ const urgentCount = computed(
                 {{ formatTodoStatus(String(todo.status)) }}
               </span>
             </div>
+            <p v-if="todo.nextAction" class="p1-next-action">{{ todo.nextAction }}</p>
             <WorkbenchTodoActionPanel
               v-if="isActionable(todo) && todo.action && expanded[`${todo.id}-${idx}`]"
               :action="todo.action"
@@ -395,6 +396,12 @@ const urgentCount = computed(
 }
 .p1-row-title:hover {
   color: var(--b-primary, #006be6);
+}
+.p1-next-action {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--b-muted, #5c6370);
 }
 .p1-status {
   flex-shrink: 0;

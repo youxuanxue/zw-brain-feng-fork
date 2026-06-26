@@ -451,6 +451,7 @@ def _emit_backlog_todo(
     status: str,
     href: str,
     action_clause: str,
+    next_action: str | None = None,
     action: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """构造一条 count 头条待办（count<=0 返回 None，零积压不投）；M5 行内项挂 ``action``。
@@ -470,6 +471,8 @@ def _emit_backlog_todo(
         # G4：分类型行动分句（已带 count），aiSummary 据此拼分类型行动句。
         "actionClause": action_clause,
     }
+    if next_action:
+        todo["nextAction"] = next_action
     if action is not None:
         todo["action"] = action
     return todo
@@ -524,6 +527,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待审核",
                 href="#/provider/inbox/catalog-review",
                 action_clause=f"{len(platform_review_entries)} 个目录待平台审核",
+                next_action="核对目录要素后通过或驳回。",
                 action=_decision_list_action(
                     [_catalog_review_item(e) for e in platform_review_entries]
                 ),
@@ -536,6 +540,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待发布",
                 href="#/provider",
                 action_clause=f"{len(publish_entries)} 个目录待发布",
+                next_action="确认无误后发布目录。",
                 action=_decision_list_action(
                     [_catalog_publish_item(e) for e in publish_entries]
                 ),
@@ -548,6 +553,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待发布",
                 href="#/provider",
                 action_clause=f"{len(publish_assets)} 个资源待发布",
+                next_action="确认资源可用后发布。",
                 action=_decision_list_action(
                     [_resource_publish_item(a) for a in publish_assets]
                 ),
@@ -560,6 +566,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待转报",
                 href="#/workbench",
                 action_clause=f"{len(national_escalate)} 条国家级数据申请待转报",
+                next_action="展开后逐条转报国家平台；通道未配置时会给出接入原因。",
                 action=_decision_list_action(
                     [_national_escalate_item(r) for r in national_escalate]
                 ),
@@ -572,6 +579,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待受理",
                 href="#/request-flow",
                 action_clause=f"{pending_applications} 条申请待受理",
+                next_action="进入申请受理并给出处理结论。",
             ),
             # 待受理异议（M5 行内：受理）
             _emit_backlog_todo(
@@ -581,6 +589,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待受理",
                 href="#/provider/inbox/objection?scope=pending",
                 action_clause=f"{len(objection_cases)} 条异议待受理",
+                next_action="确认责任单位和事项后受理。",
                 action=_decision_list_action(
                     [_objection_item(c) for c in objection_cases]
                 ),
@@ -595,6 +604,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待督办",
                 href="#/provider/inbox/objection",
                 action_clause=f"{pending_supervised} 条异议待督办抓办",
+                next_action="进入异议收件箱跟踪督办进展。",
             ),
             # 待汇总需求（不 re-grain：汇总多步，保 count+href 兜底）。
             _emit_backlog_todo(
@@ -604,6 +614,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 status="待汇总",
                 href="#/provider/inbox/demand-match",
                 action_clause=f"{pending_demands} 项需求待汇总",
+                next_action="汇总需求并匹配可供资源。",
             ),
         )
         if t is not None
@@ -693,6 +704,7 @@ def _manager_review_todos(
                 status="待审核",
                 href="#/provider/inbox/catalog-review",
                 action_clause=f"{len(catalog_review_entries)} 个目录待部门审核",
+                next_action="核对本部门目录要素后通过或驳回。",
                 action=_decision_list_action(
                     [_catalog_review_item(e) for e in catalog_review_entries]
                 ),
@@ -705,6 +717,7 @@ def _manager_review_todos(
                 status="待审核",
                 href="#/provider/inbox/field-decision",
                 action_clause=f"{len(reverse_review_entries)} 个反向编目草稿待部门审核",
+                next_action="确认反向识别结果能否进入平台审核。",
                 action=_decision_list_action(
                     [_reverse_draft_review_item(e) for e in reverse_review_entries]
                 ),
@@ -717,6 +730,7 @@ def _manager_review_todos(
                 status="待审核",
                 href="#/provider/inbox/hookup-review",
                 action_clause=f"{len(hookup_review_assets)} 个挂接资源待审核",
+                next_action="核对挂接信息后通过或退回。",
                 action=_decision_list_action(
                     [_hookup_review_item(a) for a in hookup_review_assets]
                 ),
@@ -729,6 +743,7 @@ def _manager_review_todos(
                 status="待审核",
                 href="#/provider/wizard/api-service",
                 action_clause=f"{pending_api_review} 个服务待审核",
+                next_action="进入服务向导完成审核。",
             ),
         )
         if t is not None
@@ -948,6 +963,7 @@ def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any
                 status="待提交",
                 href="#/request-flow",
                 action_clause=f"{len(drafts)} 张草稿可继续提交",
+                next_action="展开后提交草稿申请。",
                 action=_decision_list_action([_operator_draft_item(t) for t in drafts]),
             ),
             _emit_backlog_todo(
@@ -957,6 +973,7 @@ def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any
                 status="在办",
                 href="#/request-flow",
                 action_clause=f"{active} 条申请在办",
+                next_action="查看进度和处理意见。",
             ),
             _emit_backlog_todo(
                 item_id=_OP_CARD_SUPPLEMENT,
@@ -965,6 +982,7 @@ def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any
                 status="待完成",
                 href="#/request-flow",
                 action_clause=f"{supplements} 项补录任务待完成",
+                next_action="进入申请详情补齐材料。",
             ),
         )
         if card is not None

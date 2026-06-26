@@ -7,6 +7,25 @@ async function submitModal(page: import('@playwright/test').Page) {
   await page.locator('form.modal').evaluate((form) => (form as HTMLFormElement).requestSubmit());
 }
 
+async function ensureReverseCatalogDatasource(page: import('@playwright/test').Page) {
+  await gotoHash(page, '#/provider/wizard/reverse-catalog');
+  await expect(page.getByRole('heading', { name: '反向编目' })).toBeVisible();
+  const select = page.getByTestId('reverse-datasource-select');
+  await expect(select).toBeVisible();
+  if ((await select.locator('option').count()) > 1) return;
+
+  await gotoHash(page, '#/provider/datasources');
+  await expect(page.getByRole('heading', { name: '数据源管理' })).toBeVisible();
+  await page.getByTestId('datasource-add').click();
+  await page.getByLabel('显示名称').fill(`反向编目前置数据源-${UNIQUE}`);
+  await page.getByLabel('库实例名').fill(`reverse_${UNIQUE}`);
+  await submitModal(page);
+  await expect(page.locator('body')).toContainText('数据源已登记');
+
+  await gotoHash(page, '#/provider/wizard/reverse-catalog');
+  await expect(page.getByTestId('reverse-datasource-select').locator('option')).not.toHaveCount(1);
+}
+
 test.describe('catalog datasource E2E walkthrough', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
@@ -75,8 +94,7 @@ test.describe('catalog datasource E2E walkthrough', () => {
 
   test('C: reverse catalog operator vs manager flow', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
-    await gotoHash(page, '#/provider/wizard/reverse-catalog');
-    await expect(page.getByRole('heading', { name: '反向编目' })).toBeVisible();
+    await ensureReverseCatalogDatasource(page);
     const dsSelect = page.getByTestId('reverse-datasource-select');
     await expect(dsSelect.locator('option')).not.toHaveCount(1);
 

@@ -64,13 +64,37 @@ watch(isApplicantRole, (applicant) => {
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   if (activeTab.value === 'mine') {
-    return mineCards.value.length ? `${mineCards.value.length} 条我的申请` : '暂无申请，可从「找数据」发起';
+    return mineCards.value.length ? `${mineCards.value.length} 条申请 · 下一步在每行右侧` : '暂无申请 · 可从「找数据」发起';
   }
   if (activeTab.value === 'grants') {
-    return grantCards.value.length ? `${grantCards.value.length} 项授权` : '暂无已获得的授权';
+    return grantCards.value.length ? `${grantCards.value.length} 项授权 · 查看凭据和授权状态` : '暂无授权 · 申请通过后在此领取';
   }
-  return taskItems.value.length ? `${taskItems.value.length} 条 · 查看授权、下载、交换任务在此办理` : '暂无任务 · 审批通过后会出现在此';
+  return taskItems.value.length ? `${taskItems.value.length} 条任务 · 领取、下载、核对在此完成` : '暂无任务 · 审批通过后会出现在此';
 });
+
+const visibleSteps = computed(() => [
+  {
+    key: 'mine',
+    label: '申请进度',
+    count: mineCards.value.length,
+    active: activeTab.value === 'mine',
+    available: isApplicantRole.value,
+  },
+  {
+    key: 'grants',
+    label: '授权凭据',
+    count: grantCards.value.length,
+    active: activeTab.value === 'grants',
+    available: isApplicantRole.value,
+  },
+  {
+    key: 'tasks',
+    label: '交付任务',
+    count: taskItems.value.length,
+    active: activeTab.value === 'tasks',
+    available: true,
+  },
+].filter((step) => step.available));
 
 // 页头快捷链（统一过 filterByRouteAccess，无权深链不渲染）。提异议 / 审计回放为消费方入口。
 const headerLinks = computed(() =>
@@ -113,10 +137,17 @@ async function quickResubmit(id: string) {
     <section class="panel">
       <PageFocusHeader title="领数据" :meta="headerMeta" :links="headerLinks" />
 
-      <p class="page-intro">
-        本页一站办理消费方「我的数据」：跟进我发起的共享申请进度、领取访问凭据与查看我的授权，
-        并办理审批通过后的数据交付——接口服务「查看授权」、文件资源「下载」、库表数据按「交换任务」送达。
-      </p>
+      <ol class="delivery-steps" aria-label="领数据进度">
+        <li
+          v-for="step in visibleSteps"
+          :key="step.key"
+          class="delivery-step"
+          :class="{ active: step.active }"
+        >
+          <span>{{ step.label }}</span>
+          <strong>{{ step.count }}</strong>
+        </li>
+      </ol>
 
       <!-- 三视图分栏：一个视图只回答一个问题。我的申请 / 我的授权对非申请人不渲染（无权 = 不可见）。 -->
       <nav class="view-tabs" aria-label="领数据视图">
@@ -155,9 +186,9 @@ async function quickResubmit(id: string) {
               <td>{{ it.submittedAt || '—' }}</td>
               <td class="table-actions">
                 <div class="table-actions-inner">
-                  <button type="button" class="gov-btn gov-btn-secondary" @click="viewRequest(it.id)">查看</button>
                   <button v-if="it.status === 'draft'" type="button" class="gov-btn gov-btn-primary" data-testid="quick-submit-draft" @click="quickSubmitDraft(it.id)">提交申请</button>
-                  <button v-if="it.status === 'need-fix'" type="button" class="gov-btn gov-btn-primary" @click="quickResubmit(it.id)">重新提交</button>
+                  <button v-else-if="it.status === 'need-fix'" type="button" class="gov-btn gov-btn-primary" @click="quickResubmit(it.id)">重新提交</button>
+                  <button v-else type="button" class="gov-btn gov-btn-secondary" @click="viewRequest(it.id)">查看进度</button>
                 </div>
               </td>
             </tr>
@@ -180,7 +211,7 @@ async function quickResubmit(id: string) {
                 <span v-if="it.isLegacyImport" class="origin-chip" title="来自旧平台历史导入">历史导入</span>
                 <span v-else class="origin-chip origin-chip--live">在产</span>
               </td>
-              <td class="table-actions"><button type="button" class="gov-btn gov-btn-secondary" @click="viewRequest(it.id)">查看凭据</button></td>
+              <td class="table-actions"><button type="button" class="gov-btn gov-btn-primary" @click="openCredential(it.id)">领取凭据</button></td>
             </tr>
           </tbody>
         </table>
@@ -231,7 +262,7 @@ async function quickResubmit(id: string) {
             </tr>
           </tbody>
         </table>
-        <p v-else-if="source === 'live'" class="focus-empty">暂无交付任务。</p>
+        <p v-else-if="source === 'live'" class="focus-empty">暂无交付任务。申请通过并生成交付后，这里会出现领取、下载或核对动作。</p>
         <p v-else class="focus-empty">等待数据装载……</p>
       </div>
     </section>
@@ -239,7 +270,38 @@ async function quickResubmit(id: string) {
 </template>
 
 <style scoped>
-.page-intro { margin: 8px 0 14px; font-size: 13px; line-height: 1.7; color: var(--b-muted, #5c6370); }
+.delivery-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+  margin: 8px 0 16px;
+  padding: 0;
+  list-style: none;
+}
+.delivery-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  background: #fff;
+  color: var(--b-muted, #5c6370);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.delivery-step.active {
+  border-color: var(--b-primary, #006be6);
+  background: #f2f7ff;
+  color: var(--b-neutral-text, #1a1d21);
+}
+.delivery-step strong {
+  font-size: 18px;
+  line-height: 1;
+  color: var(--b-primary, #006be6);
+}
 .view-tabs { display: flex; gap: 6px; margin: 4px 0 16px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
 .view-tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 16px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--b-muted, #5c6370); }
 .view-tab.active { color: var(--b-primary, #006be6); border-bottom-color: var(--b-primary, #006be6); font-weight: 600; }

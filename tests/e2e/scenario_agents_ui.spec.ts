@@ -43,7 +43,7 @@ test.describe('场景智能体 UI：智能体', () => {
     await expect(page.getByText('平台运维员可查看全部智能体，处理启停、授权和重载。')).toBeVisible();
     await expect(page.getByRole('button', { name: '重载' })).toBeVisible();
     await expect(page.getByRole('button', { name: '运行体检' })).toHaveCount(0);
-    await expect(page.getByRole('button', { name: '平台指南' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '平台助手' })).toHaveCount(0);
     await expect(page.getByRole('tab', { name: /A 类办事助手/ })).toBeVisible();
     await expect(page.getByRole('heading', { name: '数据发现副驾' })).toBeVisible();
 
@@ -99,21 +99,21 @@ test.describe('场景智能体 UI：智能体', () => {
   });
 });
 
-test.describe('平台指南悬浮问答', () => {
+test.describe('平台助手悬浮问答', () => {
   test.beforeEach(async ({ page }, testInfo) => {
     await skipUnlessBackend(page, testInfo);
     await page.goto('/');
     await waitAppReady(page);
   });
 
-  test('平台指南：AgentRuntime 开启时可完成真实问答往返', async ({ page }, testInfo) => {
+  test('平台助手：AgentRuntime 开启时可完成真实问答往返', async ({ page }, testInfo) => {
     test.setTimeout(240_000);
     await skipUnlessAgentRuntime(page, testInfo);
     await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/workbench');
 
-    await page.getByRole('button', { name: '平台指南' }).click();
-    await expect(page.getByRole('dialog', { name: '平台指南问答' })).toBeVisible();
+    await page.getByRole('button', { name: '平台助手' }).click();
+    await expect(page.getByRole('dialog', { name: '平台助手问答' })).toBeVisible();
 
     const input = page.locator('#guide-input');
     await expect(input).toBeVisible();
@@ -129,7 +129,7 @@ test.describe('平台指南悬浮问答', () => {
     await expect(answer).not.toHaveText('（无回复内容）');
   });
 
-  test('平台指南：后端错误不把内部运行时术语展示给客户', async ({ page }) => {
+  test('平台助手：后端错误不把内部运行时术语展示给客户', async ({ page }) => {
     await page.route('**/health', async (route) => {
       await route.fulfill({
         status: 200,
@@ -149,8 +149,8 @@ test.describe('平台指南悬浮问答', () => {
     await setRole(page, 'ROLE_SYSTEM');
     await gotoHash(page, '#/workbench');
 
-    await page.getByRole('button', { name: '平台指南' }).click();
-    await expect(page.getByRole('dialog', { name: '平台指南问答' })).toBeVisible();
+    await page.getByRole('button', { name: '平台助手' }).click();
+    await expect(page.getByRole('dialog', { name: '平台助手问答' })).toBeVisible();
     await page.locator('#guide-input').fill('本地部署后如何确认智能问答已开启？');
     await page.getByRole('button', { name: '发送' }).click();
 

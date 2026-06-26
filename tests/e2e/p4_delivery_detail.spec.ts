@@ -12,8 +12,10 @@ test.describe('P4 交付任务详情', () => {
 
   test('点击任务编号进入详情非占位', async ({ page }) => {
     await gotoHash(page, '#/delivery-exchange');
-    await expect(page.getByRole('heading', { name: '交付任务' })).toBeVisible();
-    const firstLink = page.locator('.focus-table tbody tr a').first();
+    await expect(page.getByRole('heading', { name: '领数据' })).toBeVisible();
+    await page.getByTestId('p4-view-tasks').click();
+    await expect(page.getByTestId('p4-pane-tasks')).toBeVisible();
+    const firstLink = page.getByTestId('p4-pane-tasks').locator('.focus-table tbody tr a').first();
     await expect(firstLink).toBeVisible();
     await firstLink.click();
     await page.waitForTimeout(800);

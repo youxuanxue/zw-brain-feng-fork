@@ -18,11 +18,23 @@ interface WorkbenchTodo {
   title: string;
   href?: string;
   // 行内自描述决策载荷（per-application 受理待办携带）；聚合背包待办无此字段。
-  action?: { capability?: string } | null;
+  action?: {
+    kind?: string;
+    capability?: string;
+    items?: Array<{ capability?: string }>;
+  } | null;
 }
 
 function isInline(t: WorkbenchTodo): boolean {
   return !!t.action && typeof t.action === 'object';
+}
+
+function hasDecisionCapability(t: WorkbenchTodo): boolean {
+  if (!t.action) return false;
+  if (t.action.kind === 'decision-list') {
+    return (t.action.items ?? []).length > 0 && (t.action.items ?? []).every((item) => Boolean(item.capability));
+  }
+  return Boolean(t.action.capability);
 }
 
 async function fetchWorkbench(
@@ -72,7 +84,7 @@ test.describe('业务运营员工作台 · 待办零死端（行内办理 + 深�
       expect(String(t.href).startsWith('#/'), `todo href is a hash route: ${t.href}`).toBeTruthy();
     }
     for (const t of inline) {
-      expect(t.action!.capability, `inline todo ${t.title} must carry a decision capability`).toBeTruthy();
+      expect(hasDecisionCapability(t), `inline todo ${t.title} must carry a decision capability`).toBeTruthy();
     }
 
     await setRole(page, 'ROLE_BUSIAUDIT');

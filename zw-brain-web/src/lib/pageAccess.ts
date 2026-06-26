@@ -46,8 +46,9 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
     roles: ['ROLE_BUSIAUDIT', 'ROLE_ORGAN_MANAGER'],
     redirectIfDenied: '/workbench',
   },
-  // /request-flow/request：申请人申请详情 + 补录（P3RequestDetail）—— 申请人=操作员/管理员。
-  { prefix: '/request-flow/request', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'], redirectIfDenied: '/delivery-exchange' },
+  // /request-flow/request：申请人申请详情 + 补录（P3RequestDetail）；业务运营员也需进同一详情面
+  // 执行已授权申请的合规收回 / 暂停（按钮再由 action gate 控制，无权 = 不可见）。
+  { prefix: '/request-flow/request', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'], redirectIfDenied: '/delivery-exchange' },
   // /request-flow/objection：消费方「我的异议」收件箱/详情/发起（P3ObjectionInbox/Detail/New）。
   // 页面不在路由层 gate（仅 page 内 canSubmit/canEvaluate/canClose 按 action 门控写动作），
   // 沿用原 request-flow shell 消费方角色集 [OPERATER,MANAGER,BUSIAUDIT]——三者皆可查看自己的

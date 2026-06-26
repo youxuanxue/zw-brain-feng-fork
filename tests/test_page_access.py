@@ -90,7 +90,7 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     ("/request-flow/review", frozenset({"ROLE_BUSIAUDIT", "ROLE_ORGAN_MANAGER"}), "/workbench"),
     (
         "/request-flow/request",
-        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
         "/delivery-exchange",
     ),
     (

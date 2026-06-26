@@ -4,7 +4,7 @@ import { getProductRole } from './useProductRole';
 import { newRequestId } from './useApiClient';
 import { apiUrl } from './useApiBase';
 
-// 通用 Agent 对话引擎：「POST 提交任务 → 轮询到终端态」。任何内置 Agent（平台指南副驾、
+// 通用 Agent 对话引擎：「POST 提交任务 → 轮询到终端态」。任何内置 Agent（平台助手、
 // 找数副驾、智能体工作台…）共用本引擎，只需传 agentId。角色取当前产品角色（顶部岗位切换），
 // 后端按该角色对 Agent 绑定的能力做权限门控（无权时任务侧返错，本引擎透传错误文案）。
 
@@ -71,7 +71,7 @@ export function sanitizeAssistantText(text: string): string {
     .replace(/\bagent[_-]?runtime[_-]?not[_-]?found\b/gi, '当前助手暂不可用')
     .replace(/\bAgentRuntime\b/g, '智能助手')
     .replace(/\bAgent Runtime\b/g, '智能助手')
-    .replace(/平台指南\s*Agent/g, '平台指南')
+    .replace(/平台指南\s*Agent/g, '平台助手')
     .replace(/Agent\s*列表接口/g, '助手列表接口')
     .replace(/可用的\s*Agent/g, '可用助手')
     .replace(/等\s*Agent/g, '等助手');

@@ -83,11 +83,10 @@ def test_orphaned_subroutes_keep_correct_roles() -> None:
     # 申请人（操作员）不能进 reviewer 决策详情。
     assert not _is_route_allowed("/request-flow/review/abc", "ROLE_ORGAN_OPERATER")
 
-    # /request-flow/request：申请人详情 + 补录 —— 操作员/管理员。
+    # /request-flow/request：申请人详情 + 补录；业务运营员在同一详情面处理授权收回/暂停。
     assert _is_route_allowed("/request-flow/request/abc", "ROLE_ORGAN_OPERATER")
     assert _is_route_allowed("/request-flow/request/abc", "ROLE_ORGAN_MANAGER")
-    # 业务运营员（受理岗，非申请人）不进申请人详情。
-    assert not _is_route_allowed("/request-flow/request/abc", "ROLE_BUSIAUDIT")
+    assert _is_route_allowed("/request-flow/request/abc", "ROLE_BUSIAUDIT")
 
     # /request-flow/objection（含 /new、/:id）：消费方我的异议 —— 操作员/管理员/业务运营员。
     for sub in ("/request-flow/objection", "/request-flow/objection/new", "/request-flow/objection/xyz"):
