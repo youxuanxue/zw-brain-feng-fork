@@ -211,6 +211,65 @@ def test_operater_snapshot_includes_registered_api_services(brain: BrainService)
     assert svc["lifecycle_status"] == "draft"
 
 
+def test_unlinked_api_proxy_service_has_resource_detail(brain: BrainService) -> None:
+    """生产回归：代理服务列表可见但未关联目录时，详情仍应按资源资产本体可查看。
+
+    截图中的 API 代理服务显示“未关联”。旧逻辑只有 asset.catalog_code 能解析到 catalog_entry
+    才返回详情，未关联服务从列表点进 /provider/resource/:id 后必 404，前端显示“未命名资源”。
+    """
+    resource_code = "j2-api-proxy-unlinked-001"
+    invoke_trusted(
+        brain,
+        "resource.api.register",
+        {
+            "resource_code": resource_code,
+            "title": "未关联目录的代理服务",
+            "resource_kind": "api",
+            "summary_json": {
+                "description": "面向养老服务场景提供基础信息查询能力",
+                "source_system": "养老服务平台",
+            },
+            "channel_binding": {
+                "binding_code": f"{resource_code}#proxy",
+                "channel_kind": "api_gateway",
+                "route_ref": "/proxy/pension/basic",
+                "endpoint_ref": {
+                    "proxy_url": "https://example.invalid/pension/basic",
+                    "api_type": "rest",
+                    "http_method": "GET",
+                },
+                "lifecycle_status": "draft",
+            },
+            "confirmed": True,
+        },
+        role="ROLE_ORGAN_OPERATER",
+        snapshot=actor_snapshot("ROLE_ORGAN_OPERATER", org_code=SEED_ORG),
+    )
+
+    snap = _dept_snapshot(brain, "ROLE_ORGAN_OPERATER")
+    services = snap["provider"]["services"]
+    assert any(s["id"] == resource_code and not s["catalog_code"] for s in services)
+
+    detail = invoke_trusted(
+        brain,
+        "catalog.resource_view",
+        {"resource_id": resource_code},
+        role="ROLE_ORGAN_OPERATER",
+        snapshot=actor_snapshot("ROLE_ORGAN_OPERATER", org_code=SEED_ORG),
+    )
+    result = detail["result"] if isinstance(detail, dict) and "result" in detail else detail
+    assert result["id"] == resource_code
+    assert result["name"] == "未关联目录的代理服务"
+    assert result["lifecycleStatus"] == "draft"
+    assert result["resourceKind"] == "api"
+    assert result["catalogMeta"] == {}
+    typed = result["typedDetail"]
+    assert typed["kind"] == "api"
+    rows = {row["label"]: row["value"] for row in typed["sections"][0]["rows"]}
+    assert rows["服务地址"] == "/proxy/pension/basic"
+    assert result["repository"]["canonicalType"] == "resource_asset"
+
+
 def test_operater_snapshot_includes_datasource_endpoints(temp_db: str) -> None:
     """PR #340：数据源管理/反向编目/挂接 = 操作员供数主线，snapshot 须带 datasource_endpoints。"""
     from zw_brain.domain.repositories.datasource_endpoint import DatasourceEndpointRepository

@@ -19,6 +19,7 @@ from zw_brain.domain.serializers import metadata as metadata_ser
 from zw_brain.domain.serializers import resource_api as resource_api_ser
 from zw_brain.domain.serializers import topic_package as topic_package_ser
 from zw_brain.domain.serializers import typed_resource_detail as typed_resource_detail_ser
+from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
 from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sensitive_mask import mask_default as _mask
@@ -73,6 +74,37 @@ def _readable_domain(*candidates: Any) -> str | None:
         if s and not re.fullmatch(r"[\d,\s]+", s):
             return s
     return None
+
+
+def _region_label(region_code: Any) -> str | None:
+    text = str(region_code or "").strip()
+    if not text:
+        return None
+    if text.startswith("370000"):
+        return "山东省"
+    return text
+
+
+def _empty_mapping_summary() -> dict[str, Any]:
+    return {
+        "total": 0,
+        "active": 0,
+        "missing": 0,
+        "conflicted": 0,
+        "inactive": 0,
+        "diagnosis": "missing_mapping",
+    }
+
+
+def _empty_reuse_gap_hint() -> dict[str, Any]:
+    return {
+        "reusable": False,
+        "readyFieldCount": 0,
+        "gapFields": [],
+        "message": "已有字段证据可复用，申请时只选择本次确需字段。",
+    }
+
+
 # 信息资源格式码 → 物化形态 kind（与 resource_asset.resource_kind / ResourceCard 徽标同口径）。
 # 资源类型收敛为「库表 / 文件 / API」（D53）：结构化/库表→table；文件→file；接口→api。
 # 文件夹(0320)/链接(0500) 不再单列物化类型，折叠为 file（与归一化闸门 folder/url→file 一致）。
@@ -429,6 +461,99 @@ class CatalogService:
         }
         detail["explain"] = self.explain(detail, fields, mappings["summary"])
         detail["nextHints"] = self.next_hints(fields, mappings["summary"])
+
+    def resource_asset_detail(self, asset: Any, store: Any) -> dict[str, Any]:
+        """Resource asset detail for assets that are not backed by a catalog entry.
+
+        API proxy registration allows ``catalog_code`` to be omitted. Provider lists
+        still show that asset, so ``catalog.resource_view`` must be able to render
+        the resource itself instead of requiring a parent ``catalog_entry``.
+        """
+        asset_dict = resource_api_ser.resource_asset_to_dict(asset)
+        resource_code = str(asset_dict["resource_code"])
+        summary = asset_dict.get("summary_json") if isinstance(asset_dict.get("summary_json"), dict) else {}
+        body = self.summary_body(summary)
+        access_policy = (
+            asset_dict.get("access_policy_json")
+            if isinstance(asset_dict.get("access_policy_json"), dict)
+            else {}
+        )
+        bindings = [
+            resource_api_ser.binding_to_dict(record)
+            for record in store.resource_api_repo.list_bindings(
+                resource_code=resource_code, tenant_id=_DEFAULT_TENANT_ID
+            )
+        ]
+        legacy_refs = legacy_mapping_refs(
+            store,
+            "resource_asset",
+            resource_code,
+        )
+        legacy_refs.extend(
+            legacy_mapping_refs(
+                store,
+                "resource_channel_binding",
+                [item["binding_code"] for item in bindings],
+            )
+        )
+        desc = str(
+            body.get("desc")
+            or body.get("description")
+            or body.get("resource_desc")
+            or body.get("source_system")
+            or ""
+        )
+        fields = body.get("fields") if isinstance(body.get("fields"), list) else []
+        return {
+            "id": resource_code,
+            "name": asset_dict.get("title") or resource_code,
+            "status": asset_dict.get("lifecycle_label"),
+            "lifecycleStatus": asset_dict.get("lifecycle_status"),
+            "provider": self.provider_display_name(asset, access_policy),
+            "zone": _region_label(asset_dict.get("region_code")) or "",
+            "updatedAt": asset.updated_at.date().isoformat() if getattr(asset, "updated_at", None) else "",
+            "coverage": "",
+            "score": 0,
+            "desc": desc,
+            "fields": fields,
+            "explain": [
+                "来源：提供方注册的资源资产",
+                f"提供方：{self.provider_display_name(asset, access_policy) or '—'}",
+            ],
+            "nextHints": [],
+            "kind": "resource_asset",
+            "materializationKind": canonical_resource_kind(asset_dict.get("resource_kind")),
+            "regionCode": asset_dict.get("region_code"),
+            "accessPolicy": self.access_policy(access_policy, asset),
+            "catalogMeta": {},
+            "sensitivePolicy": self.sensitive_policy([]),
+            "reuseGapHint": _empty_reuse_gap_hint(),
+            "focusedResourceCode": resource_code,
+            "resourceKind": canonical_resource_kind(asset_dict.get("resource_kind")),
+            "resourceBindings": bindings,
+            "typedDetail": typed_resource_detail_ser.typed_resource_detail(
+                resource_kind=asset_dict.get("resource_kind"),
+                bindings=bindings,
+                summary=summary,
+            ),
+            "resourceAssets": [asset_dict],
+            "catalogFields": [],
+            "fieldBindings": [],
+            "fieldBindingSummary": _empty_mapping_summary(),
+            "schemaSnapshots": [],
+            "legacyMappings": legacy_refs,
+            "repository": {
+                "catalogCode": asset_dict.get("catalog_code") or "",
+                "canonicalType": "resource_asset",
+                "resourceCode": resource_code,
+                "ownerOrgId": asset_dict.get("owner_org_id"),
+                "regionCode": asset_dict.get("region_code"),
+                "lifecycleStatus": asset_dict.get("lifecycle_status"),
+                "legacyMappingCount": len(legacy_refs),
+                "resourceCount": 1,
+                "schemaSnapshotCount": 0,
+            },
+        }
 
     def field_dicts(
         self, catalog_code: str, store: Any, *, context: Any | None = None

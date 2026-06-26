@@ -297,12 +297,14 @@ def _get_resource(brain, deps, ctx, resource_id: str, *, context: _RequestBatchC
         deps.services.catalog.enrich_detail(detail, record, store, context=context)
         return detail
     asset = deps.repos.resource_api.get_asset(resource_id, tenant_id=_DEFAULT_TENANT_ID)
-    if asset is not None and asset.catalog_code:
-        record = deps.repos.catalog.get_entry(asset.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
-        if record is not None:
-            detail = deps.services.catalog.record_to_card_dict(record)
-            deps.services.catalog.enrich_detail(detail, record, store, focused_resource_code=asset.resource_code, context=context)
-            return detail
+    if asset is not None:
+        if asset.catalog_code:
+            record = deps.repos.catalog.get_entry(asset.catalog_code, tenant_id=_DEFAULT_TENANT_ID)
+            if record is not None:
+                detail = deps.services.catalog.record_to_card_dict(record)
+                deps.services.catalog.enrich_detail(detail, record, store, focused_resource_code=asset.resource_code, context=context)
+                return detail
+        return deps.services.catalog.resource_asset_detail(asset, store)
     if snapshot_miss:
         raise NotFoundError(resource_id)
     return resource
