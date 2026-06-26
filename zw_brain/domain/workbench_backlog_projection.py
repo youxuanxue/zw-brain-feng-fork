@@ -165,6 +165,31 @@ def _org_provider_visible_request_ids(tenant_id: str, visible_org_codes: set[str
     return visible
 
 
+def _actor_visible_request_ids(
+    tenant_id: str, visible_org_codes: set[str] | None, *, caller_actor: str | None
+) -> set[str]:
+    """Request ids owned by the current actor for operator progress cards.
+
+    Live operator workbench cards deep-link to "我的申请", so their counts must
+    use the same personal ownership scope. Tests and offline callers that do not
+    carry an actor keep the historical org/global projection behavior.
+    """
+    if caller_actor is None:
+        return _org_visible_request_ids(tenant_id, visible_org_codes)
+    if visible_org_codes is not None and not visible_org_codes:
+        return set()
+    actor = str(caller_actor or "").strip()
+    if not actor:
+        return set()
+    visible: set[str] = set()
+    for record in ApplicationRepository().list_records(tenant_id=tenant_id):
+        payload = record.payload_json or {}
+        rid = str(payload.get("id") or "")
+        if rid and str(payload.get("applicant") or "") == actor:
+            visible.add(rid)
+    return visible
+
+
 def _drop_unscoped_request_todos(
     todos: list[dict[str, Any]], *, categories: frozenset[str], scoped_ids: set[str]
 ) -> list[dict[str, Any]]:
@@ -1054,8 +1079,8 @@ def enrich_workbench_backlog(
     tid = tenant_id or get_runtime_tenant_id()
     # M8 部门隔离：仅部门管理员审核待办计数按 visible_org_codes 收口到本机构可见域；
     # 平台队列（BUSIAUDIT 待平台审核/待发布/待受理/待汇总）保持全局，不消费 visible_org_codes。
-    # 「第七面」收口：部门管理员/操作员的申请待办（sync_request_todos 平行路径）按本机构可见域
-    # 收口；管理员 review 用 provider-only，summary/操作员进度仍用申请方∨提供方参与口径。
+    # 「第七面」收口：部门管理员 review 用 provider-only，summary 用申请方∨提供方参与口径；
+    # 操作员申请进度在 live actor 存在时按本人申请收口，使工作台计数与深链「我的申请」同口径。
     if role == _MANAGER_ROLE:
         return _enrich_manager_backlog(
             view, tid, visible_org_codes=visible_org_codes,
@@ -1063,11 +1088,9 @@ def enrich_workbench_backlog(
             org_visible_request_ids=_org_visible_request_ids(tid, visible_org_codes),
         )
     if role == "ROLE_ORGAN_OPERATER":
-        # 操作员申请进度=个人视图：并入 caller_actor 的「我的申请」逃生口（D61③），本人提的单
-        # 恒进待办、不被部门 org 过滤丢弃。管理员审核路径不传 caller_actor（审核是供方 org-scope）。
         return _enrich_operator_backlog(
             view,
-            org_visible_request_ids=_org_visible_request_ids(
+            org_visible_request_ids=_actor_visible_request_ids(
                 tid, visible_org_codes, caller_actor=caller_actor
             ),
         )

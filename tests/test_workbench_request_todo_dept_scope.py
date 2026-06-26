@@ -213,9 +213,7 @@ def test_manager_review_todos_fallback_to_resource_owner_when_payload_provider_m
     assert "APP-LEGACY-B" not in ids, "资源 owner 在别部门时不能因 applicant 在本部门而泄漏"
 
 
-# ── 部门操作员：申请进度/补录待办按本机构可见域收口（D61 裁决②，同 MANAGER + 快照 requests 面）─
-# 注：裁决③「我的申请按个人」由 requests 面 mine 标记承载（与 #294 一致）——当前 actor 是 role 级
-# 身份（user:gov:<role>:*），按个人 drop 在跨部门操作员间无隔离效果，dept-scope 才真隔离。
+# ── 部门操作员：live actor 存在时按「我的申请」收口；无 actor 的离线投影保留机构/全局口径 ─
 def _operator_view() -> dict:
     return {
         "todos": [
@@ -240,6 +238,22 @@ def test_operator_progress_todos_scoped_to_visible_org(temp_db: None) -> None:
     active = _card(out, "my-active-applications")
     assert active is not None and active["title"] == "申请在办 1 条", "本机构申请在办计入、别部门收口剔除（D61②）"
     assert _card(out, "my-supplement-tasks") is not None, "本机构补录待办保留"
+
+
+def test_operator_progress_todos_scope_to_actor_when_present(temp_db: None) -> None:
+    _seed_app("APP-MINE", org=ORG_A, applicant="alice", status="pending")
+    _seed_app("APP-OTHER", org=ORG_A, applicant="bob", status="pending")
+    out = enrich_workbench_backlog(
+        _operator_view(),
+        OPERATER,
+        tenant_id=TENANT,
+        visible_org_codes={ORG_A},
+        caller_actor="alice",
+    )
+    active = _card(out, "my-active-applications")
+    assert active is not None and active["title"] == "申请在办 1 条", "工作台在办计数应与深链「我的申请」同口径"
+    supplement = _card(out, "my-supplement-tasks")
+    assert supplement is not None and supplement["title"] == "补录任务待完成 1 条"
 
 
 def test_operator_progress_todos_fail_closed_on_empty_visible(temp_db: None) -> None:

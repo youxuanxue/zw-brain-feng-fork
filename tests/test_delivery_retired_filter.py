@@ -19,6 +19,7 @@ from zw_brain.domain.services.delivery_service import (
     _delivery_fallback_name,
     delivery_record_hidden_from_consumer,
     delivery_record_is_retired_origin,
+    effective_delivery_status,
 )
 
 pytestmark = pytest.mark.no_db
@@ -93,3 +94,13 @@ def test_fallback_name_org_only():
 
 def test_fallback_name_empty_payload():
     assert _delivery_fallback_name({}) == "数据交付任务"
+
+
+def test_effective_status_uses_issued_grant_fact():
+    task = {"status": "pending", "accessGrantSnapshot": {"issued_audit_id": "AUD-1"}, "receipts": []}
+    assert effective_delivery_status(task) == "issued"
+
+
+def test_effective_status_uses_latest_issued_receipt():
+    task = {"status": "pending", "receipts": [{"receiptStatus": "issued"}]}
+    assert effective_delivery_status(task) == "issued"

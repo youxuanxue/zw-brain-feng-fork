@@ -74,6 +74,22 @@ def delivery_record_hidden_from_consumer(record: Any, retired_codes: set[str]) -
     return str(getattr(record, "state", "") or "").strip().lower() == "draft"
 
 
+def effective_delivery_status(task: dict[str, Any]) -> str:
+    """Consumer-facing delivery status from the same facts detail pages use."""
+    receipts = task.get("receipts")
+    latest_receipt = receipts[-1] if isinstance(receipts, list) and receipts else {}
+    access = task.get("accessGrantSnapshot")
+    if not isinstance(access, dict):
+        access = task.get("access_grant_snapshot")
+    if not isinstance(access, dict):
+        access = {}
+    if access.get("issued_audit_id"):
+        return "issued"
+    if isinstance(latest_receipt, dict) and str(latest_receipt.get("receiptStatus") or "") == "issued":
+        return "issued"
+    return str(task.get("status") or "")
+
+
 # 缺资源名（上游 D11 不伪造）时的可读兜底：用真实 access_grant 字段拼标签，不暴露 hex 交付编号。
 _DELIVERY_KIND_LABELS = {"table": "库表", "file": "文件", "api": "接口服务"}
 
@@ -120,8 +136,14 @@ class DeliveryService:
         if record is None:
             return None
         payload = record.payload_json or {}
-        grant = _mask(copy.deepcopy(payload.get("access_grant") or {}))
-        return {
+        grant_source = (
+            payload.get("accessGrantSnapshot")
+            or payload.get("access_grant_snapshot")
+            or payload.get("access_grant")
+            or {}
+        )
+        grant = _mask(copy.deepcopy(grant_source))
+        task = {
             "id": record.delivery_code,
             "requestId": record.application_code,
             # F2：resource_name 缺供（上游 D11 不伪造资源名）时退可读兜底标签，不再把 hex 编号
@@ -164,6 +186,8 @@ class DeliveryService:
             # （修真 bug：旧实现该路径产出的 task 无 receipts 键，前端拿不到回执）。
             "receipts": self.receipts_for(store.delivery_repo, record.delivery_code),
         }
+        task["status"] = effective_delivery_status(task)
+        return task
 
     @staticmethod
     def receipts_for(delivery_repo: Any, delivery_code: str) -> list[dict[str, Any]]:

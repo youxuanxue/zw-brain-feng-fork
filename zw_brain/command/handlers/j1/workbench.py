@@ -14,7 +14,7 @@ from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.services.reference_service import ReferenceService
 from zw_brain.domain.workbench_backlog_projection import enrich_workbench_backlog
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-from zw_brain.shared.session_context import caller_org_code
+from zw_brain.shared.session_context import caller_org_code, org_codes_for_role
 
 # ──────────────────────────────────────────────────────────────────────────
 # Migrated method bodies
@@ -47,25 +47,17 @@ def _session_greeting(payload: dict[str, Any]) -> str:
 
 def _visible_org_codes_for_workbench(payload: dict[str, Any], role: str, tenant_id: str) -> set[str] | None:
     ref = ReferenceService()
-    base = ref.visible_org_codes(caller_org_code(payload), role, tenant_id=tenant_id)
-    if base is None:
-        return None
-    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
-    contexts = snapshot.get("available_contexts") if isinstance(snapshot.get("available_contexts"), list) else []
-    role_orgs = {
-        str(item.get("org_code") or "")
-        for item in contexts
-        if isinstance(item, dict) and str(item.get("role_code") or "") == role and str(item.get("org_code") or "")
-    }
-    if not role_orgs:
-        return base
-    visible: set[str] = set()
-    for org_code in role_orgs:
-        scoped = ref.visible_org_codes(org_code, role, tenant_id=tenant_id)
-        if scoped is None:
-            return None
-        visible.update(scoped)
-    return visible
+    if role == "ROLE_ORGAN_MANAGER":
+        roots = org_codes_for_role(payload, role)
+        if roots:
+            visible: set[str] = set()
+            for root in roots:
+                scoped = ref.visible_org_codes(root, role, tenant_id=tenant_id)
+                if scoped is None:
+                    return None
+                visible.update(scoped)
+            return visible
+    return ref.visible_org_codes(caller_org_code(payload), role, tenant_id=tenant_id)
 
 
 def _get_workbench(brain, deps, ctx, role: str, payload: dict[str, Any]) -> dict[str, Any]:

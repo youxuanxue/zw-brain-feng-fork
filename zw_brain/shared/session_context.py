@@ -236,3 +236,28 @@ def caller_org_code(payload: dict[str, Any]) -> str:
         or snapshot.get("org_code")
         or ""
     )
+
+
+def org_codes_for_role(payload: dict[str, Any], role: str) -> set[str]:
+    """Return trusted session org codes for a held product role.
+
+    Browser BFF calls stamp ``actor_snapshot.available_contexts`` from live IAM
+    bindings. Client supplied JSON on non-BFF paths cannot set the trust marker,
+    so this helper only widens the current org for trusted session payloads.
+    """
+    if not is_trusted_session_payload(payload):
+        current = caller_org_code(payload)
+        return {current} if current else set()
+    snapshot = payload.get("actor_snapshot") if isinstance(payload.get("actor_snapshot"), dict) else {}
+    contexts = snapshot.get("available_contexts")
+    if not isinstance(contexts, list):
+        current = caller_org_code(payload)
+        return {current} if current else set()
+    role_code = str(role or "")
+    orgs = {
+        str(item.get("org_code") or "")
+        for item in contexts
+        if isinstance(item, dict) and str(item.get("role_code") or "") == role_code
+    }
+    orgs.discard("")
+    return orgs

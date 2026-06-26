@@ -126,6 +126,7 @@ class ConditionalApprovalService:
         confirmed: bool,
         *,
         actor_org_code: str,
+        actor_org_codes: set[str] | None = None,
         actor: str,
         decision: str,
         note: str = "",
@@ -149,7 +150,10 @@ class ConditionalApprovalService:
         # Scenario 6: 申请人本人不能审批自己的申请（policy reject + audit）
         policy.enforce_self_approval_guard(applicant_actor, actor)
         # Scenario 5: 提供方部门外的 ORGAN_MANAGER 不能审批此申请（R11 方向）
-        policy.enforce_dept_approval_direction(owner_org, actor_org_code)
+        allowed_orgs = set(actor_org_codes or ({actor_org_code} if actor_org_code else set()))
+        if owner_org not in allowed_orgs:
+            policy.enforce_dept_approval_direction(owner_org, actor_org_code)
+        approve_org_code = owner_org if owner_org in allowed_orgs else actor_org_code
 
         target = STATUS_GRANTED if decision == "approve" else STATUS_REJECTED
         assert_legal_transition(record.status, target)
@@ -167,7 +171,7 @@ class ConditionalApprovalService:
                 actor_role=role,
                 approver_scope={
                     "owner_org_code": owner_org,
-                    "approve_org_code": actor_org_code,
+                    "approve_org_code": approve_org_code,
                     "approve_org_name": approve_org_name,
                 },
                 skill_id=skill_id,
@@ -177,7 +181,7 @@ class ConditionalApprovalService:
             )
             new_payload = dict(payload)
             new_payload["dept_approver_id"] = actor
-            new_payload["dept_approver_org_code"] = actor_org_code
+            new_payload["dept_approver_org_code"] = approve_org_code
             new_payload["dept_decided_at"] = audit_id  # audit_id is timestamp-derived in pipeline; kept as decision marker
             new_payload["dept_decision"] = decision
             new_payload["dept_decision_note"] = note

@@ -42,6 +42,9 @@ from zw_brain.domain.services.delivery_service import (
 from zw_brain.domain.services.delivery_service import (
     delivery_record_hidden_from_consumer as _delivery_record_hidden_from_consumer,
 )
+from zw_brain.domain.services.delivery_service import (
+    effective_delivery_status as _effective_delivery_status,
+)
 from zw_brain.shared import ids, queue
 from zw_brain.shared.auth_context import get_auth_context
 from zw_brain.shared.runtime_config import get_dev_iam_bypass_enabled
@@ -638,10 +641,12 @@ class BrainService:
             task["receipts"] = self._get_handler_deps().services.delivery.receipts_for(
                 store.delivery_repo, record.delivery_code
             )
+            task["status"] = _effective_delivery_status(task)
             tasks.append(task)
         for record in legacy_records:
             task = self._delivery_task_from_record(record.delivery_code, store, record=record)
             if task is not None:
+                task["status"] = _effective_delivery_status(task)
                 tasks.append(task)
         return tasks
 

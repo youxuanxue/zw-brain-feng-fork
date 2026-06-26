@@ -12,8 +12,11 @@ from zw_brain.command.brain import _DEFAULT_TENANT_ID, BrainServiceError, NotFou
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain.errors import AccessDeniedError
 from zw_brain.domain.serializers.legacy_mapping import legacy_mapping_refs
+from zw_brain.domain.services.reference_service import ReferenceService
+from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 from zw_brain.shared.sensitive_mask import mask_actor_payload
 from zw_brain.shared.session_context import caller_org_code as _caller_org_code_from_payload
+from zw_brain.shared.session_context import org_codes_for_role as _org_codes_for_role
 
 # j1-approval-conditional 第二级部门审核的可信角色门控（R-001 fix；D55/P21 后为第二级）：
 # application.dept_approve.execute 的 PERMISSION_ROLES 含 OPERATER 仅为 resubmit（申请人补件
@@ -142,6 +145,19 @@ def _actor_org_code(ctx: SkillContext, payload: dict[str, Any]) -> str:
     return _caller_org_code_from_payload(payload)
 
 
+def _manager_approval_org_codes(payload: dict[str, Any], current_org_code: str) -> set[str]:
+    """All org codes this trusted session can use as a department manager."""
+    tenant_id = str(payload.get("tenant_id") or get_runtime_tenant_id())
+    ref = ReferenceService()
+    roots = _org_codes_for_role(payload, ROLE_ORGAN_MANAGER) or ({current_org_code} if current_org_code else set())
+    visible: set[str] = set()
+    for root in roots:
+        scoped = ref.visible_org_codes(root, ROLE_ORGAN_MANAGER, tenant_id=tenant_id)
+        if scoped:
+            visible.update(scoped)
+    return visible
+
+
 def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, payload: dict[str, Any]) -> Any:
     """J1 有条件共享第二级（D55/P21）：部门管理员审核终审（dept_approved → granted / rejected）。
 
@@ -170,6 +186,7 @@ def handler_application_dept_approve(deps: HandlerDeps, ctx: SkillContext, paylo
         role,
         confirmed,
         actor_org_code=actor_org,
+        actor_org_codes=_manager_approval_org_codes(payload, actor_org),
         actor=ctx.actor,
         decision=decision,
         note=str(payload.get("note") or payload.get("reason") or ""),
