@@ -11,7 +11,7 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from
  *     本组只断言领数据无受理/审核 tab、不重测行内办理。
  *   - 缺陷 2：业务运营员工作台待办 = 待发布目录/资源 + 待受理申请/异议 + 待汇总需求（发布/受理/汇总
  *     真实职责；审核类属部门管理员、不入此台 — E2 / 0605 反馈 6.4#11 + D53）。
- *   - 缺陷 3：用途脏值（测试 / 167）不裸奔在需方视图；供方数据质量队列计数正确。
+ *   - 缺陷 3：用途脏值（测试 / 167）不裸奔在需方视图，也不伪装成供数据页待办。
  *
  * IA 重构（拆「办申请」）：消费方「我的申请 / 我的授权」由原 P3「办共享申请」列表页归并到
  *   领数据 P4Delivery（#/delivery-exchange，testid 由 p3-* 迁 p4-*）；列表根 #/request-flow 重定向至此。
@@ -107,35 +107,26 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
     for (const wrong of ['ledger.entity.base.read', 'capability', 'projection', '待审核']) {
       expect(todoTitles.join(' ')).not.toContain(wrong);
     }
-    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 汇总 + 平台审，白话动宾）。
+    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 汇总 / 转报 + 平台审，白话动宾）。
     // 机制单源 = 后端 workbench_backlog_projection（真实库现算）：待发布目录/资源、待受理申请/异议、
-    // 待汇总需求（E2 / 0605 反馈 6.4#11 + D53）+ 待平台审核目录（D57⑧ 两级各自入账）。
-    const allowed = ['待发布', '待受理', '待汇总', '待平台审核'];
+    // 待汇总需求（E2 / 0605 反馈 6.4#11 + D53）+ 待平台审核目录（D57⑧ 两级各自入账）
+    // + 国家通道待转报（D50/C9）。
+    const allowed = ['待发布', '待受理', '待汇总', '待平台审核', '待转报'];
     for (const title of todoTitles) {
-      expect(allowed.some((a) => title.includes(a)), `工作台待办「${title}」应属发布/受理/汇总职责`).toBeTruthy();
+      expect(allowed.some((a) => title.includes(a)), `工作台待办「${title}」应属发布/受理/汇总/转报职责`).toBeTruthy();
     }
   });
 
-  test('缺陷3 — 供方数据质量队列仅业务运营员可见（无权=不可见）', async ({ page }) => {
-    // 操作员：数据质量队列不渲染。
+  test('缺陷3 — 供数据页不再渲染用途补全待办队列', async ({ page }) => {
+    // 操作员：无此队列。
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/provider');
     await expect(page.getByTestId('data-quality-queue')).toHaveCount(0);
 
-    // 业务运营员：数据质量队列渲染，计数与真实脏单一致（≥ 截图实证的脏单数）。
+    // 业务运营员：历史导入脏用途不再投成供数据页待办；用途补正应回到原申请链路或离线清洗。
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/provider');
-    const queue = page.getByTestId('data-quality-queue');
-    await expect(queue).toBeVisible();
-    const countText = await page.getByTestId('data-quality-count').innerText();
-    const count = parseInt(countText.replace(/[^0-9]/g, ''), 10) || 0;
-    // 截图实证脏值集合 ≥ 1（测试 / 167 / 169,167 / 空）。真实库非空时应 ≥ 1。
-    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_BUSIAUDIT`);
-    if (snap.ok()) {
-      const body = (await snap.json()) as Record<string, unknown>;
-      const reqs = (body.requests ?? []) as Array<Record<string, unknown>>;
-      const dirty = reqs.filter((r) => r.purposeDirty === true).length;
-      expect(count).toBe(dirty);
-    }
+    await expect(page.getByTestId('data-quality-queue')).toHaveCount(0);
+    await expect(page.getByText('待补全的申请用途')).toHaveCount(0);
   });
 });

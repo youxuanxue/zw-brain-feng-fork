@@ -8,22 +8,12 @@ import {
   providerCatalogSummary,
   providerResourceSummary,
 } from '@/lib/providerProjection';
-import { supplierDataQualityRows } from '@/lib/roleProjection';
-import { canPerformAction, filterByRouteAccess, isRouteAllowedForRole } from '@/lib/pageAccess';
+import { filterByRouteAccess, isRouteAllowedForRole } from '@/lib/pageAccess';
 import { canCompileNationalExtElem, canViewProviderAssets } from '@/lib/requestFlowRoles';
 
 const provider = useProvider();
-const { source, data: snapshot } = useSnapshot();
+const { source } = useSnapshot();
 const role = getProductRole();
-
-// 缺陷 3：用途脏值的真实导入单 = 供方数据质量待办（不是需方噪音）。
-// 仅业务运营员（数据质量 owner）可见；其余岗位完全不渲染（无权=不可见）。
-// R-014：走 canPerformAction chokepoint（provider.data_quality.view gate），不在
-// page 内硬编码 role 比对。
-const canSeeDataQuality = computed(() => canPerformAction('provider.data_quality.view', role.value));
-const dataQualityRows = computed(() =>
-  canSeeDataQuality.value ? supplierDataQualityRows(snapshot.value) : [],
-);
 
 const counts = computed(() => providerTodoCounts(provider.value as Record<string, unknown>));
 
@@ -155,30 +145,7 @@ const providerHeaderLinks = computed(() => {
         </div>
       </section>
 
-      <section
-        v-if="source === 'live' && canSeeDataQuality"
-        class="publish-card"
-        aria-label="数据质量待补全"
-        data-testid="data-quality-queue"
-      >
-        <header class="publish-card-head">
-          <h3 class="section-title">待补全的申请用途</h3>
-          <span class="publish-count" data-testid="data-quality-count">{{ dataQualityRows.length }} 项</span>
-        </header>
-        <p class="dq-hint">以下历史导入单的用途缺失或无效，建议联系申请部门补全，以便审计与统计准确。</p>
-        <p v-if="!dataQualityRows.length" class="focus-empty">暂无待补全的申请用途。</p>
-        <ul v-else class="publish-list">
-          <li v-for="row in dataQualityRows" :key="row.id" class="publish-row">
-            <div class="publish-row-meta">
-              <span class="publish-row-title" :title="row.resource">{{ row.resource || '—' }}</span>
-              <span class="dq-missing">{{ row.purpose }}</span>
-            </div>
-            <a :href="`#/request-flow/request/${row.id}`" class="row-link">查看</a>
-          </li>
-        </ul>
-      </section>
-
-      <p v-else-if="source !== 'live'" class="focus-empty">等待数据装载……</p>
+      <p v-if="source !== 'live'" class="focus-empty">等待数据装载……</p>
     </section>
   </main>
 </template>
@@ -202,18 +169,5 @@ const providerHeaderLinks = computed(() => {
 .nat-ext-entry { display: grid; gap: 4px; margin-top: 20px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #f5f9fe; }
 .nat-ext-entry strong { font-size: 14px; color: var(--b-primary, #006be6); }
 .nat-ext-entry em { font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); }
-.publish-card { margin-top: 28px; padding: 16px 18px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; }
-.publish-card-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
 .section-title { margin: 0; font-size: 14px; font-weight: 600; }
-.publish-count { font-size: 12px; color: var(--b-muted, #5c6370); }
-/* 列表全量呈现；行多时容器内滚动，不无限撑长页面。 */
-.publish-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; max-height: 420px; overflow-y: auto; }
-.publish-row + .publish-row { margin-top: 8px; }
-.publish-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-radius: 6px; background: var(--b-bg-subtle, #f5f9fe); }
-.publish-row-meta { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
-.publish-row-title { font-size: 13px; color: var(--b-neutral-text, #1a1d21); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dq-hint { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0 0 10px; }
-.dq-missing { font-size: 12px; color: var(--b-muted, #9aa0a6); font-style: italic; }
-.row-link { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; font-weight: 500; flex-shrink: 0; }
-.row-link:hover { text-decoration: underline; }
 </style>
