@@ -73,5 +73,8 @@ test-results/
 # CI-scoped (seed-light/e2e-only) measurement — 验证态非权威，绝不入库
 .testing/status/measurement/ci-scoped/
 
+# e2e 走查截图（本地/CI 采集，不入库；权威验收证据见各 scope 的 evidence.json）
+.testing/acceptance/**/*.png
+
 # docker-compose override 文件（由 start-docker.sh 自动生成，不入库）
 .compose.override.yml

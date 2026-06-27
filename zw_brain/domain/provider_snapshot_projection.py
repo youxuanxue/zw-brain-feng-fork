@@ -29,16 +29,8 @@ from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.repositories.topic_package import TopicPackageRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.services.reference_service import ReferenceService
-from zw_brain.domain.supply_demand_phase import (
-    PHASE_MANUAL_REGISTERED,
-    PHASE_RECOMMEND_FAILED,
-    PHASE_REGISTERED,
-)
+from zw_brain.domain.supply_demand_status import DEMAND_STATUS_PENDING_RESPONSE
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
-
-_DEMAND_PROVIDER_PHASES = frozenset(
-    {PHASE_REGISTERED, PHASE_MANUAL_REGISTERED, PHASE_RECOMMEND_FAILED}
-)
 
 # 模块级深拷贝引用：enrich_* 的 ``copy: bool`` 形参会在函数体内遮蔽 ``copy`` 模块名，
 # 故经此别名调用 deepcopy，不受形参遮蔽影响（S3 deepcopy 开关）。
@@ -117,11 +109,15 @@ def _demand_to_match(payload: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(payload.get("id") or ""),
         "title": str(payload.get("title") or ""),
-        "status": str(payload.get("demand_phase") or payload.get("status") or ""),
+        "status": str(payload.get("response_status") or payload.get("status") or ""),
+        "response_status": str(payload.get("response_status") or ""),
         "target_resource_hint": str(payload.get("target_resource_hint") or ""),
-        "target_org_code": str(payload.get("target_org_code") or payload.get("provider_org_code") or payload.get("owner_org_code") or ""),
-        "target_org_name": str(payload.get("target_org_name") or payload.get("provider_org_name") or payload.get("owner_org_name") or ""),
+        "target_org_code": str(payload.get("target_org_code") or ""),
+        "target_org_name": str(payload.get("target_org_name") or ""),
         "applicant_dept": str(payload.get("applicantDept") or ""),
+        "provider_decision": str(payload.get("provider_decision") or ""),
+        "provider_response_note": str(payload.get("provider_response_note") or ""),
+        "provider_resource_ref": str(payload.get("provider_resource_ref") or ""),
     }
 
 
@@ -134,11 +130,7 @@ def _demand_in_provider_scope(
 ) -> bool:
     target_org = str(
         payload.get("target_org_code")
-        or payload.get("provider_org_code")
-        or payload.get("owner_org_code")
         or payload.get("target_org_name")
-        or payload.get("provider_org_name")
-        or payload.get("owner_org_name")
         or ""
     ).strip()
     # Historical demand rows did not carry a target provider org. Keep the prior
@@ -149,7 +141,7 @@ def _demand_in_provider_scope(
     return ref.org_in_scope(target_org, visible_org_codes, tenant_id=tenant_id)
 
 
-def _case_to_objection_inbox(record: Any) -> dict[str, Any]:
+def _case_to_objection_inbox(record: Any, *, target_label: str = "") -> dict[str, Any]:
     """供方异议收件箱行（G：补回必要字段——此前只产 5 字段，列表比详情还薄）。
 
     补 objection_kind（异议类型）+ complainant/provider org（target_org_id 滤器原是死代码：
@@ -167,9 +159,7 @@ def _case_to_objection_inbox(record: Any) -> dict[str, Any]:
         target_href = f"#/provider/resource/{encoded_target_id}"
     elif target_type == "delivery" and target_id:
         target_href = f"#/delivery-exchange/task/{encoded_target_id}"
-    target_label = target_id
-    if target_type and target_id:
-        target_label = f"{target_type}:{target_id}"
+    target_label = (target_label or target_id).strip()
     return {
         "id": record.id,
         "title": record.title,
@@ -461,7 +451,7 @@ def project_provider_inbox(
     demand_matches = [
         _demand_to_match(item)
         for item in supply_repo.list_demands(tenant_id=tenant_id)
-        if item.get("demand_phase") in _DEMAND_PROVIDER_PHASES
+        if item.get("response_status") == DEMAND_STATUS_PENDING_RESPONSE
         and _demand_in_provider_scope(
             item, ref=ref, visible_org_codes=visible_org_codes, tenant_id=tenant_id
         )
@@ -472,12 +462,29 @@ def project_provider_inbox(
     # （resolved/rejected/closed）与 draft（未提交）不进收件箱。
     # M4 不按部门收口：异议收件箱的部门可见域由独立切片（M7 disputes）按 complainant/provider org 收口，本切片不重复过滤。
     _OBJECTION_INBOX_STATUSES = ("submitted", "platform_investigating", "provider_investigating")
+
+    def _objection_target_label(record: Any) -> str:
+        target_type = str(record.target_type or "")
+        target_id = str(record.target_id or "")
+        if target_type == "catalog" and target_id:
+            title = _catalog_title(target_id)
+            return title or target_id
+        if target_type == "resource" and target_id:
+            asset = resource_repo.get_asset(target_id, tenant_id=tenant_id)
+            if asset is not None and asset.title:
+                return str(asset.title)
+            return target_id
+        return target_id
+
     objection_cases = [
-        _case_to_objection_inbox(record)
+        _case_to_objection_inbox(record, target_label=_objection_target_label(record))
         for status in _OBJECTION_INBOX_STATUSES
         for record in ObjectionRepository().list_cases(tenant_id=tenant_id, status=status)
     ]
-    pending_objection_cases = [_case_to_objection_inbox(record) for record in project_pending_objection_cases(tenant_id=tenant_id)]
+    pending_objection_cases = [
+        _case_to_objection_inbox(record, target_label=_objection_target_label(record))
+        for record in project_pending_objection_cases(tenant_id=tenant_id)
+    ]
     return {
         "field_decisions": field_decisions,
         "publish_queue": publish_queue,

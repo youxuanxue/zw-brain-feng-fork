@@ -198,17 +198,17 @@ test('岗位切换：供数页可达性随岗位（操作员可进、安全审�
   // 「无权=被弹走」的原意图改由安全审计员承接（D55⑦ 纯只读、无供数职责）。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider');
-  await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
   await setRole(page, 'ROLE_SECURITY_AUDIT');
   await gotoHash(page, '#/provider');
   await page.waitForTimeout(1000);
   expect(page.url()).not.toMatch(/#\/provider/);
 });
 
-test('岗位切换：部门管理员可进提供方管理', async ({ page }) => {
+test('岗位切换：部门管理员可进供数据', async ({ page }) => {
   await setRole(page, 'ROLE_ORGAN_MANAGER');
   await gotoHash(page, '#/provider');
-  await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
 });
 
 test('P5 子路由：反向编目列表与向导可点通', async ({ page }) => {

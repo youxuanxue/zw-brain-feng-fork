@@ -20,6 +20,7 @@ import re
 from typing import Any
 
 from zw_brain.domain import resource_labels
+from zw_brain.domain.application_dedupe import dedupe_application_records
 from zw_brain.domain.data_quality import classify_purpose, is_dirty_purpose, purpose_from_payload
 from zw_brain.domain.repositories.application import ApplicationRepository
 from zw_brain.domain.repositories.approval import ApprovalRepository
@@ -377,7 +378,7 @@ def enrich_requests_snapshot(
     owner_map = resource_owner_org_by_id(tid, assets)
     # 共享一个 ReferenceService（带 resolve memo）逐行过滤，消 per-record N+1（同批 org 只查一次）。
     _scope_ref = ReferenceService()
-    records = [
+    records = dedupe_application_records([
         r
         for r in ApplicationRepository().list_records(tenant_id=tid)
         if (r.payload_json or {}).get("kind") not in _DEMAND_KINDS
@@ -391,7 +392,7 @@ def enrich_requests_snapshot(
                 resource_owner_by_id=owner_map,
             )
         )
-    ]
+    ])
     share_map = _share_type_by_resource(tid, assets)
     org_name = ReferenceService().org_name_resolver(tenant_id=tid)
     out["requests"] = [
@@ -451,6 +452,26 @@ def _case_to_approval_card(record: Any) -> dict[str, Any]:
     return {"id": record.application_code, "suggestion": "待审"}
 
 
+def _approval_application_ids(tenant_id: str) -> set[str]:
+    """Application ids that may appear in the申请审批队列.
+
+    ``approval_case`` also stores legacy resource lifecycle rows such as
+    ``resource-review:<resource_id>``. Those are resource review records, not
+    data-sharing applications; surfacing them as申请审批 makes the UI open a
+    resource id through ``#/request-flow/request/:id``.
+    """
+    ids: set[str] = set()
+    for record in dedupe_application_records(ApplicationRepository().list_records(tenant_id=tenant_id)):
+        payload = record.payload_json or {}
+        kind = str(payload.get("kind") or "").strip()
+        if kind in _DEMAND_KINDS:
+            continue
+        app_id = str(payload.get("id") or record.application_code or "").strip()
+        if app_id:
+            ids.add(app_id)
+    return ids
+
+
 def enrich_approvals_snapshot(
     snapshot: dict[str, Any], *, tenant_id: str | None = None,
     visible_org_codes: set[str] | None = None, copy: bool = True,
@@ -474,11 +495,12 @@ def enrich_approvals_snapshot(
     ``copy`` 万级规模性能（S3）：默认 True 深拷（纯函数语义）；handler 链路传 ``copy=False`` 原地写。
     """
     out = _copy_snapshot(snapshot, copy)
-    cases = ApprovalRepository().list_cases(tenant_id=tenant_id or get_runtime_tenant_id())
-    cards = [_case_to_approval_card(c) for c in cases]
+    tid = tenant_id or get_runtime_tenant_id()
+    application_ids = _approval_application_ids(tid)
+    cases = ApprovalRepository().list_cases(tenant_id=tid)
+    cards = [_case_to_approval_card(c) for c in cases if str(c.application_code or "") in application_ids]
 
     if visible_org_codes is not None:
-        tid = tenant_id or get_runtime_tenant_id()
         ref = ReferenceService()
         # application_code → providerOrgCode（取自已先行 enrich 的 requests 申请卡，避免重查 DB）。
         provider_by_app: dict[str, str] = {

@@ -58,6 +58,10 @@ test.describe('D57 权限批次走查', () => {
     }
     test.skip(!objectionId, '铸 submitted 异议失败');
 
+    // 独立 APIRequestContext 铸态后浏览器 snapshot 可能仍停留在登录期预取；reload 对齐真实审核会话。
+    await page.reload();
+    await waitAppReady(page);
+
     // 业务运营员收件箱：submitted 行可见 + 「受理」按钮可点（修复前收件箱只列 provider_investigating，
     // 待受理案件在唯一工作面不可见）。
     await setRole(page, 'ROLE_BUSIAUDIT');
@@ -159,6 +163,9 @@ test.describe('D57 权限批次走查', () => {
       await api.dispose();
     }
     test.skip(!minted, '铸挂接待审资源失败');
+
+    await page.reload();
+    await waitAppReady(page);
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, '#/provider/inbox/hookup-review');

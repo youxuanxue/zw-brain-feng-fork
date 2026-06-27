@@ -9,7 +9,7 @@ import { gotoHash, setRole, skipUnlessBackend, waitAppReady, E2E_BASE_URL } from
  *     受理岗（业务运营员）退申请人身份故不渲染。受理/审核「待我办理」已迁工作台行内办理
  *     （IA 重构拆「办申请」），故领数据页**无**审核待办 tab——该行为由 workbench_todo_closure 覆盖，
  *     本组只断言领数据无受理/审核 tab、不重测行内办理。
- *   - 缺陷 2：业务运营员工作台待办 = 待发布目录/资源 + 待受理申请/异议 + 待汇总需求（发布/受理/汇总
+ *   - 缺陷 2：业务运营员工作台待办 = 待发布目录/资源 + 待受理申请/异议 + 平台审（发布/受理/平台审
  *     真实职责；审核类属部门管理员、不入此台 — E2 / 0605 反馈 6.4#11 + D53）。
  *   - 缺陷 3：用途脏值（测试 / 167）不裸奔在需方视图，也不伪装成供数据页待办。
  *
@@ -95,7 +95,7 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
     }
   });
 
-  test('缺陷2 — 业务运营员工作台待办 = 待发布/待受理/待汇总（发布·受理·汇总职责，非审核错配）', async ({ page }) => {
+  test('缺陷2 — 业务运营员工作台待办 = 待发布/待受理/平台审（发布·受理职责，非审核错配）', async ({ page }) => {
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/workbench');
     // 业务运营员待办注册表类目（计数 0 的不渲染，故用「出现的都属正确类目」+「错配内容不出现」双断言）。
@@ -107,13 +107,12 @@ test.describe('角色投影三视图 + 数据呈现规范化', () => {
     for (const wrong of ['ledger.entity.base.read', 'capability', 'projection', '待审核']) {
       expect(todoTitles.join(' ')).not.toContain(wrong);
     }
-    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 汇总 / 转报 + 平台审，白话动宾）。
+    // 出现的待办标题应落在业务运营员真实职责词表内（发布 / 受理 / 转报 + 平台审，白话动宾）。
     // 机制单源 = 后端 workbench_backlog_projection（真实库现算）：待发布目录/资源、待受理申请/异议、
-    // 待汇总需求（E2 / 0605 反馈 6.4#11 + D53）+ 待平台审核目录（D57⑧ 两级各自入账）
-    // + 国家通道待转报（D50/C9）。
-    const allowed = ['待发布', '待受理', '待汇总', '待平台审核', '待转报'];
+    // 待平台审核目录（D57⑧ 两级各自入账）+ 国家通道待转报（D50/C9）。
+    const allowed = ['待发布', '待受理', '待平台审核', '待转报'];
     for (const title of todoTitles) {
-      expect(allowed.some((a) => title.includes(a)), `工作台待办「${title}」应属发布/受理/汇总/转报职责`).toBeTruthy();
+      expect(allowed.some((a) => title.includes(a)), `工作台待办「${title}」应属发布/受理/转报职责`).toBeTruthy();
     }
   });
 

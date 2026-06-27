@@ -1476,7 +1476,7 @@
   },
   {
     "tool_name": "demand.list",
-    "description": "列出当前租户登记的 demand 记录，可按 phase 筛选。",
+    "description": "列出当前租户登记的 demand 记录，可按 response_status 筛选。",
     "protocol_type": "builtin_skill",
     "endpoint": "http://127.0.0.1:8800/api/skills/demand.list",
     "parameters_schema": {
@@ -1488,7 +1488,7 @@
         "role": {
           "type": "string"
         },
-        "phase": {
+        "response_status": {
           "type": "string"
         }
       }
@@ -6559,10 +6559,10 @@
     "auth_strategy": "human_confirmation"
   },
   {
-    "tool_name": "demand.phase.advance",
-    "description": "按 6 步状态机推进 demand 的 demand_phase。",
+    "tool_name": "demand.close",
+    "description": "需求方确认提供方响应结果后关闭供需需求，完成登记、响应、确认闭环。",
     "protocol_type": "builtin_skill",
-    "endpoint": "http://127.0.0.1:8800/api/skills/demand.phase.advance",
+    "endpoint": "http://127.0.0.1:8800/api/skills/demand.close",
     "parameters_schema": {
       "type": "object",
       "properties": {
@@ -6578,13 +6578,12 @@
         "demand_id": {
           "type": "string"
         },
-        "next_phase": {
+        "close_note": {
           "type": "string"
         }
       },
       "required": [
         "demand_id",
-        "next_phase",
         "confirmed"
       ]
     },
@@ -6604,7 +6603,7 @@
         "a2a"
       ],
       "permissions": [
-        "demand.phase.advance.execute"
+        "demand.close.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",
@@ -6669,6 +6668,74 @@
       ],
       "permissions": [
         "demand.register.execute"
+      ],
+      "auth_policy": "user",
+      "tenant_scope": "tenant",
+      "registry_source": "internal"
+    },
+    "version": "1.0.0",
+    "invocation_mode": "sync",
+    "auth_strategy": "human_confirmation"
+  },
+  {
+    "tool_name": "demand.response.submit",
+    "description": "提供方对供需需求提交确认提供、拒绝提供或驳回补正结论；确认提供时必须关联资源。",
+    "protocol_type": "builtin_skill",
+    "endpoint": "http://127.0.0.1:8800/api/skills/demand.response.submit",
+    "parameters_schema": {
+      "type": "object",
+      "properties": {
+        "tenant_id": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string"
+        },
+        "confirmed": {
+          "type": "boolean"
+        },
+        "demand_id": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": [
+            "provide",
+            "reject",
+            "need_fix"
+          ]
+        },
+        "response_note": {
+          "type": "string"
+        },
+        "resource_ref": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "demand_id",
+        "decision",
+        "response_note",
+        "confirmed"
+      ]
+    },
+    "config_json": {
+      "mode": "write",
+      "side_effects": [
+        "audit",
+        "db_write"
+      ],
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "audit_class": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "permissions": [
+        "demand.response.submit.execute"
       ],
       "auth_policy": "user",
       "tenant_scope": "tenant",

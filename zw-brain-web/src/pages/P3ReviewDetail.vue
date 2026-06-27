@@ -21,6 +21,13 @@ const isPlatformReviewer = computed(() => canPlatformReviewRequests(role.value))
 
 watchEffect(() => {
   if (!id.value || isReviewer.value || isPlatformReviewer.value) return;
+  if (id.value.startsWith('resource-review:')) {
+    const resourceId = id.value.slice('resource-review:'.length).trim();
+    window.location.hash = resourceId
+      ? `#/discovery/resource/${encodeURIComponent(resourceId)}`
+      : '#/workbench';
+    return;
+  }
   window.location.hash = `#/request-flow/request/${id.value}`;
 });
 const req = lookupRequest(id.value);

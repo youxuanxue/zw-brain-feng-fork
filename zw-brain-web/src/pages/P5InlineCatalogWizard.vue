@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import DetailActions from '@/components/DetailActions.vue';
 import { authFetch } from '@/composables/useAuth';
 import { apiUrl } from '@/composables/useApiBase';
@@ -25,6 +26,7 @@ import {
   type CatalogItemDraft,
 } from '@/lib/catalogCompileFields';
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const role = getProductRole();
 const canAuthor = computed(() => canAuthorInlineCatalog(role.value));
 
@@ -335,7 +337,7 @@ onMounted(() => {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="在线编制目录"

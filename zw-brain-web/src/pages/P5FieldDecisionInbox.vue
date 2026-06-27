@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { deriveFieldDecisions } from '@/lib/providerProjection';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { shortId } from '@/lib/userLanguage';
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 
@@ -22,7 +24,7 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="反向编目审核收件箱"

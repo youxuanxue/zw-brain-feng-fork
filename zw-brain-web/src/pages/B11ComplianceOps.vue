@@ -4,8 +4,6 @@ import { useAuditAccountability, useAuditAnomaly, useAuditReplay, useAuditStatis
 import { useInvestigationSummary } from '@/composables/useInvestigationSummary';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
-import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
-import { consumeNLAction } from '@/lib/consumeNLAction';
 import { pushToast } from '@/composables/useActionStub';
 import { formatTime } from '@/lib/userLanguage';
 import {
@@ -27,8 +25,6 @@ type PanelKind = 'replay' | 'statistics' | 'anomaly' | 'accountability';
 const panelTabs: PanelKind[] = ['statistics', 'anomaly', 'accountability', 'replay'];
 
 const activePanel = ref<PanelKind>('statistics');
-
-const NL_PRESETS_B11 = ['看本周高风险异常', '近 24h 失败热点', '溯源 REQ-2026-04-25-0011'];
 
 const replay = useAuditReplay();
 const statistics = useAuditStatistics();
@@ -127,11 +123,7 @@ const accountabilityEmptyText = computed(() => {
 <template>
   <main class="focus-page">
     <section class="panel panel-stack">
-      <PageFocusHeader title="合规与运营" meta="统计 · 异常 · 追责 · 回放">
-        <template #aside>
-          <NLAcceleratorPanel page-anchor="B1.1" :presets="NL_PRESETS_B11" @action="consumeNLAction" />
-        </template>
-      </PageFocusHeader>
+      <PageFocusHeader title="合规与运营" meta="统计 · 异常 · 追责 · 回放" />
 
       <div class="focus-tab-row">
         <nav class="focus-tabs" role="tablist">

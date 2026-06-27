@@ -6,6 +6,7 @@ import { useCatalogResources } from '@/composables/useCatalogResources';
 import { getProductRole } from '@/composables/useProductRole';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { navigateToRequestDetail, resolveRequestIdFromAction } from '@/composables/useRequestNavigation';
+import { useRequests } from '@/composables/useSnapshot';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
@@ -13,10 +14,12 @@ import { decisionRows, compilationRows, catalogSummary, DECISION_SECTION_TITLE }
 import { resourceKindLabel } from '@/lib/resourceKind';
 import { displayRecordName } from '@/lib/userLanguage';
 import { canPerformAction } from '@/lib/pageAccess';
+import { buildExistingRequestsByResource } from '@/lib/existingRequests';
 
 const route = useRoute();
 const code = computed(() => String(route.params.code ?? ''));
 const role = getProductRole();
+const requests = useRequests();
 // 档 B（供数管理视角）：供数侧（资源管理/目录管理/目录审核收件箱）「查看」走独立路由
 // /provider/catalog/:code（复用本组件），按 route.path 前缀判供数视角（route.path 可靠，不用 route.query）。
 // 供数方是来「管理/审核」自己的目录、非来「申请」，加一句管理视角横幅 + 回目录管理回链（目录无申请，故仅定向）。
@@ -44,6 +47,10 @@ const filteredResources = computed(() => {
   if (!selectedKind.value) return resources.value;
   return resources.value.filter((r) => String((r as Record<string, unknown>).kind ?? '') === selectedKind.value);
 });
+
+const existingRequestsByResource = computed(() =>
+  buildExistingRequestsByResource(requests.value as Array<Record<string, unknown>>),
+);
 
 const headerTitle = computed(() => {
   if (loading.value && !catalog.value?.title) return '正在加载……';
@@ -137,6 +144,7 @@ async function applyTo(id: string) {
           :key="String(r.id ?? '')"
           :resource="r"
           :show-action="canApply"
+          :existing-request="existingRequestsByResource.get(String(r.id ?? '')) ?? null"
           @apply="applyTo"
         />
       </div>

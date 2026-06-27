@@ -132,3 +132,28 @@ def test_untrusted_actor_snapshot_cannot_bypass_self_approval_guard(brain):
     finally:
         reset_auth_context(token)
     assert actor == "mgr-subject"
+
+
+def test_dev_iam_bypass_actor_is_role_distinct_not_shared_subject(brain):
+    """Bypass 模式下各岗位 actor 须可区分，否则 self_approval 把受理→部门审 e2e 全链打死。"""
+    from zw_brain.shared.auth_context import AuthContext, reset_auth_context, set_auth_context
+
+    token = set_auth_context(
+        AuthContext(
+            subject="dev-iam-bypass",
+            username="dev_iam_bypass",
+            tenant_id=TENANT,
+            org_code=ORG_PLATFORM,
+            role_codes=("ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"),
+            claims={},
+            development_iam_bypass=True,
+        )
+    )
+    try:
+        operater = brain._actor_for_context("ROLE_ORGAN_OPERATER", {"role": "ROLE_ORGAN_OPERATER"})
+        manager = brain._actor_for_context("ROLE_ORGAN_MANAGER", {"role": "ROLE_ORGAN_MANAGER"})
+        assert operater != manager
+        assert operater.endswith("[bypass]")
+        assert manager.endswith("[bypass]")
+    finally:
+        reset_auth_context(token)

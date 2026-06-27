@@ -106,10 +106,10 @@ test.describe('权限不可见 共性回归', () => {
 
   test('P2Discovery 页头文案：BUSIAUDIT 不出现「申请资源」字样', async ({ page }) => {
     // 找数据发现页对非申请人岗位（业务运营员=受理岗；request.create=OPERATER+MANAGER，D57④）
-    // 中性化页头：标题「数据资源」而非「可申请资源」、不出现「申请资源」字样（无权=不可见）。
+    // 主标题与导航同源为「找数据」；无权时不出现「申请资源」动作和「可申请资源」文案。
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/discovery');
-    await expect(page.getByRole('heading', { name: '数据资源' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '找数据' })).toBeVisible();
     await expect(page.getByText('可申请资源')).toHaveCount(0);
     await expect(page.getByRole('button', { name: '申请资源' })).toHaveCount(0);
   });
@@ -169,9 +169,9 @@ test.describe('权限不可见 共性回归', () => {
     await expect(page.getByRole('button', { name: '补件 / 重新提交' })).toHaveCount(0);
   });
 
-  test('P5DemandMatchDetail 受理并起草申请：OPERATER/MANAGER 可见 / BUSIAUDIT 不渲染', async ({ page }) => {
-    // P5 shell 含 OPERATER/MANAGER/BUSIAUDIT；request.create = OPERATER+MANAGER（D57④）。
-    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  test('P5DemandMatchDetail 供需响应：MANAGER 可见 / OPERATER、BUSIAUDIT 不渲染', async ({ page }) => {
+    // 供需响应是提供方部门管理员动作；申请方只登记和跟踪，业务运营员不替提供方响应。
+    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_MANAGER`);
     test.skip(!snap.ok(), 'snapshot not reachable');
     const snapBody = (await snap.json()) as Record<string, unknown>;
     const provider = (snapBody.provider ?? {}) as Record<string, unknown>;
@@ -181,14 +181,18 @@ test.describe('权限不可见 共性回归', () => {
 
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, `#/provider/inbox/demand-match/${dmId}`);
-    await expect(page.getByRole('button', { name: '受理并起草申请' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '确认提供' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '受理并起草申请' })).toHaveCount(0);
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/provider/inbox/demand-match/${dmId}`);
-    await expect(page.getByRole('button', { name: '受理并起草申请' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '确认提供' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '驳回补正' })).toBeVisible();
+    await expect(page.getByRole('button', { name: '拒绝提供' })).toBeVisible();
 
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, `#/provider/inbox/demand-match/${dmId}`);
+    await expect(page.getByRole('button', { name: '确认提供' })).toHaveCount(0);
     await expect(page.getByRole('button', { name: '受理并起草申请' })).toHaveCount(0);
   });
 

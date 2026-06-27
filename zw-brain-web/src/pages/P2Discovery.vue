@@ -5,6 +5,7 @@ import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { navigateToRequestDetail, resolveRequestIdFromAction } from '@/composables/useRequestNavigation';
 import { useDiscoverySearch } from '@/composables/useDiscoverySearch';
+import { useRequests } from '@/composables/useSnapshot';
 import ResourceCard from '@/components/ResourceCard.vue';
 import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
@@ -12,6 +13,8 @@ import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { resourceKindLabel } from '@/lib/resourceKind';
 import { isTestMarkerName } from '@/lib/userLanguage';
+import { buildExistingRequestsByResource } from '@/lib/existingRequests';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 
 // 客户试用入口必须确定命中当前演示库。不要把用户带到空结果。
 const NL_PRESETS_P2 = ['查历年GDP信息', '查高等职业学校名单', '查法人登记注册信息'];
@@ -60,6 +63,7 @@ const {
   providerOptions,
   kindOptions,
 } = useDiscoverySearch(() => role.value);
+const requests = useRequests();
 
 // Theme 3：过滤明显的测试/样例/乱码资源行（isTestMarkerName 保守判定），不让脏数据
 // 进发现页卡片网格；被过滤条数经 console.debug 记录（无静默截断）。
@@ -73,6 +77,10 @@ const visibleResources = computed(() => {
   return kept;
 });
 
+const existingRequestsByResource = computed(() =>
+  buildExistingRequestsByResource(requests.value as Array<Record<string, unknown>>),
+);
+
 onMounted(() => {
   const fromQuery = route.query.q ?? route.query.catalog;
   if (typeof fromQuery === 'string' && fromQuery.trim()) {
@@ -85,8 +93,8 @@ onMounted(() => {
 // 不渲染「发起申请」CTA（无权=不可见，纵深防御叠加 ResourceCard 的 active-only 机器值门）。
 const canApply = computed(() => canPerformAction('request.create', role.value));
 
-// 非申请人岗位（含业务运营员）浏览找数据时不出现「申请资源」字样——页头标题与命中统计同步中性化。
-const pageTitle = computed(() => (canApply.value ? '可申请资源' : '数据资源'));
+// 页面主标题与左侧导航同源；“可申请资源/数据资源”只作为结果说明，不再另造页面名。
+const pageTitle = shellNavLabelByKey('discovery');
 
 const headerMeta = computed(() => {
   if (searching.value) return '正在检索……';
@@ -169,6 +177,7 @@ async function applyTo(id: string) {
           :key="String((r as Record<string, unknown>).id ?? '')"
           :resource="(r as Record<string, unknown>)"
           :show-action="canApply"
+          :existing-request="existingRequestsByResource.get(String((r as Record<string, unknown>).id ?? '')) ?? null"
           @apply="applyTo"
         />
       </div>

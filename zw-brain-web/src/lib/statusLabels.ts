@@ -27,19 +27,17 @@ const REQUEST_STATUS_ZH: Record<string, string> = {
   failed: '失败',
   // 异议 / 通用
   submitted: '已提交',
-  platform_investigating: '平台核查中',
-  provider_investigating: '部门核查中',
+  platform_investigating: '待确认',
+  provider_investigating: '核查中',
   resolved: '已解决',
   closed: '已关闭',
   escalated: '已升级',
   accepted: '已受理',
-  // 供需 6 步
-  gap_discovered: '发现缺口',
-  registered: '已登记',
-  recommend_failed: '推荐未命中',
-  manual_registered: '人工登记',
-  provider_responded: '部门已响应',
-  subscribed: '已订阅',
+  // 供需三态
+  pending_response: '待响应',
+  responded: '已响应',
+  provide: '确认提供',
+  need_fix: '驳回补正',
 };
 
 const SLUG_RE = /^[a-z][a-z0-9_-]*$/;

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { ENGINES_PAGE_TITLE } from '@/config/productShellNav';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 
 // E3 Wave-2 F7 三引擎配置（收编为 B1.2 子页 /integration-admin/engines）：
@@ -337,7 +338,7 @@ function lastResultText(): string {
   <main class="focus-page">
     <section class="panel panel-stack">
       <PageFocusHeader
-        title="流程与表单配置"
+        :title="ENGINES_PAGE_TITLE"
         meta="审批流 · 申请表单 · 推荐规则（草稿→预览→入库）"
       />
 

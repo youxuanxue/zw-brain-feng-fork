@@ -1858,7 +1858,7 @@
       ]
     },
     {
-      "id": "demand.phase.advance",
+      "id": "demand.close",
       "mode": "write",
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",
@@ -1875,6 +1875,22 @@
     },
     {
       "id": "demand.register",
+      "mode": "write",
+      "humanConfirmationRequired": true,
+      "auditClass": "write-normal",
+      "surfaces": [
+        "webui",
+        "api",
+        "cli",
+        "a2a"
+      ],
+      "sideEffects": [
+        "audit",
+        "db_write"
+      ]
+    },
+    {
+      "id": "demand.response.submit",
       "mode": "write",
       "humanConfirmationRequired": true,
       "auditClass": "write-normal",

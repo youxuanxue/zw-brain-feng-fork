@@ -20,7 +20,7 @@ export type ParseSource = 'live' | 'fixture' | 'pending';
 
 export { type StructuredAction, type NLAcceleratorParseResult } from '@/fixtures/nl-accelerator-fixture';
 
-const LIVE_ANCHORS = new Set(['P2', 'P3', 'B1.1', 'B1.2']);
+const LIVE_ANCHORS = new Set(['P2', 'P3']);
 
 export function useNLAccelerator(pageAnchor: string) {
   const result = ref<NLAcceleratorParseResult | null>(null);

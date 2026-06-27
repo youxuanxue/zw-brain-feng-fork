@@ -94,6 +94,11 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
         "/delivery-exchange",
     ),
     (
+        "/request-flow/objection/new",
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
+        "/request-flow/objection",
+    ),
+    (
         "/request-flow/objection",
         frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
         "/delivery-exchange",
@@ -102,6 +107,11 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
         "/request-flow/supply-demand",
         frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}),
         "/delivery-exchange",
+    ),
+    (
+        "/delivery-exchange",
+        frozenset({"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"}),
+        "/workbench",
     ),
     (
         "/provider/wizard/inline-catalog",
@@ -127,7 +137,9 @@ _ROUTE_ROLE_OVERRIDES: list[tuple[str, frozenset[str], str | None]] = [
     ),
     # G1：挂接审核照 v5「资源挂接审核 = 部门管理员」校正（撤回 R-007 交叉审）。
     ("/provider/inbox/hookup-review", frozenset({"ROLE_ORGAN_MANAGER"}), None),
-    # G6：异议响应 = 部门管理员 + 业务运营员（v5「异议核查」），翻转 wave1.5 P20 的 MANAGER-only 锁定。
+    # 供需响应 = 提供方部门管理员确认提供 / 拒绝提供 / 驳回补正。
+    ("/provider/inbox/demand-match", frozenset({"ROLE_ORGAN_MANAGER"}), None),
+    # G6：异议响应收件箱 = 部门管理员 + 业务运营员；按钮按 action gate 拆责。
     ("/provider/inbox/objection", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}), None),
     # C5（D50）国家扩展要素编制（角色门；flag 门在前端 hub/页内另把守）。
     ("/provider/national-ext-elem", frozenset({"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"}), None),
@@ -267,6 +279,12 @@ def test_hookup_review_only_manager() -> None:
     )
 
 
+def test_demand_match_only_manager() -> None:
+    assert _is_route_allowed("/provider/inbox/demand-match/xyz", "ROLE_ORGAN_MANAGER")
+    assert not _is_route_allowed("/provider/inbox/demand-match/xyz", "ROLE_ORGAN_OPERATER")
+    assert not _is_route_allowed("/provider/inbox/demand-match/xyz", "ROLE_BUSIAUDIT")
+
+
 def test_supply_wizards_operater_and_manager_only() -> None:
     # G3：资源挂接向导 / 代理服务注册向导 = 部门操作员 + 部门管理员；业务运营员退出供数注册。
     for route in ("/provider/wizard/hookup-submit", "/provider/wizard/api-service"):
@@ -315,6 +333,16 @@ def test_provider_inbox_objection_manager_and_busiaudit() -> None:
     # 部门操作员仍不可进（不办异议）。
     assert not _is_route_allowed(
         "/provider/inbox/objection/xyz", "ROLE_ORGAN_OPERATER"
+    )
+
+
+def test_objection_new_only_operater_and_manager() -> None:
+    assert _is_route_allowed("/request-flow/objection/new", "ROLE_ORGAN_OPERATER")
+    assert _is_route_allowed("/request-flow/objection/new", "ROLE_ORGAN_MANAGER")
+    assert not _is_route_allowed("/request-flow/objection/new", "ROLE_BUSIAUDIT")
+    assert (
+        _default_route_for_role("ROLE_BUSIAUDIT", "/request-flow/objection/new")
+        == "/request-flow/objection"
     )
 
 
@@ -563,7 +591,7 @@ def _href_to_path(href: str) -> str:
 # 工作台投影的角色 → 深链目标集合（与 zw_brain/domain/workbench_backlog_projection.py +
 # zw_brain/command/sync.py sync_request_todos 的 href 单源对齐）。
 _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
-    # 业务运营员（受理岗 + 发布/汇总积压 + 平台审）
+    # 业务运营员（受理岗 + 发布/平台审积压）
     "ROLE_BUSIAUDIT": frozenset(
         {
             # 受理待办（sync_request_todos accept）+ 待受理申请 backlog。
@@ -574,7 +602,6 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
             # （受理工作迁工作台，由工作台 agent 重定向）。
             "/request-flow/review",
             "/provider",                   # 待发布目录/资源 backlog
-            "/provider/inbox/demand-match",  # 待汇总需求 backlog
             # G6（D55 查缺补漏）：异议收件箱按 v5「异议核查 = 业务运营员 + 部门管理员」开放
             # BUSIAUDIT 后深链激活，移入 must-pass（原 known-debt 锁定断言随校准删除）。
             "/provider/inbox/objection?scope=pending",   # 待受理异议 backlog
@@ -582,10 +609,11 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
             "/provider/inbox/catalog-review",
         }
     ),
-    # 部门管理员（部门审核 + 供数侧目录审核 + 反向编目部门审）
+    # 部门管理员（供需响应 + 部门审核 + 供数侧目录审核 + 反向编目部门审）
     "ROLE_ORGAN_MANAGER": frozenset(
         {
             "/request-flow/review",                # 部门审核待办（dept_approved）
+            "/provider/inbox/demand-match",        # 待响应需求 backlog
             "/provider/inbox/catalog-review",      # 目录待部门审 backlog（P10）
             "/provider/inbox/field-decision",      # 待审核反向编目草稿 backlog（D57⑧ 部门审）
         }
@@ -602,10 +630,8 @@ _PROJECTION_DEEPLINKS: dict[str, frozenset[str]] = {
 def test_workbench_projection_deeplinks_route_allowed_for_role() -> None:
     """D55/P20：工作台投影的每个深链目标必须对其投递角色路由可达（无死链）。
 
-    注：业务运营员「待受理异议」深链 /provider/inbox/objection 现 ROUTE_ROLE_OVERRIDES=
-    [ROLE_ORGAN_MANAGER]（异议受理人角色口径属 D28 GATE 既有债，见 workbench.py 注释），
-    本守卫如实暴露——若该投影深链对 BUSIAUDIT 不可达则 FAIL，迫使口径校准（投影 or 路由门
-    二选一），不放过死链。
+    注：业务运营员「待受理异议」深链必须对 BUSIAUDIT 可达；具体受理按钮再由
+    ACTION_ROLE_GATES['objection.case.accept'] 控制。
     """
     failures: list[str] = []
     for role, hrefs in _PROJECTION_DEEPLINKS.items():

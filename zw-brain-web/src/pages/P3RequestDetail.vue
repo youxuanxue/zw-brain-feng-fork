@@ -29,17 +29,17 @@ const snapshotReq = computed(() => {
 const fetchedReq = ref<Record<string, unknown> | null>(null);
 const detailLoading = ref(false);
 const detailError = ref<string | null>(null);
-const { source } = useSnapshot();
+const { source, data: snapshot } = useSnapshot();
+const currentRole = getProductRole();
 
 watch(
-  [id, snapshotReq],
-  async ([requestId, current]) => {
+  [id, currentRole],
+  async ([requestId, role]) => {
     fetchedReq.value = null;
     detailError.value = null;
-    if (!requestId || current) return;
+    if (!requestId) return;
     detailLoading.value = true;
     try {
-      const role = getProductRole().value;
       const resp = await authFetch(apiUrl('/api/skills/request.view'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -60,9 +60,34 @@ watch(
   { immediate: true },
 );
 
-// Snapshot 是列表页投影，写后刷新可能滞后；详情页必须能按 id 自救，否则
-// 「申请草稿已生成」后立即跳转会显示「未找到该申请」。
-const req = computed(() => snapshotReq.value ?? fetchedReq.value);
+// Snapshot 是列表页投影，写后刷新/跨用例缓存可能滞后；详情页以 request.view 实时详情为准，
+// snapshot 只作首屏兜底，避免旧草稿投影覆盖已退回补正等真实状态。
+const req = computed(() => fetchedReq.value ?? snapshotReq.value);
+const relatedRequestForResourceId = computed(() => {
+  const requestId = id.value;
+  if (!requestId) return null;
+  return ((requests.value as Record<string, unknown>[] | undefined) ?? []).find(
+    (it) => String(it.resourceId ?? it.resource_id ?? '') === requestId,
+  ) ?? null;
+});
+const resourceIdMatch = computed(() => {
+  const requestId = id.value;
+  if (!requestId || req.value) return null;
+  if (relatedRequestForResourceId.value) return relatedRequestForResourceId.value;
+  const discovery = (snapshot.value?.discovery?.resources as Record<string, unknown>[] | undefined) ?? [];
+  const provider = ((snapshot.value?.provider as Record<string, unknown> | undefined)?.resources as Record<string, unknown>[] | undefined) ?? [];
+  const resources = [...discovery, ...provider];
+  return resources.find((it) => String(it.id ?? it.resource_code ?? '') === requestId) ?? null;
+});
+const isResourceIdRoute = computed(() => !req.value && !!resourceIdMatch.value);
+const resourceName = computed(() =>
+  String(resourceIdMatch.value?.name ?? resourceIdMatch.value?.title ?? resourceIdMatch.value?.resourceName ?? resourceIdMatch.value?.resource_name ?? ''),
+);
+const resourceDetailHref = computed(() => `#/discovery/resource/${encodeURIComponent(id.value)}`);
+const relatedRequestHref = computed(() => {
+  const requestId = String(relatedRequestForResourceId.value?.id ?? '');
+  return requestId ? `#/request-flow/request/${encodeURIComponent(requestId)}` : '';
+});
 
 const rows = computed(() => {
   const r = req.value;
@@ -105,6 +130,7 @@ const headerMeta = computed(() => {
     const name = String(req.value.resourceName ?? req.value.purpose ?? '') || '—';
     return `${name} · ${status}`;
   }
+  if (isResourceIdRoute.value) return '该编号是资源编号，不是申请编号。';
   if (detailLoading.value || source.value !== 'live') return '正在加载……';
   if (detailError.value) return '暂时无法加载该申请，请稍后重试。';
   return '未找到该申请';
@@ -115,7 +141,11 @@ const rawStatus = computed(() => String(req.value?.status ?? '').trim());
 // R12：H1 用申请所涉资源名（displayRecordName 优先真实名；名缺失/为裸 id 时降级为
 // 「未命名申请（编码 …末6位）」），不把 32 位 hex 申请 id 当主标题直出；原 id 降级为「编号」次行。
 const headerTitle = computed(() =>
-  displayRecordName(req.value?.resourceName, id.value, '申请'),
+  detailLoading.value && !req.value && !isResourceIdRoute.value
+    ? '申请详情'
+    : isResourceIdRoute.value
+    ? displayRecordName(resourceName.value, id.value, '资源')
+    : displayRecordName(req.value?.resourceName, id.value, '申请'),
 );
 
 // 驳回 / 退回理由回显（J1 闭环）：审批人填写的真实理由经后端 rejectReason 投影带出
@@ -131,7 +161,7 @@ const timeline = computed<TimelineStep[]>(() => {
   return Array.isArray(arr) ? (arr as unknown as TimelineStep[]) : [];
 });
 // request.submit = OPERATER + MANAGER（D57④）；BUSIAUDIT（受理岗）进申请详情时不渲染「确认提交 / 重新提交」
-const canSubmitRequest = computed(() => canPerformAction('request.submit', getProductRole().value));
+const canSubmitRequest = computed(() => canPerformAction('request.submit', currentRole.value));
 // 草稿态（0605#8）：从 P2「申请资源」生成的草稿单，用户在此查看无误后「确认提交申请」才进审批。
 const isDraft = computed(() => rawStatus.value === 'draft');
 // 两条「申请人重提」腿（j1-approval-conditional.feature:55-62）：
@@ -146,7 +176,7 @@ const canResubmit = computed(() => isRejected.value || rawStatus.value === 'need
 // 撤回 = 业务运营员合规收回（收回授权）+ 申请人本人主动放弃（我不再需要,owner 校验在后端）；
 // 暂停 = 业务运营员。MANAGER 已收回该权限,「无权 = 不可见」整段不渲染。
 // 仅对已授权（granted）/ 交付中 / 暂停（suspended）的申请显示,避免对草稿/审批中误操作。
-const productRole = computed(() => getProductRole().value);
+const productRole = computed(() => currentRole.value);
 // R-014：身份分支走 hasRole chokepoint（区分同一 grant 动作的合规收回 vs 申请人放弃
 // 两个按钮变体），不在 page 内硬编码 role 比对；「能不能」仍由 canPerformAction 判。
 const isBusiAudit = computed(() => hasRole(productRole.value, 'ROLE_BUSIAUDIT'));
@@ -277,6 +307,16 @@ async function supplement() {
       <PageFocusHeader :title="headerTitle" :meta="headerMeta">
         <p v-if="id" class="record-code">编号 <span :title="id">{{ shortId(id) }}</span></p>
       </PageFocusHeader>
+      <div v-if="isResourceIdRoute" class="resource-id-note" data-testid="request-resource-id-note">
+        <p>当前打开的是资源编号，不是申请编号。查看资源详情后可发起申请；已有申请请回「领数据」查看申请进度。</p>
+        <p class="aux-links">
+          <a v-if="relatedRequestHref" :href="relatedRequestHref">查看该资源的申请</a>
+          <template v-if="relatedRequestHref"> · </template>
+          <a :href="resourceDetailHref">查看资源详情</a>
+          ·
+          <a href="#/delivery-exchange">返回领数据</a>
+        </p>
+      </div>
       <p v-if="isLegacyImport" class="legacy-note">
         历史导入记录 · 仅供查看，在线办理动作不适用于历史迁移申请。
       </p>
@@ -294,10 +334,10 @@ async function supplement() {
       <p class="aux-links">
         <a href="#/request-flow/objection">我的异议</a>
         ·
-        <a href="#/request-flow/supply-demand">找不到数据 · 登记需求</a>
+        <a href="#/request-flow/supply-demand">供需对接 · 登记需求</a>
       </p>
       <DetailActions
-        v-if="!isLegacyImport && (canSubmitRequest || (canSuspendGrant && grantActive) || (canRevokeGrant && grantActive))"
+        v-if="req && !isLegacyImport && (canSubmitRequest || (canSuspendGrant && grantActive) || (canRevokeGrant && grantActive))"
       >
         <button
           v-if="canSubmitRequest && isDraft"
@@ -309,7 +349,7 @@ async function supplement() {
           确认提交申请
         </button>
         <button
-          v-if="canSubmitRequest && !isDraft"
+          v-if="canSubmitRequest && canResubmit"
           type="button"
           class="gov-btn gov-btn-primary"
           data-testid="resubmit-btn"
@@ -354,6 +394,8 @@ async function supplement() {
 .gov-btn-danger { background: #fff; border-color: var(--b-danger, #d4380d); color: var(--b-danger, #d4380d); }
 .gov-btn-danger:hover { background: var(--b-danger, #d4380d); color: #fff; }
 .legacy-note { margin: 0 0 12px; padding: 8px 12px; font-size: 13px; color: var(--b-muted, #5c6370); background: #f5f7fa; border-radius: 6px; }
+.resource-id-note { margin: 0 0 12px; padding: 10px 12px; font-size: 13px; line-height: 1.6; color: var(--b-neutral-text, #1a1d21); background: #f5f9ff; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; }
+.resource-id-note p { margin: 0; }
 .reject-reason { margin: 0 0 14px; padding: 10px 12px; font-size: 13px; line-height: 1.55; color: var(--b-danger, #d4380d); background: #fff2f0; border: 1px solid #ffccc7; border-radius: 6px; word-break: break-word; }
 .reject-reason-label { font-weight: 600; }
 .aux-links { margin: 12px 0; font-size: 13px; }

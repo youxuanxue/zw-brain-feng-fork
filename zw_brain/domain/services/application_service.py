@@ -12,8 +12,10 @@ import copy
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+from zw_brain.domain.application_dedupe import dedupe_application_records
 from zw_brain.domain.errors import NotFoundError
 from zw_brain.domain.serializers import quality as quality_ser
+from zw_brain.domain.services import form_fill_service
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 from zw_brain.shared.sensitive_mask import mask_default as _mask
 
@@ -72,6 +74,8 @@ class ApplicationService:
         historical_context = self.history_context(record, store, resource_id, catalog_code, context=context)
         quality_evidence = self.quality_evidence(store, resource, catalog_code, resource_id, context=context)
         applicant_snapshot = _mask({"applicant_name": record.applicant_name, "applicant_org": record.applicant_org})
+        field_values = payload.get("fieldValues") if isinstance(payload.get("fieldValues"), dict) else {}
+        field_provenance = payload.get("fieldProvenance") if isinstance(payload.get("fieldProvenance"), dict) else {}
         materials = {
             "purpose": original_materials.get("purpose") or payload.get("use_reason") or payload.get("apply_basis") or "复用已有目录资源办理业务事项",
             "timeWindow": original_materials.get("timeWindow") or payload.get("service_usetime") or "按授权期执行",
@@ -140,6 +144,15 @@ class ApplicationService:
             },
             "statusTimeline": [],
             "reviewBoundary": _mask(copy.deepcopy((delivery or {}).get("r2Review") or {})),
+            # P3RequestDetail 的详情接口契约：草稿/待补正详情必须自带可编辑申请表单。
+            # 字段模型只持久化 fieldValues + fieldProvenance，formFields 在读时现算；
+            # 这里与 snapshot 的 _record_to_request_card 保持同源，避免前端靠列表快照兜底。
+            "formFields": (
+                form_fill_service.assemble_form_fields(field_values, field_provenance)
+                if field_provenance
+                else []
+            ),
+            "fieldProvenance": field_provenance,
             "aiStatus": {
                 "summary": "该申请已命中真实旧平台申请、目录、资源、字段绑定和授权证据。",
                 "nextAction": "审批承接人员核对复用范围、敏感字段、授权边界和历史重复线索。",
@@ -183,7 +196,7 @@ class ApplicationService:
     ) -> dict[str, Any]:
         """In-flight duplicate detection for a candidate application."""
         source = context.application_records if context is not None else store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
-        records = [
+        records = dedupe_application_records([
             item
             for item in source
             if (item.payload_json or {}).get("kind") == "apply"
@@ -192,7 +205,7 @@ class ApplicationService:
                 or str((item.payload_json or {}).get("catalog_id") or "") == catalog_code
                 or item.application_code == record.application_code
             )
-        ]
+        ])
         in_flight = [
             item.application_code
             for item in records

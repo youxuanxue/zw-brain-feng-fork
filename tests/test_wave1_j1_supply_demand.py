@@ -2,10 +2,10 @@
 # Journey: J1
 # Pages: P3 (供需对接段)
 # Consumer-faces: API (repo-level)
-# Roles: ROLE_BUSIAUDIT (主管部门需求汇总) | ROLE_ORGAN_OPERATER (申请方)
+# Roles: ROLE_ORGAN_MANAGER (提供方响应) | ROLE_ORGAN_OPERATER (申请方)
 # Trace:
 #   .testing/waves/wave-1-j1-j2-closed-loop/features/j1-supply-demand-meta-merge.feature
-#   zw_brain/domain/supply_demand_phase.py
+#   zw_brain/domain/supply_demand_status.py
 #   zw_brain/domain/repositories/supply_demand.py
 """F4: J1 供需对接子流程 6 步实装 + meta 合并 + sd-default 真实需求历史回归.
 
@@ -48,16 +48,14 @@ def repo():
 
 
 # ──────────────────────────────────────────────────────────────────────
-# 6 步状态机
+# 三态响应状态机
 # ──────────────────────────────────────────────────────────────────────
 
-from zw_brain.domain.supply_demand_phase import (  # noqa: E402
-    PHASE_GAP_DISCOVERED,
-    PHASE_MANUAL_REGISTERED,
-    PHASE_PROVIDER_RESPONDED,
-    PHASE_RECOMMEND_FAILED,
-    PHASE_REGISTERED,
-    PHASE_SUBSCRIBED,
+from zw_brain.domain.supply_demand_status import (  # noqa: E402
+    DEMAND_STATUS_CLOSED,
+    DEMAND_STATUS_PENDING_RESPONSE,
+    DEMAND_STATUS_RESPONDED,
+    SupplyDemandStatusError,
 )
 
 
@@ -71,70 +69,87 @@ def _register(repo, demand_id: str, *, title="测试需求") -> dict:
     )
 
 
-# 6 步 happy path（规则匹配命中：直接 REGISTERED → PROVIDER_RESPONDED → SUBSCRIBED）
-def test_demand_phase_happy_path_recommend_hit(repo):
+def test_demand_register_starts_pending_response(repo):
     demand = _register(repo, "F4-HAPPY-1")
-    assert demand["demand_phase"] == PHASE_GAP_DISCOVERED
-    repo.advance_phase("F4-HAPPY-1", PHASE_REGISTERED, tenant_id=TENANT)
-    repo.advance_phase("F4-HAPPY-1", PHASE_PROVIDER_RESPONDED, tenant_id=TENANT)
-    repo.advance_phase("F4-HAPPY-1", PHASE_SUBSCRIBED, tenant_id=TENANT)
-    final = repo.get_demand("F4-HAPPY-1", tenant_id=TENANT)
-    assert final is not None
-    assert final["demand_phase"] == PHASE_SUBSCRIBED
-    assert final["status"] == "effective"
+    assert demand["response_status"] == DEMAND_STATUS_PENDING_RESPONSE
+    assert demand["status"] == DEMAND_STATUS_PENDING_RESPONSE
 
 
-# 6 步推荐失败转人工 path
-def test_demand_phase_recommend_failed_manual_path(repo):
-    _register(repo, "F4-MANUAL-1")
-    repo.advance_phase("F4-MANUAL-1", PHASE_REGISTERED, tenant_id=TENANT)
-    repo.advance_phase("F4-MANUAL-1", PHASE_RECOMMEND_FAILED, tenant_id=TENANT)
-    repo.advance_phase("F4-MANUAL-1", PHASE_MANUAL_REGISTERED, tenant_id=TENANT)
-    repo.advance_phase("F4-MANUAL-1", PHASE_PROVIDER_RESPONDED, tenant_id=TENANT)
-    repo.advance_phase("F4-MANUAL-1", PHASE_SUBSCRIBED, tenant_id=TENANT)
-    final = repo.get_demand("F4-MANUAL-1", tenant_id=TENANT)
-    assert final["demand_phase"] == PHASE_SUBSCRIBED
+def test_demand_response_records_provider_decision(repo):
+    _register(repo, "F4-RESPOND-1")
+    final = repo.submit_response(
+        "F4-RESPOND-1",
+        tenant_id=TENANT,
+        decision="provide",
+        response_note="确认可提供",
+        resource_ref="cat-001",
+        responded_by="U_PROVIDER",
+    )
+    assert final["response_status"] == DEMAND_STATUS_RESPONDED
+    assert final["status"] == DEMAND_STATUS_RESPONDED
+    assert final["provider_decision"] == "provide"
+    assert final["provider_resource_ref"] == "cat-001"
 
 
-@pytest.mark.parametrize(
-    "target_phase",
-    [PHASE_REGISTERED, PHASE_RECOMMEND_FAILED, PHASE_MANUAL_REGISTERED,
-     PHASE_PROVIDER_RESPONDED, PHASE_SUBSCRIBED],
-)
-def test_demand_phase_each_reachable(repo, target_phase):
-    """6 步每个 phase 从 gap_discovered 可达."""
-    demand_id = f"F4-REACH-{target_phase}"
-    _register(repo, demand_id)
-    paths = {
-        PHASE_REGISTERED: [PHASE_REGISTERED],
-        PHASE_RECOMMEND_FAILED: [PHASE_REGISTERED, PHASE_RECOMMEND_FAILED],
-        PHASE_MANUAL_REGISTERED: [PHASE_REGISTERED, PHASE_RECOMMEND_FAILED, PHASE_MANUAL_REGISTERED],
-        PHASE_PROVIDER_RESPONDED: [PHASE_REGISTERED, PHASE_PROVIDER_RESPONDED],
-        PHASE_SUBSCRIBED: [PHASE_REGISTERED, PHASE_PROVIDER_RESPONDED, PHASE_SUBSCRIBED],
-    }[target_phase]
-    for nxt in paths:
-        repo.advance_phase(demand_id, nxt, tenant_id=TENANT)
-    final = repo.get_demand(demand_id, tenant_id=TENANT)
-    assert final["demand_phase"] == target_phase
+def test_demand_close_after_response(repo):
+    _register(repo, "F4-CLOSE-1")
+    repo.submit_response(
+        "F4-CLOSE-1",
+        tenant_id=TENANT,
+        decision="provide",
+        response_note="确认可提供",
+        resource_ref="cat-001",
+        responded_by="U_PROVIDER",
+    )
+    final = repo.close_demand(
+        "F4-CLOSE-1",
+        tenant_id=TENANT,
+        close_note="已确认结果",
+        closed_by="U_APPLICANT",
+    )
+    assert final["response_status"] == DEMAND_STATUS_CLOSED
+    assert final["status"] == DEMAND_STATUS_CLOSED
+    assert final["closed_note"] == "已确认结果"
+    assert final["closed_by"] == "U_APPLICANT"
+    assert final["closed_at"]
 
 
-def test_demand_phase_rejects_illegal_jump(repo):
-    """gap_discovered 直接跳 provider_responded 拒（必须先 registered）."""
-    from zw_brain.domain.supply_demand_phase import SupplyDemandPhaseError
+def test_demand_close_requires_response_first(repo):
+    _register(repo, "F4-CLOSE-PENDING")
+    with pytest.raises(SupplyDemandStatusError):
+        repo.close_demand(
+            "F4-CLOSE-PENDING",
+            tenant_id=TENANT,
+            close_note="尚未响应",
+        )
 
-    _register(repo, "F4-ILLEGAL")
-    with pytest.raises(SupplyDemandPhaseError):
-        repo.advance_phase("F4-ILLEGAL", PHASE_PROVIDER_RESPONDED, tenant_id=TENANT)
+
+def test_demand_response_requires_resource_when_provide(repo):
+    _register(repo, "F4-RESPOND-NO-RESOURCE")
+    with pytest.raises(ValueError):
+        repo.submit_response(
+            "F4-RESPOND-NO-RESOURCE",
+            tenant_id=TENANT,
+            decision="provide",
+            response_note="确认可提供",
+        )
 
 
-def test_demand_phase_subscribed_is_terminal(repo):
-    from zw_brain.domain.supply_demand_phase import SupplyDemandPhaseError
-
-    _register(repo, "F4-TERM")
-    for nxt in (PHASE_REGISTERED, PHASE_PROVIDER_RESPONDED, PHASE_SUBSCRIBED):
-        repo.advance_phase("F4-TERM", nxt, tenant_id=TENANT)
-    with pytest.raises(SupplyDemandPhaseError):
-        repo.advance_phase("F4-TERM", PHASE_REGISTERED, tenant_id=TENANT)
+def test_demand_response_is_single_shot(repo):
+    _register(repo, "F4-RESPOND-TERM")
+    repo.submit_response(
+        "F4-RESPOND-TERM",
+        tenant_id=TENANT,
+        decision="reject",
+        response_note="无法提供",
+    )
+    with pytest.raises(SupplyDemandStatusError):
+        repo.submit_response(
+            "F4-RESPOND-TERM",
+            tenant_id=TENANT,
+            decision="need_fix",
+            response_note="请补充用途",
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -354,7 +369,7 @@ def test_business_requirement_does_not_mutate_original_applications(repo):
     )
     repo.update_business_requirement_status("BR-ISOLATE", "responded", tenant_id=TENANT)
     repo.update_business_requirement_status("BR-ISOLATE", "evaluated", tenant_id=TENANT)
-    # 原始 application 应仍为 submitted（register_demand 写入 status）
+    # 原始 demand 应仍停在待响应，不被 BR 状态推进改写。
     records = {r.application_code: r for r in app_repo.list_records(tenant_id=TENANT)}
-    assert records["A601"].status == "submitted"
-    assert records["A602"].status == "submitted"
+    assert records["A601"].status == DEMAND_STATUS_PENDING_RESPONSE
+    assert records["A602"].status == DEMAND_STATUS_PENDING_RESPONSE

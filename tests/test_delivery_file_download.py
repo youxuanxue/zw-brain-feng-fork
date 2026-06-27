@@ -26,10 +26,23 @@ def temp_db() -> None:
 
 
 def _seed_file_delivery(store: DatabaseStore, delivery_code: str) -> None:
+    request_id = f"app-{delivery_code}"
+    store.application_repo.upsert_from_request(
+        {
+            "id": request_id,
+            "kind": "apply",
+            "status": "granted",
+            "applicant": "file-downloader",
+            "applicantDept": "测试部门",
+            "resourceId": f"res-{delivery_code}",
+            "resourceName": "产品使用报告",
+        },
+        tenant_id=TENANT,
+    )
     store.delivery_repo.upsert_from_delivery(
         {
             "id": delivery_code,
-            "requestId": f"app-{delivery_code}",
+            "requestId": request_id,
             "status": "granted",
             "channel": "file",
             "name": "产品使用报告.docx",

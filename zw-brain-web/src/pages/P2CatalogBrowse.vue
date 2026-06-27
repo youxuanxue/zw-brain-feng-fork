@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import { useSnapshot } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { getProductRole } from '@/composables/useProductRole';
 import { apiUrl } from '@/composables/useApiBase';
 import { displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
@@ -10,6 +11,7 @@ import { displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
 // 目录浏览：真接 catalog.browse 列真 catalog_entry，每行可钻取到目录详情（看目录下资源）。
 const { source } = useSnapshot();
 const role = getProductRole();
+const discoveryShellTitle = shellNavLabelByKey('discovery');
 
 interface CatalogRow {
   catalogCode: string;
@@ -85,7 +87,7 @@ watch(role, () => { void load(); });
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/discovery">← 资源发现</a></nav>
+    <nav class="crumbs"><a href="#/discovery">← {{ discoveryShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader title="目录浏览" :meta="headerMeta" />
       <table v-if="source === 'live' && rows.length" class="focus-table">

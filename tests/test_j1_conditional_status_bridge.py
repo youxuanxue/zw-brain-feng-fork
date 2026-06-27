@@ -150,6 +150,22 @@ def test_conditional_draft_submit_lands_submitted(brain: Any) -> None:
     assert sres["status"] == "submitted"
 
 
+def test_conditional_direct_submit_promotes_existing_draft(brain: Any) -> None:
+    """直提路径命中既有草稿时须当场 submit → submitted（禁止复用 draft 卡死受理两级）。"""
+    _inject_resource(brain, "RES-COND-DRAFT-PROMOTE", "2")
+    draft = invoke_trusted(
+        brain,
+        "request.create",
+        {"resource_id": "RES-COND-DRAFT-PROMOTE", "confirmed": True, "query": "先草稿"},
+        role="ROLE_ORGAN_OPERATER",
+    )
+    dres = draft["result"] if "result" in draft else draft
+    assert dres["status"] == "draft"
+    res = _direct_submit(brain, "RES-COND-DRAFT-PROMOTE")
+    assert res["status"] == "submitted"
+    assert _record_status(res["request_id"]) == "submitted"
+
+
 def test_single_step_review_rejects_conditional(brain: Any) -> None:
     """D55/P21 挡板：单步受理（application.resource.review）拒收有条件单。
 

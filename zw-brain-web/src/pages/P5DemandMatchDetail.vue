@@ -1,34 +1,69 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { authFetch } from '@/composables/useAuth';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
-import { deriveDemandMatches } from '@/lib/providerProjection';
+import { demandRecordToProviderRow, deriveDemandMatches, type ProviderRow } from '@/lib/providerProjection';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
 import { mapDetailRows } from '@/lib/detailDisplay';
+import { formatTodoStatus } from '@/lib/statusLabels';
 import { apiUrl } from '@/composables/useApiBase';
 
 const route = useRoute();
 const id = computed(() => String(route.params.id ?? ''));
 const provider = useProvider();
 const { source } = useSnapshot();
+const currentRole = getProductRole();
+const fetchedItem = ref<ProviderRow | null>(null);
+const detailLoading = ref(false);
+const detailLoaded = ref(false);
 
-const item = computed(() =>
+const inboxItem = computed(() =>
   deriveDemandMatches(provider.value as Record<string, unknown>).find((d) => d.id === id.value),
 );
-// request.create = OPERATER + MANAGER（D57④ 管理员申请人身份照 v5 保留）；BUSIAUDIT 见不到「受理并起草申请」
-const canAcceptDemand = computed(() => canPerformAction('request.create', getProductRole().value));
+const item = computed(() => fetchedItem.value ?? inboxItem.value);
+const isPendingResponse = computed(() => (item.value?.response_status ?? item.value?.status) === 'pending_response');
+const canRespondDemand = computed(() => canPerformAction('demand.response.submit', currentRole.value) && isPendingResponse.value);
 
-// 需求记录本身不携带「已匹配的本地资源」——必须先检索目录命中一条真实资源，
-// 再用它的 catalog_code 起草申请。禁写死 resource_id（旧 bug：res-jbxx-ledger 全绑同一资源）。
-const matchedResourceId = ref<string | null>(null);
+watch(
+  [id, currentRole],
+  async ([demandId, role]) => {
+    fetchedItem.value = null;
+    detailLoaded.value = false;
+    if (!demandId) return;
+    detailLoading.value = true;
+    try {
+      const resp = await authFetch(apiUrl('/api/skills/demand.list'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({ role, confirmed: true }),
+      });
+      if (!resp.ok) return;
+      const data = (await resp.json()) as { items?: unknown[]; result?: { items?: unknown[] } };
+      const records = data.items ?? data.result?.items ?? [];
+      const hit = records.find((row) => demandRecordToProviderRow(row).id === demandId);
+      fetchedItem.value = hit ? demandRecordToProviderRow(hit) : null;
+    } catch {
+      // 收件箱投影仍可兜底；错误态不把页面打成“未找到”。
+    } finally {
+      detailLoaded.value = true;
+      detailLoading.value = false;
+    }
+  },
+  { immediate: true },
+);
+
+// 需求记录本身不携带「已匹配的本地资源」——先检索目录命中一条真实资源，
+// 再把 catalog_code 写回供需响应。禁写死 resource_id（旧 bug：res-jbxx-ledger 全绑同一资源）。
 const matchedResourceName = ref<string | null>(null);
 const matching = ref(false);
+const responseNote = ref('');
+const resourceRef = ref('');
 
 const rows = computed(() => {
   const it = item.value;
@@ -36,8 +71,12 @@ const rows = computed(() => {
   const raw = [
     { label: '需求编号', value: it.id },
     { label: '需求标题', value: it.title },
-    { label: '来源平台', value: it.catalog },
-    { label: '当前状态', value: it.status },
+    { label: '申请部门', value: it.applicant_dept || '—' },
+    { label: '期望资源', value: it.target_resource_hint || '—' },
+    { label: '响应状态', value: formatTodoStatus(it.response_status ?? it.status) },
+    { label: '提供方结论', value: it.provider_decision ? formatTodoStatus(it.provider_decision) : '待响应' },
+    { label: '处理意见', value: it.provider_response_note || '—' },
+    { label: '关联资源', value: it.provider_resource_ref || '—' },
   ];
   if (matchedResourceName.value) {
     raw.push({ label: '已匹配本地目录', value: matchedResourceName.value });
@@ -92,7 +131,7 @@ async function matchCatalog() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
           body: JSON.stringify({
-            role: getProductRole().value,
+            role: currentRole.value,
             confirmed: true,
             query: q,
             lifecycle_status: 'active',
@@ -108,13 +147,13 @@ async function matchCatalog() {
       const data = (await resp.json()) as { items?: Array<Record<string, unknown>>; result?: { items?: Array<Record<string, unknown>> } };
       const first = (data.items ?? data.result?.items ?? [])[0];
       if (first && first.catalog_code) {
-        matchedResourceId.value = String(first.catalog_code);
+        const catalogCode = String(first.catalog_code);
         matchedResourceName.value = String(first.title ?? first.catalog_code);
-        pushToast({ kind: 'ok', title: '已匹配目录', detail: `命中「${matchedResourceName.value}」，可起草申请。` });
+        resourceRef.value = catalogCode;
+        pushToast({ kind: 'ok', title: '已匹配目录', detail: `命中「${matchedResourceName.value}」，可作为关联资源。` });
         return;
       }
     }
-    matchedResourceId.value = null;
     matchedResourceName.value = null;
     pushToast({ kind: 'info', title: '未命中', detail: '本地目录暂无可匹配资源；请登记需求或人工对接。' });
   } catch {
@@ -124,24 +163,35 @@ async function matchCatalog() {
   }
 }
 
-async function acceptDemand() {
-  // 诚实门控：未先匹配到真实本地目录则不起草，避免错绑固定资源。
-  if (!matchedResourceId.value) {
-    pushToast({
-      kind: 'info',
-      title: '请先匹配目录',
-      detail: '需先点「检索匹配目录」命中一条本地资源，再起草资源申请。',
-    });
+function requireResponseNote(action: string): boolean {
+  if (responseNote.value.trim()) return true;
+  pushToast({ kind: 'warn', title: '请填写处理意见', detail: `${action}前需要写明处理意见。` });
+  return false;
+}
+
+async function respondDemand(decision: 'provide' | 'reject' | 'need_fix') {
+  if (!requireResponseNote(decision === 'provide' ? '确认提供' : decision === 'reject' ? '拒绝提供' : '驳回补正')) return;
+  if (decision === 'provide' && !resourceRef.value.trim()) {
+    pushToast({ kind: 'warn', title: '请填写关联资源', detail: '确认提供前需要填写或检索出关联资源编号。' });
     return;
   }
-  await invokeActionStub({
-    skillId: 'request.create',
+  const result = await invokeActionStub({
+    skillId: 'demand.response.submit',
     payload: {
-      resource_id: matchedResourceId.value,
-      purpose: `对接国家需求 ${id.value}：${item.value?.title ?? ''}`.trim(),
+      demand_id: id.value,
+      decision,
+      response_note: responseNote.value.trim(),
+      resource_ref: decision === 'provide' ? resourceRef.value.trim() : undefined,
     },
-    successTitle: '已起草对接申请',
+    successTitle: decision === 'provide' ? '已确认提供' : decision === 'reject' ? '已拒绝提供' : '已退回补正',
+    refreshSnapshotAfter: true,
   });
+  if (result.ok && result.data) {
+    const data = result.data as Record<string, unknown>;
+    const record = (data.result ?? data) as Record<string, unknown>;
+    fetchedItem.value = demandRecordToProviderRow(record);
+    detailLoaded.value = true;
+  }
 }
 </script>
 
@@ -149,27 +199,36 @@ async function acceptDemand() {
   <main class="focus-page focus-detail">
     <nav class="crumbs"><a href="#/provider/inbox/demand-match">← 供需对接</a></nav>
     <section class="panel">
-      <PageFocusHeader :title="item?.title ?? `需求 ${id}`" meta="匹配本地目录后起草资源申请" />
+      <PageFocusHeader :title="item?.title ?? `需求 ${id}`" meta="确认提供、拒绝提供或退回补正" />
 
-      <template v-if="source === 'live' && item">
+      <template v-if="(source === 'live' || detailLoaded) && item">
         <DetailPanel title="需求详情" :rows="rows" />
-        <DetailActions>
+        <div v-if="canRespondDemand" class="response-box">
+          <label for="resource-ref">关联资源编号</label>
+          <input id="resource-ref" v-model="resourceRef" placeholder="确认提供时填写目录或资源编号" />
+          <label for="response-note">处理意见</label>
+          <textarea id="response-note" v-model="responseNote" rows="4" placeholder="请写明确认提供、拒绝提供或补正原因" />
+        </div>
+        <DetailActions v-if="canRespondDemand">
           <button type="button" class="gov-btn gov-btn-secondary" :disabled="matching" @click="matchCatalog">
             {{ matching ? '检索中……' : '检索匹配目录' }}
           </button>
           <button
-            v-if="canAcceptDemand"
+            v-if="canRespondDemand"
             type="button"
             class="gov-btn gov-btn-primary"
-            :disabled="!matchedResourceId"
-            @click="acceptDemand"
+            @click="respondDemand('provide')"
           >
-            受理并起草申请
+            确认提供
           </button>
+          <button v-if="canRespondDemand" type="button" class="gov-btn" @click="respondDemand('need_fix')">驳回补正</button>
+          <button v-if="canRespondDemand" type="button" class="gov-btn gov-btn-danger" @click="respondDemand('reject')">拒绝提供</button>
         </DetailActions>
-        <p v-if="canAcceptDemand && !matchedResourceId" class="hint">先检索匹配本地目录，命中后方可起草资源申请。</p>
+        <p v-if="canRespondDemand && !resourceRef" class="hint">确认提供前可先检索匹配目录，命中后会自动填入关联资源编号。</p>
+        <p v-else-if="item.response_status === 'responded'" class="hint">该需求已完成响应，可返回收件箱继续处理其他待办。</p>
       </template>
-      <p v-else-if="source === 'live'" class="focus-empty">未找到该需求编号。</p>
+      <p v-else-if="source === 'live' && detailLoaded" class="focus-empty">未找到该需求编号。</p>
+      <p v-else-if="detailLoading" class="focus-empty">正在加载需求详情……</p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>
@@ -179,6 +238,15 @@ async function acceptDemand() {
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; margin-right: 8px; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }
+.gov-btn-danger { background: #fff; color: #b42318; border-color: #f0b8b3; }
 .gov-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .hint { font-size: 12px; color: var(--b-muted, #5c6370); margin: 8px 0 0; }
+.response-box { margin-top: 12px; display: grid; gap: 6px; max-width: 560px; }
+label { font-size: 13px; color: var(--b-muted, #5c6370); }
+input, textarea {
+  padding: 8px 10px;
+  border: 1px solid var(--b-border, #d4e2f4);
+  border-radius: 6px;
+  font-size: 14px;
+}
 </style>

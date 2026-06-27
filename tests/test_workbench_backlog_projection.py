@@ -1,11 +1,12 @@
 """业务运营员工作台待办 — 真实库现算投影（缺陷 2 + E2 职责口径守卫）.
 
 守护点：
-  - ROLE_BUSIAUDIT 工作台 todos = 业务运营员真实职责（发布 / 受理 / 汇总），从真实库
-    积压现算：待发布目录 + 待发布资源 + 待受理申请 + 待受理异议 + 待汇总需求。每条带深链。
+  - ROLE_BUSIAUDIT 工作台 todos = 业务运营员真实职责（发布 / 受理 / 平台审），从真实库
+    积压现算：待发布目录 + 待发布资源 + 待受理申请 + 待受理异议。每条带深链。
+  - ROLE_ORGAN_MANAGER 工作台补投提供方待响应需求，深链供需对接收件箱。
   - 审核类（待审核目录/资源、待补全用途）属部门管理员职责，不再出现在业务运营员工作台
     （E2 纠正职责错配，0605 反馈 6.4#11 + D53）。
-  - 待受理申请按 kind=apply 过滤——application_record 表混存申请/需求，需求另归「待汇总需求」。
+  - 待受理申请按 kind=apply 过滤——application_record 表混存申请/需求，需求另归「待响应需求」。
   - 部门管理员（D55/P10）：在 sync_request_todos 已投部门审核待办上叠加供数侧目录审核待办
     （pending_review 深链 catalog-review），零积压不投。部门操作员 view 原样（enrich 不动）。
   - 零积压不生成待办（无空死链）；办理建议是分类型行动句（G4）。
@@ -22,7 +23,6 @@ from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
-from zw_brain.domain.supply_demand_phase import PHASE_REGISTERED
 from zw_brain.domain.workbench_backlog_projection import _backlog_todos, enrich_workbench_backlog
 from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -103,7 +103,6 @@ def _seed_backlog() -> None:
         applicant="op",
         applicant_dept="部门A",
         tenant_id=TENANT,
-        phase=PHASE_REGISTERED,
     )
 
     ObjectionRepository().create_case(
@@ -148,7 +147,7 @@ def test_busiaudit_workbench_todos_are_operator_duties(temp_db: None) -> None:
     assert "backlog-application" not in todos
     assert todos["backlog-objection"]["title"] == "待受理异议 1 条"
     assert todos["backlog-objection"]["href"] == "#/provider/inbox/objection?scope=pending"
-    assert todos["backlog-demand"]["title"] == "待汇总需求 1 条"
+    assert "backlog-demand" not in todos
     # D57⑧：平台审待办归业务运营员（正向部门审通过 + 反向部门审通过共用平台档），
     # 深链目录审核收件箱（BUSIAUDIT 档=平台审）。
     assert todos["backlog-catalog-platform-review"]["title"] == "待平台审核目录 1 条"
@@ -176,18 +175,17 @@ def test_g4_action_summary_is_typed_action_sentence(temp_db: None) -> None:
 
 
 def test_demand_not_miscounted_as_application(temp_db: None) -> None:
-    """表混存申请/需求时，登记需求只进「待汇总需求」、不串进「待受理申请」。"""
+    """表混存申请/需求时，登记需求只进「待响应需求」、不串进「待受理申请」。"""
     SupplyDemandRepository().register_demand(
         demand_id="dmd-only",
         title="只有需求无申请",
         applicant="op",
         applicant_dept="部门A",
         tenant_id=TENANT,
-        phase=PHASE_REGISTERED,
     )
-    out = enrich_workbench_backlog({"todos": []}, "ROLE_BUSIAUDIT", tenant_id=TENANT)
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
     todos = {t["id"]: t for t in out["todos"]}
-    assert todos["backlog-demand"]["title"] == "待汇总需求 1 条"
+    assert todos["backlog-demand"]["title"] == "待响应需求 1 条"
     assert "backlog-application" not in todos
 
 
@@ -225,7 +223,7 @@ def test_busiaudit_empty_backlog_is_honest_empty(temp_db: None) -> None:
 
 def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: None) -> None:
     """BUSIAUDIT enrich 改增量：逐单受理待办（携 action）存活、聚合「待受理申请」不重复双算，
-    其余聚合候选（发布/异议/督办/需求/平台审）作深链待办保留。"""
+    其余聚合候选（发布/异议/督办/平台审）作深链待办保留；供需响应归部门管理员。"""
     _seed_backlog()  # 1 条 submitted 申请 → 聚合「待受理申请」count=1
     # sync 已逐单投 2 条受理待办（携行内决策 action）。
     base: dict[str, Any] = {
@@ -240,14 +238,12 @@ def test_busiaudit_augments_keeps_accept_todos_no_application_double(temp_db: No
     # 聚合「待受理申请」候选被剔除——避免与逐单受理待办双算。
     assert "backlog-application" not in todos
     # 其余聚合候选保留（category=backlog）。异议受理经 M5 re-grain 为行内 decision-list（经 BUSIAUDIT
-    # 增量 enrich 存活）；督办/需求汇总未 re-grain（多步）仍为深链、不带 action。G4 行动分句叫 actionClause。
+    # 增量 enrich 存活）；督办未 re-grain（多步）仍为深链、不带 action。G4 行动分句叫 actionClause。
     assert todos["backlog-objection"]["category"] == "backlog"
     assert todos["backlog-objection"]["href"] == "#/provider/inbox/objection?scope=pending"
-    assert todos["backlog-demand"]["category"] == "backlog"
+    assert "backlog-demand" not in todos
     assert todos["backlog-objection"]["action"]["kind"] == "decision-list"
     assert todos["backlog-objection"]["action"]["items"][0]["capability"] == "objection.case.accept"
-    assert "action" not in todos["backlog-demand"]
-    assert isinstance(todos["backlog-demand"]["actionClause"], str)
 
 
 def test_operater_aggregates_into_summary_cards_with_honest_advice(temp_db: None) -> None:
@@ -264,14 +260,14 @@ def test_operater_aggregates_into_summary_cards_with_honest_advice(temp_db: None
     app_repo = ApplicationRepository()
     _seed_application(app_repo, "REQ-draft", "draft")
     _seed_application(app_repo, "REQ-x", "pending")
-    _seed_application(app_repo, "REQ-x-sup", "supplementing")
+    _seed_application(app_repo, "REQ-x-sup", "need-fix")
     base = {
         "todos": [
             # 草稿单进度待办（status 文案=草稿）→ 草稿卡。
             {"id": "REQ-draft", "title": "停车场资源申请进度跟踪", "status": "草稿", "href": "#/request-flow/request/REQ-draft", "category": "apply-progress"},
             # 在办单进度待办（非草稿态）→ 在办卡。
             {"id": "REQ-x", "title": "户籍资源申请进度跟踪", "status": "审批中", "href": "#/request-flow/request/REQ-x", "category": "apply-progress"},
-            # 补录任务 → 补录卡。
+            # 旧 sync supplement 待办不再作为计数来源；补录卡从本人 need-fix 申请记录现算。
             {"id": "REQ-x-sup", "title": "户籍差异补录任务", "status": "待补录", "href": "#/request-flow/request/REQ-x-sup", "category": "supplement-township"},
         ],
         "subtitle": "停车场信息复用申请待看进度（seed 虚构）",
@@ -285,23 +281,27 @@ def test_operater_aggregates_into_summary_cards_with_honest_advice(temp_db: None
     # 草稿卡：计数头条 + 逐条 request.submit 行内决策。
     draft = cards["my-draft-applications"]
     assert draft["title"] == "草稿待提交 1 条"
-    assert draft["href"] == "#/request-flow"
+    assert draft["href"] == "#/delivery-exchange?tab=mine"
     assert draft["action"]["kind"] == "decision-list"
     draft_item = draft["action"]["items"][0]
     assert draft_item["id"] == "REQ-draft"
-    assert draft_item["label"] == "停车场", "label=resourceName（剥进度跟踪尾缀）"
+    assert draft_item["label"] == "申请单REQ-draft", "label=application_record.resourceName"
     assert draft_item["capability"] == "request.submit" and draft_item["gate"] == "request.submit"
     assert draft_item["basePayload"] == {"request_id": "REQ-draft"}
     assert [d["label"] for d in draft_item["decisions"]] == ["提交申请"]
     # 在办 / 补录卡：计数头条 + href 兜底，无行内决策（不 re-grain）。
-    assert cards["my-active-applications"]["title"] == "申请在办 1 条"
+    assert cards["my-active-applications"]["title"] == "申请在办 2 条"
     assert "action" not in cards["my-active-applications"]
     assert cards["my-supplement-tasks"]["title"] == "补录任务待完成 1 条"
+    assert "尚未提交的申请草稿" in draft["note"]
+    assert "领数据-我的申请" in draft["note"]
+    assert "正在受理或审批中的申请" in cards["my-active-applications"]["note"]
+    assert "被退回补正的申请" in cards["my-supplement-tasks"]["note"]
     # 办理建议：草稿≠在办，给「可继续提交 / 在办 / 待完成」诚实分句，非计数复读。
     assert "停车场" not in out["subtitle"] and "虚构" not in out["subtitle"]
     summary = out["aiSummary"]["summary"]
     assert "1 张草稿可继续提交" in summary
-    assert "1 条申请在办" in summary
+    assert "2 条申请在办" in summary
     assert "1 项补录任务待完成" in summary
 
 
@@ -479,8 +479,8 @@ def test_busiaudit_objection_todo_carries_accept_decision(temp_db: None) -> None
     assert "责任单位" in ctx_labels
 
 
-def test_busiaudit_non_regrained_todos_have_no_action(temp_db: None) -> None:
-    """督办/需求汇总不 re-grain：保 count + href，**无** action（多步，留兜底深链）。"""
+def test_busiaudit_non_regrained_supervision_todo_has_no_action(temp_db: None) -> None:
+    """督办不 re-grain：保 count + href，**无** action（多步，留兜底深链）。"""
     _seed_backlog()
     # 事件式督办：在非终态 case 上加 escalate 过程事件即进督办队列（不改 case.status）。
     obj = ObjectionRepository()
@@ -490,8 +490,16 @@ def test_busiaudit_non_regrained_todos_have_no_action(temp_db: None) -> None:
     todos = {t["id"]: t for t in out["todos"]}
     assert "action" not in todos["backlog-objection-supervised"]
     assert todos["backlog-objection-supervised"]["href"]
+
+
+def test_manager_demand_todo_has_no_action(temp_db: None) -> None:
+    """供需响应不 re-grain：管理员工作台保 count + href，**无** action（多步，留兜底深链）。"""
+    _seed_backlog()
+    out = enrich_workbench_backlog({"todos": []}, "ROLE_ORGAN_MANAGER", tenant_id=TENANT)
+    todos = {t["id"]: t for t in out["todos"]}
     assert "action" not in todos["backlog-demand"]
     assert todos["backlog-demand"]["href"]
+    assert todos["backlog-demand"]["title"] == "待响应需求 1 条"
 
 
 def test_application_aggregate_not_regrained(temp_db: None) -> None:

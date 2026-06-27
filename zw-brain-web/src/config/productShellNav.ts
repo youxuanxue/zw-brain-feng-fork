@@ -110,7 +110,7 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
   },
   {
     // 流程与表单配置独立为导航模块（第一轮 ruled-but-staged「配置轴升独立主导航」兑现）。
-    // 路由仍为 /integration-admin/engines（零路由churn），页头保留全名「流程与表单配置」。
+    // 路由仍为 /integration-admin/engines（零路由churn）；页头见 ENGINES_PAGE_TITLE（待接入标注）。
     key: 'engines',
     navLabel: '流程表单',
     navDesc: '审批流程、申请表单与智能推荐配置',
@@ -131,8 +131,23 @@ export const PRODUCT_SHELL_NAV: ShellNavItem[] = [
   },
 ];
 
+/** B1.2 流程表单页头全名（配置尚未接入真实业务，页头诚实标注）。 */
+export const ENGINES_PAGE_TITLE = '流程与表单配置（待接入）';
+
 export function visibleShellNav(role: string): ShellNavItem[] {
   return PRODUCT_SHELL_NAV.filter((item) => item.roles.includes(role));
+}
+
+export function shellNavItemByKey(key: string): ShellNavItem | undefined {
+  return PRODUCT_SHELL_NAV.find((item) => item.key === key);
+}
+
+export function shellNavLabelByKey(key: string): string {
+  return shellNavItemByKey(key)?.navLabel ?? key;
+}
+
+export function shellNavLabelForPath(path: string): string {
+  return shellNavLabelByKey(activeShellKey(path));
 }
 
 /** 把有权项按旅程分组（用数 / 供数 / 后台），空组不返回。 */

@@ -143,13 +143,13 @@
 
 ## `zw_brain/domain/repositories/supply_demand.py`
 
-### `zw_brain/domain/repositories/supply_demand.py:114`
+### `zw_brain/domain/repositories/supply_demand.py:148`
 
-**Reason**: kind/demand_phase 存 payload_json JSON 列，需 SQL JSON 算子
+**Reason**: kind/response_status 存 payload_json JSON 列，需 SQL JSON 算子
 
 ```python
         with SessionLocal() as session:
-            # full-scan-ok: kind/demand_phase 存 payload_json JSON 列，需 SQL JSON 算子
+            # full-scan-ok: kind/response_status 存 payload_json JSON 列，需 SQL JSON 算子
             # （SQLite vs PG 分支）才能下推；当前演示规模 <500 行，先内存过滤。
 ```
 

@@ -88,6 +88,9 @@ def realistic_pg_module() -> Iterator[str]:
         os.environ["ZW_BRAIN_TEST_REALISTIC_DB"] = clone
         _db.DEFAULT_PG_URL = clone_url
         _db.reset_engine_cache()
+        from zw_brain.shared.migrate import ensure_runtime_schema
+
+        ensure_runtime_schema()
         try:
             yield clone
         finally:

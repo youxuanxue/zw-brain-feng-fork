@@ -26,14 +26,11 @@ vi.mock('@/composables/usePackageLifecycle', () => ({
 }));
 
 vi.mock('@/composables/useActionStub', () => ({ pushToast: vi.fn() }));
-vi.mock('@/lib/consumeNLAction', () => ({ consumeNLAction: vi.fn() }));
-
 import B12IntegrationAdmin from './B12IntegrationAdmin.vue';
 
 const stubs = {
   PageFocusHeader: { template: '<header><slot/><slot name="aside"/></header>' },
   DataSourceBadge: { template: '<span />' },
-  NLAcceleratorPanel: { template: '<aside />' },
 };
 
 function mountPage() {

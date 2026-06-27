@@ -148,6 +148,10 @@ interface RequestListItem {
   resourceName?: string;
 }
 
+function requestIds(items: RequestListItem[]): Set<string> {
+  return new Set(items.map((it) => String(it.id ?? '')).filter(Boolean));
+}
+
 interface ApprovalEvidence {
   recommendation?: string;
   recommended_decision_reason?: string;
@@ -204,8 +208,10 @@ async function parseP3(query: string, role: string): Promise<NLAcceleratorParseR
       request_id: newRequestId('UI-NL-P3-LIST'),
     });
     const items = list.items ?? [];
+    const knownRequestIds = requestIds(items);
+    const reqIdIsKnown = reqId ? knownRequestIds.has(reqId) : false;
     const pending = items.filter((it) => String(it.status ?? '').includes('pending'));
-    const targetId = reqId ?? pending[0]?.id;
+    const targetId = reqIdIsKnown ? reqId : pending[0]?.id;
 
     if (/几条|多少|待审/.test(q) && !reqId) {
       return {
@@ -242,6 +248,14 @@ async function parseP3(query: string, role: string): Promise<NLAcceleratorParseR
               },
             ]
           : [],
+      };
+    }
+
+    if (reqId && !reqIdIsKnown) {
+      return {
+        summary: `未在申请列表中找到 ${reqId}；请确认这是申请编号，而不是资源编号。`,
+        parse_status: 'partial',
+        actions: [{ kind: 'navigate', label: '返回我的申请', target: '#/delivery-exchange' }],
       };
     }
 
@@ -340,6 +354,39 @@ async function parseB11(query: string, role: string): Promise<NLAcceleratorParse
   const reqId = extractReqId(q);
 
   if (reqId) {
+    try {
+      const list = await postSkill<{ items?: RequestListItem[] }>('request.list', {
+        role,
+        request_id: newRequestId('UI-NL-B11-LIST'),
+      });
+      if (!requestIds(list.items ?? []).has(reqId)) {
+        return {
+          summary: `未在申请列表中找到 ${reqId}；不会把资源编号误当申请打开。`,
+          parse_status: 'partial',
+          actions: [
+            {
+              kind: 'invoke',
+              label: '查审计回放',
+              target: 'audit.replay_evidence_chain',
+              payload: { request_id: reqId },
+            },
+          ],
+        };
+      }
+    } catch {
+      return {
+        summary: `暂时无法校验 ${reqId} 是否为申请编号；不会自动打开申请详情。`,
+        parse_status: 'partial',
+        actions: [
+          {
+            kind: 'invoke',
+            label: '查审计回放',
+            target: 'audit.replay_evidence_chain',
+            payload: { request_id: reqId },
+          },
+        ],
+      };
+    }
     return {
       summary: `已定位申请单据 ${reqId}；可查看完整审计链`,
       parse_status: 'ok',

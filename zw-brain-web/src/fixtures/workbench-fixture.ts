@@ -85,6 +85,8 @@ export interface WorkbenchTodo {
   category?: string;
   /** 面向用户的下一步动作，不承载路由或权限，只给工作台首屏判断优先级。 */
   nextAction?: string;
+  /** 可选：计数口径说明，帮助用户理解该卡与其它模块的对应关系。 */
+  note?: string;
   /** 可选：带上后，符合权限的行可就地展开办理（见 WorkbenchTodoAction）。 */
   action?: WorkbenchTodoAction;
 }

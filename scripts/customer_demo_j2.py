@@ -274,12 +274,12 @@ def run_demo() -> dict[str, Any]:
     })
 
     # ── STEP-11 review → resolved ────────────────────────────────────
-    _log("STEP-11.OBJ", "MANAGER review approve → resolved")
+    _log("STEP-11.OBJ", "BUSIAUDIT review approve → resolved")
     resolved = _invoke(brain, "objection.case.review", {
         "objection_id": objection_id,
         "decision": "resolve",
         "resolved_summary": "提供方已修正字段描述",
-        "role": "ROLE_ORGAN_MANAGER",
+        "role": "ROLE_BUSIAUDIT",
         "confirmed": True,
     })
     if resolved["status"] != "resolved":

@@ -74,7 +74,7 @@ test.describe('试用体验壳层', () => {
     await expect(page.locator('.toast').first()).toContainText(/已切换岗位|部门管理员/);
 
     await gotoHash(page, '#/provider');
-    await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
     await switchRole(page, 'ROLE_BUSIAUDIT');
     await switchRole(page, 'ROLE_ORGAN_MANAGER');
     await switchRole(page, 'ROLE_SYSTEM');
@@ -102,7 +102,7 @@ test.describe('试用体验壳层', () => {
     await switchRole(page, 'ROLE_ORGAN_MANAGER');
     await clearToasts(page);
     await gotoHash(page, '#/provider');
-    await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
 
     const before = await shellMetrics(page);
     expect(before.scrollWidth).toBeLessThanOrEqual(before.clientWidth);

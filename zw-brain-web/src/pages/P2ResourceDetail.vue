@@ -125,14 +125,8 @@ const explain = computed(() => (Array.isArray(resource.value?.explain) ? (resour
 const typedSections = computed(() =>
   typedSectionsToRows(resource.value?.typedDetail as Parameters<typeof typedSectionsToRows>[0]),
 );
-// R12 + 角色视角：「库表信息」块含 DBA 物理字段（物理表名/所属库/表版本/资源所处位置），
-// 是供数方运维/管理关注点，对申请人（消费视角，route.path 以 /discovery 开头）无信息量且暴露
-// 库表实现细节——消费视角整块隐藏；供数管理视角（/provider）保留。
-const consumerView = computed(() => route.path.startsWith('/discovery'));
 const typedDetailRows = computed(() =>
-  typedSections.value
-    .filter((sec) => !(consumerView.value && sec.title === '库表信息'))
-    .map((sec) => ({ title: sec.title, rows: mapDetailRows(sec.rows) })),
+  typedSections.value.map((sec) => ({ title: sec.title, rows: mapDetailRows(sec.rows) })),
 );
 const kindLabel = computed(() => String((resource.value?.typedDetail as Record<string, unknown> | undefined)?.kindLabel ?? ''));
 

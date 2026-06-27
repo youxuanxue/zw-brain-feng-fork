@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import DeliveryEntryTabs from '@/components/DeliveryEntryTabs.vue';
 import DetailPanel from '@/components/DetailPanel.vue';
 import DetailActions from '@/components/DetailActions.vue';
 import { authFetch } from '@/composables/useAuth';
@@ -9,25 +10,30 @@ import { getProductRole } from '@/composables/useProductRole';
 import { mapDetailRows } from '@/lib/detailDisplay';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { apiUrl } from '@/composables/useApiBase';
+import { canPerformAction } from '@/lib/pageAccess';
 
 interface DemandRow {
   id: string;
   title: string;
-  demand_phase: string;
+  response_status: string;
   status: string;
   target_resource_hint: string;
   applicant_dept: string;
   channel_class: string;
+  provider_decision: string;
+  provider_response_note: string;
+  provider_resource_ref: string;
+  closed_note: string;
+  closed_at: string;
 }
 
-const PHASE_ORDER = [
-  'gap_discovered',
-  'registered',
-  'provider_responded',
-  'subscribed',
+const STATUS_ORDER = [
+  'pending_response',
+  'responded',
+  'closed',
 ] as const;
 
-const PHASE_STEPS = PHASE_ORDER.map((key) => ({
+const STATUS_STEPS = STATUS_ORDER.map((key) => ({
   key,
   label: formatTodoStatus(key),
 }));
@@ -43,16 +49,24 @@ const hint = ref('');
 const selectedId = ref('');
 const loading = ref(true);
 const detailRef = ref<HTMLElement | null>(null);
+const role = getProductRole();
+const canRegisterDemand = computed(() => canPerformAction('demand.register', role.value));
+const canCloseDemand = computed(() => canPerformAction('demand.close', role.value));
 
 function mapDemandRow(row: Record<string, unknown>): DemandRow {
   return {
     id: String(row.id ?? ''),
     title: String(row.title ?? '—'),
-    demand_phase: String(row.demand_phase ?? 'gap_discovered'),
+    response_status: String(row.response_status ?? row.status ?? 'pending_response'),
     status: String(row.status ?? ''),
     target_resource_hint: String(row.target_resource_hint ?? ''),
     applicant_dept: String(row.applicantDept ?? row.applicant_dept ?? '—'),
     channel_class: String(row.channel_class ?? 'internal'),
+    provider_decision: String(row.provider_decision ?? ''),
+    provider_response_note: String(row.provider_response_note ?? ''),
+    provider_resource_ref: String(row.provider_resource_ref ?? ''),
+    closed_note: String(row.closed_note ?? ''),
+    closed_at: String(row.closed_at ?? ''),
   };
 }
 
@@ -80,16 +94,9 @@ onMounted(() => { void loadDemands(); });
 
 const selected = computed(() => items.value.find((d) => d.id === selectedId.value) ?? null);
 
-const nextPhase = computed(() => {
-  const current = selected.value?.demand_phase ?? 'gap_discovered';
-  const idx = PHASE_ORDER.indexOf(current as (typeof PHASE_ORDER)[number]);
-  if (idx < 0 || idx >= PHASE_ORDER.length - 1) return null;
-  return PHASE_ORDER[idx + 1];
-});
-
-const currentPhaseIndex = computed(() => {
-  const current = selected.value?.demand_phase ?? '';
-  const idx = PHASE_ORDER.indexOf(current as (typeof PHASE_ORDER)[number]);
+const currentStatusIndex = computed(() => {
+  const current = selected.value?.response_status ?? '';
+  const idx = STATUS_ORDER.indexOf(current as (typeof STATUS_ORDER)[number]);
   return idx;
 });
 
@@ -101,14 +108,18 @@ const detailRows = computed(() => {
     { label: '需求标题', value: d.title },
     { label: '期望资源', value: d.target_resource_hint || '未填写' },
     { label: '申请部门', value: d.applicant_dept },
-    { label: '当前阶段', value: formatTodoStatus(d.demand_phase) },
-    { label: '处理状态', value: formatTodoStatus(d.status) },
+    { label: '响应状态', value: formatTodoStatus(d.response_status) },
     { label: '通道', value: CHANNEL_LABELS[d.channel_class] ?? d.channel_class },
+    { label: '提供方结论', value: d.provider_decision ? formatTodoStatus(d.provider_decision) : '待提供方响应' },
+    { label: '处理意见', value: d.provider_response_note || '—' },
+    { label: '关联资源', value: d.provider_resource_ref || '—' },
+    { label: '关闭说明', value: d.closed_note || '—' },
+    { label: '关闭时间', value: d.closed_at || '—' },
   ]);
 });
 
 const headerMeta = computed(() =>
-  loading.value ? '正在加载……' : `${items.value.length} 条登记 · 选中后可查看详情并推进阶段`,
+  loading.value ? '正在加载……' : `${items.value.length} 条登记 · 选中后可跟踪提供方响应`,
 );
 
 async function scrollToDetail() {
@@ -122,6 +133,7 @@ async function selectDemand(id: string) {
 }
 
 async function registerDemand() {
+  if (!canRegisterDemand.value) return;
   if (!title.value.trim()) return;
   const result = await invokeActionStub({
     skillId: 'demand.register',
@@ -142,22 +154,25 @@ async function registerDemand() {
   if (newId) await selectDemand(newId);
 }
 
-async function advancePhase() {
-  if (!selected.value || !nextPhase.value) return;
-  await invokeActionStub({
-    skillId: 'demand.phase.advance',
-    payload: { demand_id: selected.value.id, next_phase: nextPhase.value },
-    successTitle: '阶段已推进',
+async function closeDemand() {
+  const d = selected.value;
+  if (!d || d.response_status !== 'responded' || !canCloseDemand.value) return;
+  const result = await invokeActionStub({
+    skillId: 'demand.close',
+    payload: {
+      demand_id: d.id,
+      close_note: '需求方已确认提供方响应结果。',
+    },
+    successTitle: '需求已关闭',
     refreshSnapshotAfter: true,
   });
-  const keepId = selected.value.id;
+  if (!result.ok) return;
   await loadDemands();
-  selectedId.value = keepId;
-  await scrollToDetail();
+  await selectDemand(d.id);
 }
 
-function phaseStepClass(index: number): string {
-  const current = currentPhaseIndex.value;
+function statusStepClass(index: number): string {
+  const current = currentStatusIndex.value;
   if (current < 0) return 'phase-step';
   if (index < current) return 'phase-step phase-step-done';
   if (index === current) return 'phase-step phase-step-current';
@@ -167,15 +182,18 @@ function phaseStepClass(index: number): string {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/delivery-exchange">← 领数据</a></nav>
     <section class="panel">
       <PageFocusHeader
-        title="找不到数据 · 登记需求"
+        title="领数据"
         :meta="headerMeta"
-        :links="[{ label: '资源发现', href: '#/discovery' }]"
       />
+      <DeliveryEntryTabs active="demands" :demand-count="items.length" />
 
-      <div class="form-grid">
+      <div class="section-head">
+        <h2>我的需求</h2>
+      </div>
+
+      <div v-if="canRegisterDemand" class="form-grid">
         <label for="demand-title">需求标题</label>
         <input id="demand-title" v-model="title" placeholder="描述找不到的数据用途" />
         <label for="demand-hint">期望资源提示（可选）</label>
@@ -191,29 +209,31 @@ function phaseStepClass(index: number): string {
         <template v-if="selected">
           <DetailPanel
             title="当前需求"
-            :subtitle="`${selected.title} · ${formatTodoStatus(selected.demand_phase)}`"
+            :subtitle="`${selected.title} · ${formatTodoStatus(selected.response_status)}`"
             :rows="detailRows"
           />
 
           <div class="phase-track" aria-label="阶段进度">
             <div
-              v-for="(step, index) in PHASE_STEPS"
+              v-for="(step, index) in STATUS_STEPS"
               :key="step.key"
-              :class="phaseStepClass(index)"
+              :class="statusStepClass(index)"
             >
               <span class="phase-dot">{{ index + 1 }}</span>
               <span class="phase-label">{{ step.label }}</span>
             </div>
           </div>
 
-          <DetailActions v-if="nextPhase">
-            <button type="button" class="gov-btn gov-btn-primary" @click="advancePhase">
-              推进至「{{ formatTodoStatus(nextPhase) }}」
-            </button>
+          <DetailActions v-if="selected.response_status === 'responded' && canCloseDemand">
+            <button type="button" class="gov-btn gov-btn-primary" @click="closeDemand">确认完成</button>
           </DetailActions>
-          <p v-else class="phase-complete">该需求已走完本页可见的 4 步路径，无需再推进。</p>
+          <p v-if="selected.response_status === 'responded' && canCloseDemand" class="phase-complete">
+            提供方已响应。确认结果无误后，由需求方关闭这条需求。
+          </p>
+          <p v-else-if="selected.response_status === 'closed'" class="phase-complete">需求已关闭，供需对接完成。</p>
+          <p v-else class="phase-complete">需求提交后由提供方受理并响应，本页展示处理进度。</p>
         </template>
-        <p v-else-if="items.length" class="detail-hint">在下方列表点击一条需求，查看详情并推进阶段。</p>
+        <p v-else-if="items.length" class="detail-hint">在下方列表点击一条需求，查看详情和响应结果。</p>
       </div>
 
       <table v-if="items.length" class="focus-table">
@@ -222,7 +242,6 @@ function phaseStepClass(index: number): string {
             <th>编号</th>
             <th>标题</th>
             <th>期望资源</th>
-            <th>阶段</th>
             <th>状态</th>
           </tr>
         </thead>
@@ -238,18 +257,32 @@ function phaseStepClass(index: number): string {
             <td><code>{{ d.id }}</code></td>
             <td class="title-cell">{{ d.title }}</td>
             <td>{{ d.target_resource_hint || '—' }}</td>
-            <td><span class="status-pill" :class="todoStatusTone(d.demand_phase)">{{ formatTodoStatus(d.demand_phase) }}</span></td>
-            <td>{{ formatTodoStatus(d.status) }}</td>
+            <td><span class="status-pill" :class="todoStatusTone(d.response_status)">{{ formatTodoStatus(d.response_status) }}</span></td>
           </tr>
         </tbody>
       </table>
-      <p v-else-if="!loading" class="focus-empty">暂无登记记录，填写上方表单提交第一条需求。</p>
+      <p v-else-if="!loading" class="focus-empty">
+        {{ canRegisterDemand ? '暂无登记记录，填写上方表单提交第一条需求。' : '暂无登记记录。' }}
+      </p>
     </section>
   </main>
 </template>
 
 <style scoped>
 .form-grid { display: grid; gap: 8px; max-width: 560px; margin-bottom: 16px; }
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+.section-head h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--b-neutral-text, #1a1d21);
+}
 label { font-size: 13px; color: var(--b-muted, #5c6370); }
 input { padding: 8px 10px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 6px; }
 .gov-btn { padding: 6px 14px; border-radius: 6px; font-size: 13px; cursor: pointer; border: 1px solid transparent; }

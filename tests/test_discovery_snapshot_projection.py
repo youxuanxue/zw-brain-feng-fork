@@ -132,6 +132,38 @@ def test_enrich_requests_excludes_demand_kinds(temp_db: Path) -> None:
     assert out["requests"] == [], "全是需求类 → 无申请类 → 诚实空列表（不回退 seed）"
 
 
+def test_enrich_requests_collapses_same_legacy_applicant_resource(temp_db: Path) -> None:
+    repo = ApplicationRepository()
+    base = {
+        "applicant": "平台管理员",
+        "applicantDept": "省大数据局",
+        "kind": "apply",
+        "resource_name": "停车场信息",
+        "resourceId": "RES-DUP-LEGACY",
+        "applicant_org_id": "11370000MB284651XL",
+    }
+    repo.upsert_from_request(
+        base | {"id": "APP-LEGACY-REJECTED", "status": "rejected", "source_ref": "legacy:data_apply:1", "create_time": "2024-01-01 10:00:00"},
+        tenant_id=TENANT,
+    )
+    repo.upsert_from_request(
+        base | {"id": "APP-LEGACY-APPROVED", "status": "approved", "source_ref": "legacy:data_apply:2", "create_time": "2024-02-01 10:00:00"},
+        tenant_id=TENANT,
+    )
+    ApprovalRepository().upsert_from_request_and_approval(
+        {"id": "APP-LEGACY-REJECTED", "status": "pending"}, {}, tenant_id=TENANT
+    )
+    ApprovalRepository().upsert_from_request_and_approval(
+        {"id": "APP-LEGACY-APPROVED", "status": "pending"}, {}, tenant_id=TENANT
+    )
+
+    out = enrich_requests_snapshot({"requests": []}, tenant_id=TENANT)
+    assert {r["id"] for r in out["requests"]} == {"APP-LEGACY-APPROVED"}
+
+    approvals = enrich_approvals_snapshot(out, tenant_id=TENANT)
+    assert {a["id"] for a in approvals["approvals"]} == {"APP-LEGACY-APPROVED"}
+
+
 # ── approvals ─────────────────────────────────────────────────────────────────
 
 def test_enrich_approvals_replaces_seed_with_db_cases(temp_db: Path) -> None:
@@ -141,6 +173,17 @@ def test_enrich_approvals_replaces_seed_with_db_cases(temp_db: Path) -> None:
     ids = {a["id"] for a in out["approvals"]}
     assert ids == {"APP-10", "APP-11"}
     assert all(a["suggestion"] == "待审" for a in out["approvals"])
+
+
+def test_enrich_approvals_excludes_resource_review_cases(temp_db: Path) -> None:
+    _seed_approval("APP-10", status="pending")
+    ApprovalRepository().upsert_from_request_and_approval(
+        {"id": "resource-review:RES-001", "status": "pending"}, {}, tenant_id=TENANT
+    )
+
+    out = enrich_approvals_snapshot({"approvals": [{"id": "SEED-OLD"}]}, tenant_id=TENANT)
+
+    assert {a["id"] for a in out["approvals"]} == {"APP-10"}
 
 
 def test_enrich_approvals_empty_when_db_empty(temp_db: Path) -> None:

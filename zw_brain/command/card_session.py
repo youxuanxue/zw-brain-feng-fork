@@ -30,6 +30,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
+from zw_brain.domain.application_dedupe import dedupe_application_records
 from zw_brain.shared.runtime_tenant import DEFAULT_TENANT_ID as _DEFAULT_TENANT_ID
 
 
@@ -133,9 +134,12 @@ class CardSession:
         if store is None:
             return []
         cards: list[tuple[Any, dict[str, Any]]] = []
-        for record in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID):
-            if not is_runtime_request_payload(record.payload_json):
-                continue
+        records = [
+            record
+            for record in store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
+            if is_runtime_request_payload(record.payload_json)
+        ]
+        for record in dedupe_application_records(records):
             card = copy.deepcopy(record.payload_json)
             card["status"] = record.status
             cards.append((record.created_at, card))

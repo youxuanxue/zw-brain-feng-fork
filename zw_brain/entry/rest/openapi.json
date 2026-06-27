@@ -5481,7 +5481,7 @@
     "/api/skills/demand.list": {
       "get": {
         "summary": "查询供需需求列表",
-        "description": "列出当前租户登记的 demand 记录，可按 phase 筛选。",
+        "description": "列出当前租户登记的 demand 记录，可按 response_status 筛选。",
         "operationId": "get_demand_list",
         "tags": [
           "Capability Projection"
@@ -5598,7 +5598,7 @@
         },
         "parameters": [
           {
-            "name": "phase",
+            "name": "response_status",
             "in": "query",
             "required": false,
             "schema": {
@@ -22881,15 +22881,15 @@
         ]
       }
     },
-    "/api/skills/demand.phase.advance": {
+    "/api/skills/demand.close": {
       "post": {
-        "summary": "推进供需需求阶段",
-        "description": "按 6 步状态机推进 demand 的 demand_phase。",
-        "operationId": "post_demand_phase_advance",
+        "summary": "关闭供需需求",
+        "description": "需求方确认提供方响应结果后关闭供需需求，完成登记、响应、确认闭环。",
+        "operationId": "post_demand_close",
         "tags": [
           "Capability Projection"
         ],
-        "x-zwbrain-skill-id": "demand.phase.advance",
+        "x-zwbrain-skill-id": "demand.close",
         "x-zwbrain-side-effects": [
           "audit",
           "db_write"
@@ -22903,7 +22903,7 @@
           "a2a"
         ],
         "x-zwbrain-permissions": [
-          "demand.phase.advance.execute"
+          "demand.close.execute"
         ],
         "x-zwbrain-auth-policy": "user",
         "x-zwbrain-tenant-scope": "tenant",
@@ -23031,13 +23031,12 @@
                   "demand_id": {
                     "type": "string"
                   },
-                  "next_phase": {
+                  "close_note": {
                     "type": "string"
                   }
                 },
                 "required": [
                   "demand_id",
-                  "next_phase",
                   "confirmed"
                 ]
               }
@@ -23220,6 +23219,192 @@
                 },
                 "required": [
                   "title",
+                  "confirmed"
+                ]
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "cookieAuth": [],
+            "csrfToken": []
+          },
+          {
+            "BearerAuth": []
+          }
+        ]
+      }
+    },
+    "/api/skills/demand.response.submit": {
+      "post": {
+        "summary": "提交供需响应",
+        "description": "提供方对供需需求提交确认提供、拒绝提供或驳回补正结论；确认提供时必须关联资源。",
+        "operationId": "post_demand_response_submit",
+        "tags": [
+          "Capability Projection"
+        ],
+        "x-zwbrain-skill-id": "demand.response.submit",
+        "x-zwbrain-side-effects": [
+          "audit",
+          "db_write"
+        ],
+        "x-zwbrain-human-confirmation-required": true,
+        "x-zwbrain-audit-class": "write-normal",
+        "x-zwbrain-surfaces": [
+          "webui",
+          "api",
+          "cli",
+          "a2a"
+        ],
+        "x-zwbrain-permissions": [
+          "demand.response.submit.execute"
+        ],
+        "x-zwbrain-auth-policy": "user",
+        "x-zwbrain-tenant-scope": "tenant",
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Brain service validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Unknown skill id, skill surface disabled, or HTTP route not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Referenced domain entity missing (error=entity_not_found); distinct from route/skill 404",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden (e.g. csrf_token_invalid on cookie-authenticated writes)"
+          },
+          "409": {
+            "description": "Confirmation required or invalid state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    },
+                    "detail": {
+                      "type": "string"
+                    },
+                    "skill_id": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing/invalid session cookie or Bearer token, or token expired"
+          },
+          "503": {
+            "description": "IAF token validation service unavailable"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenant_id": {
+                    "type": "string"
+                  },
+                  "role": {
+                    "type": "string"
+                  },
+                  "confirmed": {
+                    "type": "boolean"
+                  },
+                  "demand_id": {
+                    "type": "string"
+                  },
+                  "decision": {
+                    "type": "string",
+                    "enum": [
+                      "provide",
+                      "reject",
+                      "need_fix"
+                    ]
+                  },
+                  "response_note": {
+                    "type": "string"
+                  },
+                  "resource_ref": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "demand_id",
+                  "decision",
+                  "response_note",
                   "confirmed"
                 ]
               }

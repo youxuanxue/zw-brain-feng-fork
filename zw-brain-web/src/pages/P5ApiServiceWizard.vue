@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
@@ -21,6 +22,7 @@ import {
 // 对标旧「融合服务管理系统 → 创建代理服务」四步。接 resource.api.register（channel_binding=
 // 代理地址）。已注册服务列表读真实 resource_asset(kind=api)，不再读 seed 演示服务。
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -310,7 +312,7 @@ function resetForm() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="代理服务注册向导"

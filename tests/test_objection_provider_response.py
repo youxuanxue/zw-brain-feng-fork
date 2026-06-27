@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from tests._trusted_payload import invoke_trusted
-from zw_brain.command.brain import BrainService
+from zw_brain.command.brain import AccessDeniedError, BrainService
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared.database_store import DatabaseStore
@@ -76,22 +76,48 @@ def test_objection_reply_then_review_resolve_updates_provider_inbox(brain: Brain
         },
         role="ROLE_ORGAN_MANAGER",
     )["result"]
-    assert reply["status"] == "provider_investigating"
+    assert reply["status"] == "platform_investigating"
 
     mid = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
-    assert any(row["id"] == case_id for row in mid["provider"]["objection_cases"])
+    mid_row = next((row for row in mid["provider"]["objection_cases"] if row["id"] == case_id), None)
+    assert mid_row is not None
+    assert mid_row["status"] == "platform_investigating"
 
     resolved = invoke_trusted(
         brain,
         "objection.case.review",
         {**common, "decision": "resolve", "resolved_summary": "字段已修正"},
-        role="ROLE_ORGAN_MANAGER",
+        role="ROLE_BUSIAUDIT",
     )["result"]
     assert resolved["status"] == "resolved"
 
     after = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_ORGAN_MANAGER"}, role="ROLE_ORGAN_MANAGER")
     inbox_ids = {row["id"] for row in after["provider"]["objection_cases"]}
     assert case_id not in inbox_ids
+
+
+def test_manager_cannot_review_own_objection_reply(brain: BrainService) -> None:
+    case_id = _seed_provider_investigating_case()
+    common = {"objection_id": case_id, "confirmed": True}
+    invoke_trusted(
+        brain,
+        "objection.case.reply",
+        {
+            **common,
+            "node_name": "提供方部门核查回复",
+            "opinion": "已核实字段描述",
+            "action_result": "submitted",
+        },
+        role="ROLE_ORGAN_MANAGER",
+    )
+
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(
+            brain,
+            "objection.case.review",
+            {**common, "decision": "resolve", "resolved_summary": "责任部门不能自行确认解决"},
+            role="ROLE_ORGAN_MANAGER",
+        )
 
 
 # ──────────────────────────────────────────────────────────────────────
@@ -125,7 +151,7 @@ def test_submitted_case_enters_provider_objection_inbox(brain: BrainService) -> 
     row = next((item for item in rows if item["id"] == case_id), None)
     assert row is not None, "submitted 态案件应出现在异议收件箱"
     assert row["status"] == "submitted"
-    assert row["target_label"] == "catalog:cat-obj-accept-001"
+    assert row["target_label"] == "cat-obj-accept-001"
     assert row["target_href"] == "#/provider/catalog/cat-obj-accept-001"
     assert [item["id"] for item in pending_rows] == [case_id]
 
@@ -135,7 +161,7 @@ def test_provider_objection_inbox_target_link_encodes_catalog_code(brain: BrainS
     case_id = _seed_submitted_case(target_id="370000308004000000/000001")
     snap = invoke_trusted(brain, "system.snapshot", {"role": "ROLE_BUSIAUDIT"}, role="ROLE_BUSIAUDIT")
     row = next(item for item in snap["provider"]["objection_cases"] if item["id"] == case_id)
-    assert row["target_label"] == "catalog:370000308004000000/000001"
+    assert row["target_label"] == "370000308004000000/000001"
     assert row["target_href"] == "#/provider/catalog/370000308004000000%2F000001"
 
 

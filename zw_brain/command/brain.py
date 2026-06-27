@@ -19,6 +19,7 @@ from zw_brain.capability_registry.runtime import get_manifest, load_manifests
 from zw_brain.command.card_session import is_runtime_delivery_payload, is_runtime_request_payload
 from zw_brain.command.serializers import metadata as metadata_ser
 from zw_brain.domain import policy
+from zw_brain.domain.application_dedupe import dedupe_application_records
 from zw_brain.domain.errors import AccessDeniedError as AccessDeniedError  # R-016 re-export
 from zw_brain.domain.errors import BrainServiceError as BrainServiceError  # R-016 re-export
 from zw_brain.domain.errors import ConfirmationRequiredError as ConfirmationRequiredError  # R-016 re-export
@@ -507,6 +508,11 @@ class BrainService:
                 return actor
         auth_ctx = get_auth_context()
         if auth_ctx is not None:
+            # Dev bypass 会话 subject 恒为 dev-iam-bypass；若直接当 actor 则全岗位同一人，
+            # 有条件二级部门审核 self_approval 永拒（e2e 受理→审核全链假红）。bypass 下仍走
+            # _actor_for_role（带 [bypass] 后缀）按岗位区分审计主体。
+            if auth_ctx.development_iam_bypass:
+                return self._actor_for_role(role)
             subject = str(auth_ctx.subject or "")
             if subject:
                 return subject
@@ -569,7 +575,9 @@ class BrainService:
             return []
         # D-9 perf: prefetch four indices once, share via context to eliminate
         # ~5N full-table scans inside _application_record_to_request helpers.
-        all_records = list(store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID))
+        all_records = dedupe_application_records(
+            store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
+        )
         context = self._build_request_batch_context(store, all_records)
         runtime_records = [r for r in all_records if is_runtime_request_payload(r.payload_json)]
         runtime_records.sort(key=lambda r: str(r.created_at or ""), reverse=True)
@@ -579,8 +587,9 @@ class BrainService:
             item["status"] = record.status
             self._overlay_application_record(item, record, store, context=context)
             items.append(item)
+        runtime_codes = {str(r.application_code) for r in runtime_records}
         for record in all_records:
-            if (record.payload_json or {}).get("kind") == "apply":
+            if (record.payload_json or {}).get("kind") == "apply" and str(record.application_code) not in runtime_codes:
                 items.append(self._application_record_to_request(record, store, context=context))
         return items
 
@@ -605,6 +614,13 @@ class BrainService:
         store = self._state_store.database_store
         if store is None:
             return []
+        visible_application_codes = {
+            str(record.application_code)
+            for record in dedupe_application_records(
+                store.application_repo.list_records(tenant_id=_DEFAULT_TENANT_ID)
+            )
+            if (record.payload_json or {}).get("kind", "apply") == "apply"
+        }
         # 消费视图隐藏：退役类型（folder/url/link）来源 + 草稿态（存量交换流水线残留，未激活、含
         # hex 缺名/重复/测试噪声）。详见 delivery_record_hidden_from_consumer。先一次性建退役码集合。
         retired_codes = {
@@ -617,6 +633,8 @@ class BrainService:
         for record in store.delivery_repo.list_tasks(tenant_id=_DEFAULT_TENANT_ID):
             if _delivery_record_hidden_from_consumer(record, retired_codes):
                 continue  # 退役类型 / 草稿态残留：不进消费视图
+            if str(record.application_code or "") not in visible_application_codes:
+                continue  # 被申请去重淘汰的旧重复单，其交付/授权也不再外溢到消费视图。
             if is_runtime_delivery_payload(record.payload_json):
                 runtime_records.append(record)
             else:

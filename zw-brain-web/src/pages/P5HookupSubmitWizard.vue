@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import DetailActions from '@/components/DetailActions.vue';
 import { invokeActionStub } from '@/composables/useActionStub';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
@@ -26,6 +27,7 @@ import {
 // 只做 table / file 两形态；接口资源走「代理服务注册向导」入口（不重复造）。
 // 调 resource.mount.{table,file}.prepare 建草稿 → resource.asset.submit_review 提交复核。
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 
@@ -255,7 +257,7 @@ async function submitReview() {
 
 <template>
   <main class="focus-page focus-detail">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="资源挂接向导"
@@ -355,7 +357,7 @@ async function submitReview() {
               登记后再回来挂接。
             </p>
           </div>
-          <div><label class="field-label">表名</label><input v-model="tableName" class="gov-input" placeholder="例如：t_student_info" /></div>
+          <div><label class="field-label" for="hookup-table-name">表名</label><input id="hookup-table-name" v-model="tableName" class="gov-input" placeholder="例如：t_student_info" /></div>
           <div><label class="field-label">服务器地址</label><input v-model="connHost" class="gov-input" placeholder="例如：10.0.0.1" /></div>
           <div><label class="field-label">库实例名</label><input v-model="connDatabase" class="gov-input" placeholder="例如：share_db" /></div>
         </div>

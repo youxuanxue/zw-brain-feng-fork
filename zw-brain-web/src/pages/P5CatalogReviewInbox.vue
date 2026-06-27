@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { useSnapshot } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
@@ -9,6 +10,7 @@ import { canReviewCatalogDept, canReviewCatalogPlatform } from '@/lib/requestFlo
 import { apiUrl } from '@/composables/useApiBase';
 import { displayRecordCode, displayRecordName } from '@/lib/userLanguage';
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const { source } = useSnapshot();
 const role = getProductRole();
 
@@ -165,7 +167,7 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="目录审核收件箱"

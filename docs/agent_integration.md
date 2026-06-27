@@ -98,9 +98,10 @@
 | POST | `/api/skills/delivery.subscription.manage` | 管理持续订阅交付 | `post_delivery_subscription_manage` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/delivery.trigger_recovery` | 触发交付恢复 | `post_delivery_trigger_recovery` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/delivery.view` | 查看交付任务 | `get_delivery_view` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/demand.close` | 关闭供需需求 | `post_demand_close` | `zw_brain/entry/rest/openapi.json` |
 | GET | `/api/skills/demand.list` | 查询供需需求列表 | `get_demand_list` | `zw_brain/entry/rest/openapi.json` |
-| POST | `/api/skills/demand.phase.advance` | 推进供需需求阶段 | `post_demand_phase_advance` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/demand.register` | 登记供需需求 | `post_demand_register` | `zw_brain/entry/rest/openapi.json` |
+| POST | `/api/skills/demand.response.submit` | 提交供需响应 | `post_demand_response_submit` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/form_schema.commit` | 提交表单模板入库 | `post_form_schema_commit` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | `post_form_schema_nl_draft` | `zw_brain/entry/rest/openapi.json` |
 | POST | `/api/skills/form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | `post_form_schema_promote_to_preview` | `zw_brain/entry/rest/openapi.json` |
@@ -300,7 +301,7 @@
 
 | Agent Card | Description | Skills Exposed | Source |
 | ---------- | ----------- | -------------- | ------ |
-| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 191 | `zw_brain/entry/a2a/agent_card.json` |
+| `zw-brain` | 政务大脑 — AI-native re-architecture of the legacy Inspur 一体化大数据平台. | 192 | `zw_brain/entry/a2a/agent_card.json` |
 
 ## Registered Skills (the canonical contract — D2)
 
@@ -393,9 +394,10 @@
 | `delivery.subscription.manage` | 管理持续订阅交付 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.subscription.manage.json` |
 | `delivery.trigger_recovery` | 触发交付恢复 | 1.0.0 | audit, db_write, state_machine_transition, blockchain_anchor | `zw_brain/capability_registry/registered/delivery.trigger_recovery.json` |
 | `delivery.view` | 查看交付任务 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/delivery.view.json` |
+| `demand.close` | 关闭供需需求 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/demand.close.json` |
 | `demand.list` | 查询供需需求列表 | 1.0.0 | (read-only) | `zw_brain/capability_registry/registered/demand.list.json` |
-| `demand.phase.advance` | 推进供需需求阶段 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/demand.phase.advance.json` |
 | `demand.register` | 登记供需需求 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/demand.register.json` |
+| `demand.response.submit` | 提交供需响应 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/demand.response.submit.json` |
 | `form_schema.commit` | 提交表单模板入库 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.commit.json` |
 | `form_schema.nl_draft` | 用一句话生成表单 schema 草稿 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.nl_draft.json` |
 | `form_schema.promote_to_preview` | 表单模板：草稿提级到预览 | 1.0.0 | audit, db_write | `zw_brain/capability_registry/registered/form_schema.promote_to_preview.json` |
@@ -502,9 +504,9 @@
 
 ## Statistics
 
-- REST endpoints: 200
+- REST endpoints: 201
 - CLI entries: 1
 - MCP tools: 69
 - A2A agent cards: 1
-- Registered Skills (live): 191 / 252 on-disk
+- Registered Skills (live): 192 / 253 on-disk
 

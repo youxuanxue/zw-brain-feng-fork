@@ -27,7 +27,6 @@ from zw_brain.domain.repositories.catalog import CatalogRepository
 from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
-from zw_brain.domain.supply_demand_phase import PHASE_REGISTERED
 from zw_brain.shared import db as db_module
 from zw_brain.shared.migrate import ensure_runtime_schema
 
@@ -177,7 +176,6 @@ def test_inbox_demand_matches_scoped_by_target_provider_org(temp_db) -> None:
         applicant="u-demo",
         applicant_dept="申请部门",
         tenant_id=TENANT,
-        phase=PHASE_REGISTERED,
         target_resource_hint="不动产登记",
         target_org_code=ORG_A,
     )
@@ -187,7 +185,6 @@ def test_inbox_demand_matches_scoped_by_target_provider_org(temp_db) -> None:
         applicant="u-demo",
         applicant_dept="申请部门",
         tenant_id=TENANT,
-        phase=PHASE_REGISTERED,
         target_resource_hint="别家资源",
         target_org_code=ORG_B,
     )
@@ -197,7 +194,6 @@ def test_inbox_demand_matches_scoped_by_target_provider_org(temp_db) -> None:
         applicant="u-demo",
         applicant_dept="申请部门",
         tenant_id=TENANT,
-        phase=PHASE_REGISTERED,
     )
 
     scoped_a = project_provider_inbox(tenant_id=TENANT, visible_org_codes={ORG_A})

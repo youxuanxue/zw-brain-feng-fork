@@ -1,7 +1,7 @@
 {
-  "slug": "demand.phase.advance",
-  "title": "推进供需需求阶段",
-  "description": "按 6 步状态机推进 demand 的 demand_phase。",
+  "slug": "demand.response.submit",
+  "title": "提交供需响应",
+  "description": "提供方对供需需求提交确认提供、拒绝提供或驳回补正结论；确认提供时必须关联资源。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -18,13 +18,25 @@
       "demand_id": {
         "type": "string"
       },
-      "next_phase": {
+      "decision": {
+        "type": "string",
+        "enum": [
+          "provide",
+          "reject",
+          "need_fix"
+        ]
+      },
+      "response_note": {
+        "type": "string"
+      },
+      "resource_ref": {
         "type": "string"
       }
     },
     "required": [
       "demand_id",
-      "next_phase",
+      "decision",
+      "response_note",
       "confirmed"
     ]
   },
@@ -50,12 +62,12 @@
   "runtime_binding": {
     "kind": "brain_service",
     "surface_entry": "zw_brain.command.brain.BrainService.invoke_skill",
-    "method": "demand.phase.advance"
+    "method": "demand.response.submit"
   },
   "rollback_target": null,
   "audit_required": true,
   "permissions": [
-    "demand.phase.advance.execute"
+    "demand.response.submit.execute"
   ],
   "author": {
     "org": "inspur-cloud",

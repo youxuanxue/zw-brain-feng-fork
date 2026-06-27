@@ -10,19 +10,20 @@ enrich（``discovery_snapshot_projection``）同源同模式：DB 有积压则�
 **不生成该条待办**（无空死链）。
 
 业务运营员**真实职责**待办口径（0605 反馈 6.4#11 业务答复背书 + D53 方向裁决）：
-审核（目录/资源审批）是**部门管理员**职责，业务运营员的工作重心是**发布 / 受理 / 汇总**。
+审核（目录/资源审批）是**部门管理员**职责，业务运营员的工作重心是**发布 / 受理 / 平台审**。
 此前把「待审核目录 / 待审核资源 / 待补全用途」放进业务运营员工作台属职责错配，本次纠正：
   - 待发布目录 = catalog_entry.lifecycle_status == 'approved_pending_publish'  → P5 提供方（发布卡）
   - 待发布资源 = resource_asset.lifecycle_status == 'approved_pending_publish' → P5 提供方
   - 待受理申请 = 申请单（kind=apply）status ∈ {submitted, under_review}        → 申请·审批·跟踪
   - 待受理异议 = objection_case.status == 'submitted'（待受理，未进入核查）       → 异议收件箱
-  - 待汇总需求 = 需求登记（kind=demand）处于供方待汇总相位                       → 供需对接收件箱
+部门管理员真实职责待办补投：
+  - 待响应需求 = 需求登记（kind=demand）处于供方待响应相位                       → 供需对接收件箱
 
 一张 application_record 表混存「申请 / 需求登记 / 业务需求」三类（kind 存 payload_json），
-故「待受理申请」必须按 kind=apply 过滤、「待汇总需求」走需求相位口径，两条口径不互串。
+故「待受理申请」必须按 kind=apply 过滤、「待响应需求」走需求相位口径，两条口径不互串。
 
-这不改任何角色/流程/状态机语义——只把**既有的真实积压**按业务运营员真实职责投影成
-**可点的待办**，深链目标全是**已存在**的路由与收件箱（无新页面、无新流转）。
+这不新增页面/新流转——只把**既有的真实积压**按真实职责投影成**可点的待办**，
+深链目标全是**已存在**的路由与收件箱。
 
 M5 行内决策（供数侧待办彻底行内）：把 7 类**聚合计数**待办 re-grain 成携带
 ``action.kind=="decision-list"`` 的**行内载荷**——除了 count 头条（``title``=「待发布资源 4 条」、
@@ -34,7 +35,7 @@ M5 行内决策（供数侧待办彻底行内）：把 7 类**聚合计数**待�
   - 待审核挂接资源 → resource.asset.review（通过 approve / 驳回 return_for_fix+理由）
   - 待审核反向编目草稿 → catalog.entry.reverse_draft.confirm / .reject（通过 / 驳回+理由）
   - 待受理异议 → objection.case.accept（受理）
-督办（多步）/ 需求汇总（多步）/ 服务审核（向导）三类仍保 count + href 兜底（不 re-grain）。
+督办（多步）/ 需求响应（多步）/ 服务审核（向导）三类仍保 count + href 兜底（不 re-grain）。
 MANAGER 三类审核待办枚举时**仍套 M8 visible_org_codes 行级过滤**（不把越界实体漏进行内列表）。
 """
 
@@ -43,6 +44,7 @@ from __future__ import annotations
 import copy
 from typing import Any
 
+from zw_brain.domain.application_dedupe import dedupe_application_records
 from zw_brain.domain.discovery_snapshot_projection import (
     request_party_in_scope,
     request_provider_in_scope,
@@ -61,11 +63,7 @@ from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
 from zw_brain.domain.resource_kind import canonical_resource_kind
 from zw_brain.domain.services.reference_service import ReferenceService
-from zw_brain.domain.supply_demand_phase import (
-    PHASE_MANUAL_REGISTERED,
-    PHASE_RECOMMEND_FAILED,
-    PHASE_REGISTERED,
-)
+from zw_brain.domain.supply_demand_status import DEMAND_STATUS_PENDING_RESPONSE
 from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
 
 # 业务运营员角色码（旧平台 7 角色码之一，D23）。
@@ -91,10 +89,7 @@ _API_CANONICAL_KIND = "api"
 _APPLICATION_BACKLOG_STATUSES = frozenset({"submitted", "under_review"})
 _NATIONAL_ESCALATE_STATUS = "dept_approved"
 
-# 待汇总需求：需求登记进入供方侧、等待业务运营员汇总响应的相位（同 provider_snapshot 口径）。
-_DEMAND_PROVIDER_PHASES = frozenset(
-    {PHASE_REGISTERED, PHASE_MANUAL_REGISTERED, PHASE_RECOMMEND_FAILED}
-)
+# 待响应需求：需求登记后等待提供方部门管理员响应（同 provider_snapshot 口径）。
 
 # 部门隔离「第七面」（#294/#296 同类遗漏补口）：sync_request_todos 平行路径按角色逐条投的
 # **申请待办**（id=payload['id'] 即 request_id），#294 只收口了快照 requests/approvals 面，
@@ -132,7 +127,9 @@ def _org_visible_request_ids(
     # 共享一个 ReferenceService（带 resolve memo）逐行过滤，消 per-record N+1（同 requests 面）。
     scope_ref = ReferenceService()
     visible: set[str] = set()
-    for record in ApplicationRepository().list_records(tenant_id=tenant_id):
+    for record in dedupe_application_records(
+        ApplicationRepository().list_records(tenant_id=tenant_id)
+    ):
         payload = record.payload_json or {}
         rid = str(payload.get("id") or "")
         if not rid:
@@ -149,7 +146,9 @@ def _org_provider_visible_request_ids(tenant_id: str, visible_org_codes: set[str
     scope_ref = ReferenceService()
     owner_map = resource_owner_org_by_id(tenant_id)
     visible: set[str] = set()
-    for record in ApplicationRepository().list_records(tenant_id=tenant_id):
+    for record in dedupe_application_records(
+        ApplicationRepository().list_records(tenant_id=tenant_id)
+    ):
         payload = record.payload_json or {}
         rid = str(payload.get("id") or "")
         if not rid:
@@ -421,7 +420,7 @@ def _count_pending_applications(application_repo: ApplicationRepository, tenant_
     """待受理申请 = kind=apply 且 status∈受理态的申请单数。
 
     application_record 表混存 申请/需求/业务需求三类（kind 存 payload_json），不按 kind 过滤会把
-    登记需求误算进「待受理申请」。需求另归「待汇总需求」，两条口径互不串。
+    登记需求误算进「待受理申请」。需求另归「待响应需求」，两条口径互不串。
     """
     return sum(
         1
@@ -452,6 +451,7 @@ def _emit_backlog_todo(
     href: str,
     action_clause: str,
     next_action: str | None = None,
+    note: str | None = None,
     action: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """构造一条 count 头条待办（count<=0 返回 None，零积压不投）；M5 行内项挂 ``action``。
@@ -473,6 +473,8 @@ def _emit_backlog_todo(
     }
     if next_action:
         todo["nextAction"] = next_action
+    if note:
+        todo["note"] = note
     if action is not None:
         todo["action"] = action
     return todo
@@ -483,14 +485,12 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
 
     M5：发布/平台审/异议受理三类（catalog-publish / resource-publish / catalog-platform-review /
     objection）re-grain 成 decision-list 行内载荷——**枚举**真实积压实体（不止计数）逐条挂决策。
-    申请受理（多角色受理面）/ 督办（多步）/ 需求汇总（多步）保留 count + href 兜底（不 re-grain）。
+    申请受理（多角色受理面）/ 督办（多步）/ 需求响应（多步）保留 count + href 兜底（不 re-grain）。
     """
     catalog_repo = CatalogRepository()
     resource_repo = ResourceApiRepository()
     application_repo = ApplicationRepository()
     objection_repo = ObjectionRepository()
-    supply_repo = SupplyDemandRepository()
-
     # M5 枚举（非计数）：发布/平台审/异议受理三类 list-then-build 行内项，count = len(实体表)。
     publish_entries = catalog_repo.list_entries(
         tenant_id=tenant_id, lifecycle_status="approved_pending_publish"
@@ -510,11 +510,7 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
     # 待督办异议 = 有 escalate 督办事件且未终结的 case（事件式升级闭环，j1-objection-authz.feature:46）。
     # 督办标记由 objection_process 现算（不改 case.status），零积压不投（无空死链）。
     pending_supervised = len(objection_repo.list_supervised_cases(tenant_id=tenant_id))
-    pending_demands = sum(
-        1
-        for item in supply_repo.list_demands(tenant_id=tenant_id)
-        if item.get("demand_phase") in _DEMAND_PROVIDER_PHASES
-    )
+    pending_demands = _pending_demand_count(tenant_id)
 
     todos: list[dict[str, Any]] = [
         t
@@ -606,20 +602,60 @@ def _backlog_todos(tenant_id: str) -> list[dict[str, Any]]:
                 action_clause=f"{pending_supervised} 条异议待督办抓办",
                 next_action="进入异议收件箱跟踪督办进展。",
             ),
-            # 待汇总需求（不 re-grain：汇总多步，保 count+href 兜底）。
-            _emit_backlog_todo(
-                item_id="backlog-demand",
-                label="待汇总需求",
-                count=pending_demands,
-                status="待汇总",
-                href="#/provider/inbox/demand-match",
-                action_clause=f"{pending_demands} 项需求待汇总",
-                next_action="汇总需求并匹配可供资源。",
-            ),
+            # 待响应需求（不 re-grain：提供方响应多步，保 count+href 兜底）。
+            _demand_backlog_todo(pending_demands),
         )
         if t is not None
     ]
     return todos
+
+
+def _demand_backlog_todo(count: int) -> dict[str, Any] | None:
+    return _emit_backlog_todo(
+        item_id="backlog-demand",
+        label="待响应需求",
+        count=count,
+        status="待响应",
+        href="#/provider/inbox/demand-match",
+        action_clause=f"{count} 项需求待响应",
+        next_action="确认提供、拒绝提供或退回补正。",
+    )
+
+
+def _pending_demand_count(
+    tenant_id: str,
+    *,
+    visible_org_codes: set[str] | None = None,
+) -> int:
+    ref = ReferenceService()
+    return sum(
+        1
+        for item in SupplyDemandRepository().list_demands(tenant_id=tenant_id)
+        if item.get("response_status") == DEMAND_STATUS_PENDING_RESPONSE
+        and _demand_in_provider_scope(
+            item,
+            ref=ref,
+            visible_org_codes=visible_org_codes,
+            tenant_id=tenant_id,
+        )
+    )
+
+
+def _demand_in_provider_scope(
+    payload: dict[str, Any],
+    *,
+    ref: ReferenceService,
+    visible_org_codes: set[str] | None,
+    tenant_id: str,
+) -> bool:
+    target_org = str(
+        payload.get("target_org_code")
+        or payload.get("target_org_name")
+        or ""
+    ).strip()
+    if not target_org:
+        return visible_org_codes != set()
+    return ref.org_in_scope(target_org, visible_org_codes, tenant_id=tenant_id)
 
 
 def _list_assets_pending_review(
@@ -753,25 +789,27 @@ def _manager_review_todos(
 
 def _enrich_busiaudit_backlog(view: dict[str, Any], tenant_id: str) -> dict[str, Any]:
     """业务运营员（ROLE_BUSIAUDIT）：在 ``sync_request_todos`` 已投的「逐单受理待办」上
-    **叠加**真实库聚合积压（发布/异议/督办/需求/平台审），而非整体替换.
+    **叠加**真实库聚合积压（发布/异议/督办/平台审），而非整体替换.
 
     历史上本分支整体 ``out["todos"] = _backlog_todos(tid)``，会丢弃 sync 逐单投的
     ``category="accept"`` 受理待办——那些待办现已携带行内决策载荷（``action``），是
     「申请受理」可内联办理的唯一载体。改为增量：保留逐单受理待办（携 action），把聚合
     积压**前插**（去重 by id），并**剔除聚合里的「待受理申请」候选**（id
     ``backlog-application``）——逐单受理待办已逐条覆盖它，避免与聚合计数重复双算。
-    其余聚合候选（发布/异议/督办/需求/平台审）原样保留为深链待办。
+    其余聚合候选（发布/异议/督办/平台审）原样保留为深链待办；供需响应归部门管理员，
+    本分支剔除 backlog-demand，避免向无权岗位投死链。
 
     subtitle/aiSummary 按**合并后**列表现算，计数诚实（不再回退陈旧 seed 叙事）。
     """
     out = copy.deepcopy(view)
     existing = out.get("todos") or []
     existing_ids = {t.get("id") for t in existing}
-    # 聚合积压剔「待受理申请」（逐单受理待办已覆盖）+ 去重（id 已在逐单待办里的不前插）。
+    # 聚合积压剔「待受理申请」（逐单受理待办已覆盖）与「待响应需求」（归部门管理员）+
+    # 去重（id 已在逐单待办里的不前插）。
     aggregate = [
         t
         for t in _backlog_todos(tenant_id)
-        if t["id"] != "backlog-application" and t["id"] not in existing_ids
+        if t["id"] not in {"backlog-application", "backlog-demand"} and t["id"] not in existing_ids
     ]
     todos = aggregate + existing
     out["todos"] = todos
@@ -788,7 +826,7 @@ def _enrich_busiaudit_backlog(view: dict[str, Any], tenant_id: str) -> dict[str,
         clauses=clauses,
         action_titles=[str(t.get("title", "")) for t in todos],
         empty_summary="当前没有待办积压。",
-        basis="待办数据从真实库现算（目录/资源发布态 + 申请受理/异议/督办 + 需求汇总相位）",
+        basis="待办数据从真实库现算（目录/资源发布态 + 申请受理/异议/督办 + 平台审）",
     )
     return out
 
@@ -814,7 +852,17 @@ def _enrich_manager_backlog(
     参与口径 ``org_visible_request_ids`` 收口。None=全量放行（全局视角），传集即只留域内单。
     """
     out = copy.deepcopy(view)
-    review_todos = _manager_review_todos(tenant_id, visible_org_codes=visible_org_codes)
+    demand_todo = _demand_backlog_todo(
+        _pending_demand_count(tenant_id, visible_org_codes=visible_org_codes)
+    )
+    review_todos = [
+        t
+        for t in (
+            *_manager_review_todos(tenant_id, visible_org_codes=visible_org_codes),
+            demand_todo,
+        )
+        if t is not None
+    ]
     existing = out.get("todos") or []
     if org_provider_visible_request_ids is not None:
         existing = _drop_unscoped_request_todos(
@@ -841,7 +889,7 @@ def _enrich_manager_backlog(
         clauses=review_clauses,
         action_titles=[str(t.get("title", "")) for t in todos],
         empty_summary="当前没有审核待办积压。",
-        basis="待办数据从真实库现算（目录/挂接资源/服务审核态 + 申请单审批态）",
+        basis="待办数据从真实库现算（供需待响应相位 + 目录/挂接资源/服务审核态 + 申请单审批态）",
     )
     return out
 
@@ -891,6 +939,19 @@ APPLY_PROGRESS_TODO_TITLE_SUFFIX = "资源申请进度跟踪"
 _OP_CARD_DRAFT = "my-draft-applications"
 _OP_CARD_ACTIVE = "my-active-applications"
 _OP_CARD_SUPPLEMENT = "my-supplement-tasks"
+_OP_DRAFT_STATUSES = frozenset({"draft"})
+_OP_SUPPLEMENT_STATUSES = frozenset({"need-fix", "supplementing"})
+_OP_ACTIVE_STATUSES = frozenset(
+    {
+        "submitted",
+        "pending",
+        "under_review",
+        "in_review",
+        "pending_review",
+        "dept_approved",
+        "change_pending",
+    }
+)
 
 
 def _operator_resource_name(todo: dict[str, Any]) -> str:
@@ -907,13 +968,42 @@ def _operator_resource_name(todo: dict[str, Any]) -> str:
     return title or str(todo.get("id", ""))
 
 
-def _operator_draft_item(todo: dict[str, Any]) -> dict[str, Any]:
+def _operator_record_resource_name(record: Any) -> str:
+    payload = record.payload_json or {}
+    return str(
+        payload.get("resourceName")
+        or payload.get("resource_name")
+        or payload.get("resourceId")
+        or payload.get("resource_id")
+        or record.application_code
+    )
+
+
+def _operator_progress_todo_from_record(record: Any, *, status_text: str | None = None) -> dict[str, Any]:
+    resource_name = _operator_record_resource_name(record)
+    request_id = str((record.payload_json or {}).get("id") or record.application_code)
+    return {
+        "id": request_id,
+        "title": f"{resource_name}{APPLY_PROGRESS_TODO_TITLE_SUFFIX}",
+        "status": status_text or str(record.status),
+        "href": f"#/request-flow/request/{request_id}",
+        "category": "apply-progress",
+    }
+
+
+def _operator_draft_item(todo: dict[str, Any], *, tenant_id: str | None = None) -> dict[str, Any]:
     """草稿单行内项：提交申请（request.submit，basePayload.request_id）。
 
     context 取真实可得字段——资源名 + 当前态文案（草稿）；申请单创建时间不在 sync 投影的待办
     载荷里（标题/态/深链三字段，无时间字段），故不造时间行（诚实留白，不捏 created_at）。"""
     request_id = str(todo.get("id", ""))
-    resource_name = _operator_resource_name(todo)
+    resource_name = ""
+    if tenant_id and request_id:
+        record = ApplicationRepository().get_record(request_id, tenant_id=tenant_id)
+        if record is not None:
+            resource_name = _operator_record_resource_name(record)
+    if not resource_name:
+        resource_name = _operator_resource_name(todo)
     return {
         "id": request_id,
         "label": resource_name,
@@ -930,13 +1020,17 @@ def _operator_draft_item(todo: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def _operator_aggregate_todos(
+    todos: list[dict[str, Any]],
+    *,
+    tenant_id: str | None = None,
+) -> list[dict[str, Any]]:
     """把部门操作员申请进度待办（逐单一行）聚合成 ≤3 张诚实摘要卡（纯函数，单测友好）。
 
     输入 = ``sync_request_todos`` 投影、已套 dept-scope 收口的逐单待办列表（每张运行时单一条
     apply-progress + 若干 supplement-* 待办）。首屏不再铺 N 行草稿墙，按职责聚合成计数头条卡：
       - 「草稿待提交」= status 文案为草稿的 apply-progress → 计数头条 + decision-list（逐条草稿挂
-        「提交申请」，request.submit，basePayload.request_id）；href 兜底 #/request-flow。
+        「提交申请」，request.submit，basePayload.request_id）；href 兜底 #/delivery-exchange?tab=mine。
       - 「申请在办」= 非草稿 apply-progress（已提交/审批中/受理中/补录中…）→ 计数头条 + href 兜底。
       - 「补录任务待完成」= supplement-* 类（镇街/现场补录）→ 计数头条 + href 兜底。
     每张卡复用 ``_emit_backlog_todo``/``_decision_list_action`` 模式（与 MANAGER 审核卡同源），
@@ -961,26 +1055,30 @@ def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any
                 label="草稿待提交",
                 count=len(drafts),
                 status="待提交",
-                href="#/request-flow",
+                href="#/delivery-exchange?tab=mine",
                 action_clause=f"{len(drafts)} 张草稿可继续提交",
                 next_action="展开后提交草稿申请。",
-                action=_decision_list_action([_operator_draft_item(t) for t in drafts]),
+                note="尚未提交的申请草稿，也可在「领数据-我的申请」继续办理。",
+                action=_decision_list_action([
+                    _operator_draft_item(t, tenant_id=tenant_id) for t in drafts
+                ]),
             ),
             _emit_backlog_todo(
                 item_id=_OP_CARD_ACTIVE,
                 label="申请在办",
                 count=active,
                 status="在办",
-                href="#/request-flow",
+                href="#/delivery-exchange?tab=mine",
                 action_clause=f"{active} 条申请在办",
                 next_action="查看进度和处理意见。",
+                note="已提交、正在受理或审批中的申请，也可在「领数据-我的申请」查看进度。",
             ),
             _emit_backlog_todo(
                 item_id=_OP_CARD_SUPPLEMENT,
                 label="补录任务待完成",
                 count=supplements,
                 status="待完成",
-                href="#/request-flow",
+                href="#/delivery-exchange?tab=mine",
                 action_clause=f"{supplements} 项补录任务待完成",
                 next_action="进入申请详情补齐材料。",
             ),
@@ -990,8 +1088,120 @@ def _operator_aggregate_todos(todos: list[dict[str, Any]]) -> list[dict[str, Any
     return cards
 
 
+def _supplement_count_from_todos(todos: list[dict[str, Any]]) -> int:
+    return sum(1 for todo in todos if str(todo.get("category", "")).startswith("supplement"))
+
+
+def _merge_operator_supplement_card(
+    cards: list[dict[str, Any]],
+    scoped_todos: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    """Merge sync_request_todos supplement-* counts into operator summary cards."""
+    existing = next((card for card in cards if str(card.get("id")) == _OP_CARD_SUPPLEMENT), None)
+    db_count = int(existing.get("count", 0)) if existing else 0
+    supplement_count = max(db_count, _supplement_count_from_todos(scoped_todos))
+    kept = [card for card in cards if str(card.get("id")) != _OP_CARD_SUPPLEMENT]
+    supplement_card = _emit_backlog_todo(
+        item_id=_OP_CARD_SUPPLEMENT,
+        label="补录任务待完成",
+        count=supplement_count,
+        status="待完成",
+        href="#/delivery-exchange?tab=mine",
+        action_clause=f"{supplement_count} 项补录任务待完成",
+        next_action="进入申请详情补齐材料。",
+        note="被退回补正的申请，也可在「领数据-我的申请」进入详情补齐材料。",
+    )
+    if supplement_card is not None:
+        kept.append(supplement_card)
+    return kept
+
+
+def _operator_records_for_actor(
+    tenant_id: str,
+    *,
+    caller_actor: str | None,
+    fallback_ids: set[str] | None = None,
+) -> list[Any]:
+    """本人申请记录口径：与「领数据 / 我的申请」同源于 application_record。
+
+    live 请求带 ``caller_actor`` 时严格按 payload.applicant 收口；单测/离线调用没有 actor
+    时保留 ``fallback_ids`` 兼容历史 org-scope 测试夹具。"""
+    actor = str(caller_actor or "").strip()
+    records: list[Any] = []
+    for record in dedupe_application_records(ApplicationRepository().list_records(tenant_id=tenant_id)):
+        payload = record.payload_json or {}
+        if payload.get("kind", "apply") != "apply":
+            continue
+        rid = str(payload.get("id") or record.application_code)
+        if actor:
+            if str(payload.get("applicant") or "") != actor:
+                continue
+        elif fallback_ids is not None and rid not in fallback_ids:
+            continue
+        records.append(record)
+    return records
+
+
+def _operator_aggregate_records(records: list[Any]) -> list[dict[str, Any]]:
+    """按本人申请记录生成工作台三卡，避免 sync_request_todos 旧口径重复外溢。"""
+    drafts: list[dict[str, Any]] = []
+    active = 0
+    supplements = 0
+    for record in records:
+        status = str(record.status or "").strip().lower()
+        if status in _OP_DRAFT_STATUSES:
+            drafts.append(_operator_progress_todo_from_record(record, status_text="草稿"))
+        elif status in _OP_SUPPLEMENT_STATUSES:
+            supplements += 1
+            active += 1
+        elif status in _OP_ACTIVE_STATUSES:
+            active += 1
+    cards: list[dict[str, Any]] = [
+        card
+        for card in (
+            _emit_backlog_todo(
+                item_id=_OP_CARD_DRAFT,
+                label="草稿待提交",
+                count=len(drafts),
+                status="待提交",
+                href="#/delivery-exchange?tab=mine",
+                action_clause=f"{len(drafts)} 张草稿可继续提交",
+                next_action="展开后提交草稿申请。",
+                note="尚未提交的申请草稿，也可在「领数据-我的申请」继续办理。",
+                action=_decision_list_action([_operator_draft_item(t) for t in drafts]),
+            ),
+            _emit_backlog_todo(
+                item_id=_OP_CARD_ACTIVE,
+                label="申请在办",
+                count=active,
+                status="在办",
+                href="#/delivery-exchange?tab=mine",
+                action_clause=f"{active} 条申请在办",
+                next_action="查看进度和处理意见。",
+                note="已提交、正在受理或审批中的申请，也可在「领数据-我的申请」查看进度。",
+            ),
+            _emit_backlog_todo(
+                item_id=_OP_CARD_SUPPLEMENT,
+                label="补录任务待完成",
+                count=supplements,
+                status="待完成",
+                href="#/delivery-exchange?tab=mine",
+                action_clause=f"{supplements} 项补录任务待完成",
+                next_action="进入申请详情补齐材料。",
+                note="被退回补正的申请，也可在「领数据-我的申请」进入详情补齐材料。",
+            ),
+        )
+        if card is not None
+    ]
+    return cards
+
+
 def _enrich_operator_backlog(
-    view: dict[str, Any], *, org_visible_request_ids: set[str] | None = None
+    view: dict[str, Any],
+    *,
+    tenant_id: str,
+    org_visible_request_ids: set[str] | None = None,
+    caller_actor: str | None = None,
 ) -> dict[str, Any]:
     """部门操作员（D57②/R-8）：申请进度首屏聚合成 ≤3 张诚实摘要卡（不再铺逐单草稿墙）。
 
@@ -1007,15 +1217,51 @@ def _enrich_operator_backlog(
     fail-closed 全丢；传集即只留域内单（裁决③「按个人」由 requests 面 mine 标记承载、非此处 drop）。
     """
     out = copy.deepcopy(view)
+    if org_visible_request_ids is not None and not org_visible_request_ids:
+        out["todos"] = []
+        _rewrite_advice(
+            out,
+            clauses=[],
+            action_titles=[],
+            empty_summary="当前没有进行中的申请。",
+            basis="申请进度从真实库现算（草稿/在办申请单状态 + 补录任务）",
+        )
+        return out
     todos = out.get("todos") or []
+    scoped_todos = todos
     if org_visible_request_ids is not None:
-        todos = _drop_unscoped_request_todos(
+        scoped_todos = _drop_unscoped_request_todos(
             todos,
             categories=_OPERATER_REQUEST_CATEGORIES,
             scoped_ids=org_visible_request_ids,
         )
-    # dept-scope 收口在**聚合之前**：先剔越界逐单待办，再按职责聚合成首屏摘要卡。
-    cards = _operator_aggregate_todos(todos)
+    actor = str(caller_actor or "").strip()
+    if actor:
+        records = _operator_records_for_actor(
+            tenant_id,
+            caller_actor=caller_actor,
+        )
+        cards = _merge_operator_supplement_card(
+            _operator_aggregate_records(records),
+            scoped_todos,
+        )
+    else:
+        fallback_ids = {str(t.get("id")) for t in scoped_todos if t.get("id")}
+        records = _operator_records_for_actor(
+            tenant_id,
+            caller_actor=None,
+            fallback_ids=fallback_ids or None,
+        )
+        if records:
+            cards = _merge_operator_supplement_card(
+                _operator_aggregate_records(records),
+                scoped_todos,
+            )
+        else:
+            cards = _merge_operator_supplement_card(
+                _operator_aggregate_todos(scoped_todos, tenant_id=tenant_id),
+                scoped_todos,
+            )
     out["todos"] = cards
     # 办理建议为诚实进度指引（草稿≠在办，非计数复读）：草稿给「可继续提交」、在办/补录各一句，
     # 用每卡的 actionClause 现算（如「3 张草稿可继续提交」「2 条申请在办」）。
@@ -1088,7 +1334,7 @@ def enrich_workbench_backlog(
       之上**叠加供数侧审核待办**（目录 / 挂接资源 / 服务注册待部门审 pending_review，D55/P10·G4），
       零积压不投；办理建议重写。**M8 部门隔离：仅此路径消费 visible_org_codes**——审核待办计数
       只数 owner_org 落在本机构可见域内的行（None=全局 / 空集=fail-closed 计 0 / 非空集=域内）。
-      平台队列（BUSIAUDIT 待平台审核/发布/受理/汇总）刻意保持全局，不消费 visible_org_codes。
+      平台队列（BUSIAUDIT 待平台审核/发布/受理）刻意保持全局，不消费 visible_org_codes。
     - 部门操作员（ROLE_ORGAN_OPERATER）：维持「申请进度」形态（0609 docx，拒协作待办），
       办理建议从真实进度现算；申请进度/补录待办按本机构可见域收口（「第七面」，同 MANAGER）。
     - 安全审计员（ROLE_SECURITY_AUDIT）：纯只读监督岗，todos 恒空 + 只读监督指引。
@@ -1096,7 +1342,7 @@ def enrich_workbench_backlog(
     """
     tid = tenant_id or get_runtime_tenant_id()
     # M8 部门隔离：仅部门管理员审核待办计数按 visible_org_codes 收口到本机构可见域；
-    # 平台队列（BUSIAUDIT 待平台审核/待发布/待受理/待汇总）保持全局，不消费 visible_org_codes。
+    # 平台队列（BUSIAUDIT 待平台审核/待发布/待受理）保持全局，不消费 visible_org_codes。
     # 「第七面」收口：部门管理员 review 用 provider-only，summary 用申请方∨提供方参与口径；
     # 操作员申请进度在 live actor 存在时按本人申请收口，使工作台计数与深链「我的申请」同口径。
     if role == _MANAGER_ROLE:
@@ -1108,9 +1354,11 @@ def enrich_workbench_backlog(
     if role == "ROLE_ORGAN_OPERATER":
         return _enrich_operator_backlog(
             view,
+            tenant_id=tid,
             org_visible_request_ids=_actor_visible_request_ids(
                 tid, visible_org_codes, caller_actor=caller_actor
             ),
+            caller_actor=caller_actor,
         )
     if role == "ROLE_SECURITY_AUDIT":
         return _enrich_supervisor_view(view)

@@ -106,6 +106,35 @@ def test_requests_list_copy_does_not_alias_find_card(db_brain: BrainService) -> 
     assert "__view_sentinel" not in (rec.payload_json or {})
 
 
+def test_requests_list_all_collapses_same_runtime_applicant_resource(db_brain: BrainService) -> None:
+    store = db_brain._state_store.database_store
+    store.application_repo.upsert_from_request(
+        {
+            "id": "appRV002",
+            "status": "need-fix",
+            "applicant": "张三",
+            "applicantDept": "测试单位",
+            "resourceId": "res-read-view-dup",
+        },
+        tenant_id=TENANT,
+    )
+    store.application_repo.upsert_from_request(
+        {
+            "id": "appRV003",
+            "status": "pending",
+            "applicant": "张三",
+            "applicantDept": "测试单位",
+            "resourceId": "res-read-view-dup",
+        },
+        tenant_id=TENANT,
+    )
+
+    listed = ReadViews.from_brain(db_brain).requests.list_all()
+    dup_cards = [item for item in listed if item.get("resourceId") == "res-read-view-dup"]
+
+    assert [item["id"] for item in dup_cards] == ["appRV002"]
+
+
 @pytest.mark.no_db
 def test_packages_list_all_returns_deepcopy(brain: BrainService, views: ReadViews) -> None:
     listed = views.packages.list_all()

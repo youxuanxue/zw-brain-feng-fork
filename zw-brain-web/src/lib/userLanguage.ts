@@ -165,6 +165,7 @@ export function formatTime(raw: unknown): string {
 // ── 无名记录派生名 ───────────────────────────────────────────────────────
 const HEX_32_RE = /^[0-9a-f]{32}$/i;
 const HEX_24PLUS_RE = /^[0-9a-f]{24,}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 /** 一段文本是否「就是」一个长 hex id（≥24 位纯 hex），即裸 id 当标题。 */
 export function isBareHexId(raw: unknown): boolean {
@@ -189,6 +190,7 @@ const LONG_CODE_RE = /^[0-9A-Za-z]{24,}$/;
 export function shortId(raw: unknown): string {
   const text = String(raw ?? '').trim();
   if (!text) return '—';
+  if (UUID_RE.test(text)) return `…${text.replace(/-/g, '').slice(-6)}`;
   if (HEX_32_RE.test(text) || HEX_24PLUS_RE.test(text) || LONG_CODE_RE.test(text))
     return `…${text.slice(-6)}`;
   // 复合长编号（前缀 + ≥24 位 hex token，如 DLV-<uuid4hex>：D56 新铸单的派生交付码）：

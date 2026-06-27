@@ -23,7 +23,7 @@ test.describe('B1.2 外部系统模块 e2e（接入扩展中心容器已解体�
 
   test('左导航直达流程表单（独立模块）', async ({ page }) => {
     await page.getByRole('link', { name: '流程表单' }).click();
-    await expect(page.getByRole('heading', { name: '流程与表单配置' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '流程与表单配置（待接入）' })).toBeVisible();
   });
 
   test('信任级 disclaimer 可见', async ({ page }) => {

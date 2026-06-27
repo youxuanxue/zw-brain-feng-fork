@@ -143,13 +143,13 @@ test('链路2：反向编目两级审核全链——操作员UI创建→管理�
   await skipUnlessBackend(page, testInfo);
   await waitAppReady(page);
 
-  // 1) 部门操作员：供数据页头药丸区「反向编目」与「在线编制目录」并列，点药丸进向导。
+  // 1) 部门操作员：供数据入口区「反向编目」与「在线编制目录」并列，点入口进向导。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider');
-  const reverseCard = page.locator('a.focus-link-pill', { hasText: '反向编目' });
-  await expect(reverseCard).toHaveCount(1, { timeout: 15_000 });
-  await expect(page.locator('a.focus-link-pill', { hasText: '在线编制目录' })).toHaveCount(1);
-  await reverseCard.click();
+  const reverseEntry = page.locator('a.entry-link', { hasText: '反向编目' });
+  await expect(reverseEntry).toHaveCount(1, { timeout: 15_000 });
+  await expect(page.locator('a.entry-link', { hasText: '在线编制目录' })).toHaveCount(1);
+  await reverseEntry.click();
   await expect(page.getByRole('heading', { name: '反向编目' })).toBeVisible({ timeout: 15_000 });
   await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');
   await expect(page.getByRole('heading', { name: '反向编目向导' })).toBeVisible({ timeout: 15_000 });
@@ -220,14 +220,18 @@ test('链路2：反向编目两级审核全链——操作员UI创建→管理�
   // 5) 业务运营员：落到旧部门审路由应对位跳转目录审核收件箱（BUSIAUDIT 退出 draft 阶段确认，
   //    其反向审核=平台审，双面验证）。
   await setRole(page, 'ROLE_BUSIAUDIT');
+  await page.reload();
+  await waitAppReady(page);
+  await setRole(page, 'ROLE_BUSIAUDIT');
   await gotoHash(page, '#/provider/inbox/field-decision');
   await expect(page).toHaveURL(/catalog-review/, { timeout: 15_000 });
 
   // 5a) 平台审：目录审核收件箱平台档列出草稿 A（汇入正向管线，不另造第二套审核），通过。
-  const platformRow = page.locator('tr', { hasText: draftA.code }).first();
+  // 编号列走 displayRecordCode（「编号 …000055」），用目录名定位行而非裸 catalog_code。
+  const platformRow = page.locator('tr', { hasText: draftA.name }).first();
   await expect(platformRow).toBeVisible({ timeout: 15_000 });
   await platformRow.getByTestId('catalog-review-approve-btn').click();
-  await expect(page.locator('tr', { hasText: draftA.code })).toHaveCount(0, { timeout: 15_000 });
+  await expect(page.locator('tr', { hasText: draftA.name })).toHaveCount(0, { timeout: 15_000 });
 
   // 6) 发布：草稿 A 经平台审进入待发布。发布动作已统一收口工作台行内（供数据页旧发布队列退役）；
   //    本链路聚焦反向编目两级审核 UI，发布按目录码经 API 触发终态（同名反向草稿不可靠按标题定位

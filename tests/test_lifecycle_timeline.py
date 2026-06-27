@@ -90,9 +90,9 @@ _OBJECTION_CASES = [
     # (status, 当前段, holder)
     ("submitted", "提交", "业务运营员（受理）"),
     ("accepted", "受理", "业务运营员（核查）"),
-    ("platform_investigating", "核查", "业务运营员（核查）"),
-    ("provider_investigating", "核查", "部门管理员（部门核查）"),
-    ("resolved", "办结", "申请方（确认/评价）"),
+    ("platform_investigating", "核查", "业务运营员（审查）"),
+    ("provider_investigating", "核查", "部门管理员（核查）"),
+    ("resolved", "办结", "申请方（评价）"),
     ("closed", "归档", ""),  # 终态
 ]
 
@@ -105,11 +105,12 @@ def test_objection_timeline_holder_per_state() -> None:
 
 
 def test_objection_investigating_split_label() -> None:
-    """核查段两态分流：平台核查 vs 部门核查 当前段标签不同（同段、holder 不同）。"""
+    """核查段两态分流：部门核查 vs 平台确认 当前段标签不同（同段、holder 不同）。"""
     plat = _current(objection_timeline("platform_investigating"))
     dept = _current(objection_timeline("provider_investigating"))
     assert plat["stage"] == dept["stage"] == "核查"
-    assert plat["label"] != dept["label"]
+    assert plat["label"] == "待确认"
+    assert dept["label"] == "核查中"
     assert plat["holder"] != dept["holder"]
 
 

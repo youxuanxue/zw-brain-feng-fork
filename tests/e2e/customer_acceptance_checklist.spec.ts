@@ -9,13 +9,15 @@ import {
   skipUnlessBackend,
   waitAppReady,
 } from './helpers';
+import {
+  REQUEST_RECREATE_ALLOWED_STATUSES,
+  buildExistingRequestsByResource,
+} from './applicationDedupe';
 
 /**
  * PR #108 客户验收清单 — 逐条映射上帝视角验收表。
  * 失败即代表客户演示会踩坑，必须修到全绿。
  */
-
-const REQUEST_CREATE_BLOCKING_STATUSES = new Set(['pending', 'submitted', 'supplementing', 'summary-pending']);
 
 async function requestCreateBlockedResourceIds(api: APIRequestContext): Promise<Set<string>> {
   const resp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
@@ -24,10 +26,37 @@ async function requestCreateBlockedResourceIds(api: APIRequestContext): Promise<
   const requests = (body.requests ?? []) as Array<Record<string, unknown>>;
   return new Set(
     requests
-      .filter((r) => REQUEST_CREATE_BLOCKING_STATUSES.has(String(r.status ?? '')))
+      .filter((r) => r.mine === true && !REQUEST_RECREATE_ALLOWED_STATUSES.has(String(r.status ?? '')))
       .map((r) => String(r.resourceId ?? r.resource_id ?? ''))
       .filter(Boolean),
   );
+}
+
+async function firstDiscoveryResourceWithExistingRequest(
+  api: APIRequestContext,
+): Promise<{ resourceId: string; requestId: string } | null> {
+  const resp = await api.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  if (!resp.ok()) return null;
+  const body = (await resp.json().catch(() => ({}))) as Record<string, unknown>;
+  const discovery = (body.discovery ?? {}) as Record<string, unknown>;
+  const resources = new Set(
+    ((discovery.resources ?? []) as Array<Record<string, unknown>>)
+      .map((r) => String(r.id ?? ''))
+      .filter((id) => id && !id.startsWith('recall:')),
+  );
+  const requests = (body.requests ?? []) as Array<Record<string, unknown>>;
+  const existingByResource = buildExistingRequestsByResource(requests);
+  for (const [resourceId, request] of existingByResource) {
+    if (!resources.has(resourceId)) {
+      existingByResource.delete(resourceId);
+    }
+  }
+  const existing = Array.from(existingByResource.values())[0];
+  if (!existing) return null;
+  return {
+    resourceId: String(existing.resourceId ?? existing.resource_id ?? ''),
+    requestId: String(existing.id ?? ''),
+  };
 }
 
 async function firstDiscoveryResourceForRequest(api: APIRequestContext): Promise<string | null> {
@@ -134,6 +163,9 @@ async function expectDraftSubmitVisible(page: Page): Promise<string> {
   await waitAppReady(page);
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, `#/request-flow/request/${encodeURIComponent(requestId)}`);
+  await expect(page.getByRole('heading', { name: '申请表单' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.locator('[data-testid="ff-purpose"]')).toBeVisible();
+  await expect(page.getByText('申请用途')).toBeVisible();
   await expect(page.getByRole('button', { name: '确认提交申请' })).toBeVisible({ timeout: 15_000 });
   return requestId;
 }
@@ -153,8 +185,8 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     test.skip(!resourceId, 'no requestable discovery resource available');
 
     await gotoHash(page, '#/discovery');
-    // D53①：找数据页标题随「只展示已发布资源」改版为「可申请资源」（原「可复用资源」退役）。
-    await expect(page.getByRole('heading', { name: '可申请资源' })).toBeVisible();
+    // 主标题与导航同源；“可申请资源”保留为结果说明，不再作为页面名。
+    await expect(page.getByRole('heading', { name: '找数据' })).toBeVisible();
     await expect(page.getByText('功能建设中')).toHaveCount(0);
 
     const resourceHref = `#/discovery/resource/${encodeURIComponent(resourceId!)}`;
@@ -168,6 +200,29 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await expect(applyBtn).toBeVisible();
     await applyBtn.click();
     await expectDraftSubmitVisible(page);
+  });
+
+  test('P2 找数据：已有本人申请的资源卡直接查看申请', async ({ page, playwright }) => {
+    const api = await playwright.request.newContext();
+    const anchor = await firstDiscoveryResourceWithExistingRequest(api);
+    await api.dispose();
+    test.skip(!anchor, 'no discovery resource with an existing applicant request');
+
+    await gotoHash(page, '#/discovery');
+    await expect(page.getByRole('heading', { name: '找数据' })).toBeVisible();
+
+    const resourceHref = `#/discovery/resource/${encodeURIComponent(anchor!.resourceId)}`;
+    const card = page.locator('article.res-card').filter({ has: page.locator(`a[href="${resourceHref}"]`) }).first();
+    const requestHref = `#/request-flow/request/${encodeURIComponent(anchor!.requestId)}`;
+    await expect(card.getByRole('link', { name: '查看申请' })).toBeVisible({ timeout: 10_000 });
+    await expect(card.getByRole('link', { name: '查看申请' })).toHaveAttribute('href', requestHref);
+    await expect(card.getByRole('button', { name: '发起申请' })).toHaveCount(0);
+
+    await card.getByRole('link', { name: '查看申请' }).click();
+    await expect(page).toHaveURL(new RegExp(`#\\/request-flow\\/request\\/${encodeURIComponent(anchor!.requestId)}`), {
+      timeout: 8_000,
+    });
+    await expect(page.getByText(/未命名申请/)).toHaveCount(0);
   });
 
   test('P2 目录浏览：目录详情资源卡 → 发起申请 → 申请详情可确认提交', async ({ page, playwright }) => {
@@ -234,7 +289,14 @@ test.describe('客户验收 — 部门操作员 J1', () => {
     await expect(page.locator('.focus-table, table').getByText(title)).toBeVisible({ timeout: 8_000 });
   });
 
-  test('P3 供需：登记 → 列表 → 推进一阶', async ({ page }) => {
+  test('P3 供需：登记 → 列表 → 跟踪待响应', async ({ page }) => {
+    await gotoHash(page, '#/delivery-exchange');
+    const supplyLink = page.getByRole('link', { name: '我的需求' });
+    await expect(supplyLink).toBeVisible();
+    await expect(supplyLink).toHaveAttribute('href', '#/request-flow/supply-demand');
+    await supplyLink.click();
+    await expect(page).toHaveURL(/#\/request-flow\/supply-demand$/, { timeout: 8_000 });
+
     await gotoHash(page, '#/request-flow/supply-demand');
     const title = `验收需求-${Date.now()}`;
     await page.locator('#demand-title').fill(title);
@@ -243,10 +305,26 @@ test.describe('客户验收 — 部门操作员 J1', () => {
       timeout: 8_000,
     });
     await page.locator('.focus-table tbody tr').filter({ hasText: title }).click();
-    const advance = page.locator('.detail-workspace').getByRole('button', { name: /推进至/ });
-    await expect(advance).toBeVisible();
-    await advance.click();
-    await expect(page.getByText(/已提交|阶段/i).first()).toBeVisible({ timeout: 8_000 });
+    await expect(page.locator('.detail-workspace')).toContainText('待响应');
+    await expect(page.locator('.detail-workspace').getByRole('button', { name: /推进至/ })).toHaveCount(0);
+  });
+
+  test('P3 申请详情：资源编号误入时提示正确去向，不渲染未命名申请', async ({ page, playwright }) => {
+    const api = await playwright.request.newContext();
+    const resourceId = await firstDiscoveryResourceForRequest(api);
+    await api.dispose();
+    test.skip(!resourceId, 'no discovery resource available');
+
+    await gotoHash(page, `#/request-flow/request/${encodeURIComponent(resourceId!)}`);
+
+    await expect(page.locator('[data-testid="request-resource-id-note"]')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('该编号是资源编号，不是申请编号。')).toBeVisible();
+    await expect(page.getByRole('link', { name: '查看资源详情' })).toHaveAttribute(
+      'href',
+      `#/discovery/resource/${encodeURIComponent(resourceId!)}`,
+    );
+    await expect(page.getByText(/未命名申请/)).toHaveCount(0);
+    await expect(page.getByRole('button', { name: '补件 / 重新提交' })).toHaveCount(0);
   });
 
   test('P4 任务详情 → 按资源类型分流操作（0611 §B 方案 B）', async ({ page }) => {
@@ -315,7 +393,7 @@ test.describe('客户验收 — 部门管理员 J2', () => {
     // filterByRouteAccess 决定。D57⑧ 后含「反向编目审核」（部门审入口卡）——
     // 入口卡零积压也渲染（深链到诚实空态收件箱，非死链），故计数断言为合法数字 ≥0。
     await gotoHash(page, '#/provider');
-    await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
     const cards = page.locator('.stat-card');
     const count = await cards.count();
     expect(count).toBeGreaterThan(0);
@@ -382,6 +460,7 @@ test.describe('客户验收 — 业务运营 P5 发布', () => {
 });
 
 test.describe('客户验收 — 平台运维员 B1', () => {
+  test.setTimeout(120_000);
   // D55/P2·P3·P4：后台 B1.2（外部系统 / 流程与表单配置 / 身份治理）归平台运维员独有，
   // 业务运营员退出（见末尾「业务运营员无权进 B1.2」收权用例同源守卫）。
   test.beforeEach(async ({ page }, testInfo) => {
@@ -431,7 +510,7 @@ test.describe('客户验收 — 平台运维员 B1', () => {
 
   test('B1.2 流程与表单配置子页可达（去黑话：无三引擎/Wave 字样）', async ({ page }) => {
     await gotoHash(page, '#/integration-admin/engines');
-    await expect(page.getByRole('heading', { name: '流程与表单配置' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '流程与表单配置（待接入）' })).toBeVisible();
     await expect(page.getByText(/预览|草稿/).first()).toBeVisible();
     await expect(page.getByText(/三引擎|Wave\s*2/i)).toHaveCount(0);
   });

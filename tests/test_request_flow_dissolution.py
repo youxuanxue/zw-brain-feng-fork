@@ -88,14 +88,18 @@ def test_orphaned_subroutes_keep_correct_roles() -> None:
     assert _is_route_allowed("/request-flow/request/abc", "ROLE_ORGAN_MANAGER")
     assert _is_route_allowed("/request-flow/request/abc", "ROLE_BUSIAUDIT")
 
-    # /request-flow/objection（含 /new、/:id）：消费方我的异议 —— 操作员/管理员/业务运营员。
-    for sub in ("/request-flow/objection", "/request-flow/objection/new", "/request-flow/objection/xyz"):
+    # /request-flow/objection（含 /:id）：消费方「我的异议」—— 操作员/管理员/业务运营员。
+    for sub in ("/request-flow/objection", "/request-flow/objection/xyz"):
         assert _is_route_allowed(sub, "ROLE_ORGAN_OPERATER")
         assert _is_route_allowed(sub, "ROLE_ORGAN_MANAGER")
         assert _is_route_allowed(sub, "ROLE_BUSIAUDIT")
-        # 纯只读监督岗 / 平台运维员不是消费方异议参与者。
         assert not _is_route_allowed(sub, "ROLE_SECURITY_AUDIT")
         assert not _is_route_allowed(sub, "ROLE_SYSTEM")
+
+    # /request-flow/objection/new：发起异议是申请人动作，业务运营员只跟踪/归档，不展示发起面。
+    assert _is_route_allowed("/request-flow/objection/new", "ROLE_ORGAN_OPERATER")
+    assert _is_route_allowed("/request-flow/objection/new", "ROLE_ORGAN_MANAGER")
+    assert not _is_route_allowed("/request-flow/objection/new", "ROLE_BUSIAUDIT")
 
     # /request-flow/supply-demand：消费方供需对接 —— 消费方三角色。
     assert _is_route_allowed("/request-flow/supply-demand", "ROLE_ORGAN_OPERATER")
@@ -175,13 +179,17 @@ def test_p4_delivery_rehomes_mine_and_grants_sections() -> None:
 
 def test_p4_delivery_mine_grants_are_applicant_only() -> None:
     """无权 = 不可见：我的申请 / 我的授权 段对非申请人不渲染（v-if 门控）。"""
-    src = _read("pages/P4Delivery.vue")
-    assert "isApplicantRole" in src, "P4Delivery 须有 isApplicantRole 申请人身份判定"
-    # mine / grants tab 按钮与 pane 均 v-if 闸在 isApplicantRole。
-    assert re.search(r'v-if="isApplicantRole"[\s\S]*?data-testid="p4-view-mine"', src), (
-        "「我的申请」tab 须 v-if=\"isApplicantRole\"（无权不渲染）"
+    delivery_src = _read("pages/P4Delivery.vue")
+    tabs_src = _read("components/DeliveryEntryTabs.vue")
+    assert "isApplicantRole" in delivery_src, "P4Delivery 须有 isApplicantRole 申请人身份判定"
+    assert "showApplicantTabs" in tabs_src, "DeliveryEntryTabs 须接收 showApplicantTabs 门控"
+    assert "showApplicantTabs: null" in tabs_src or "showApplicantTabs:null" in tabs_src.replace(" ", ""), (
+        "Boolean prop 省略时 Vue 默认为 false；须 null 默认 + ?? true 才能让 P3 页自决申请人 tab"
     )
-    assert re.search(r'v-if="isApplicantRole"[\s\S]*?data-testid="p4-pane-mine"', src), (
+    assert "applicantEntries" in tabs_src or "我的申请" in tabs_src, (
+        "「我的申请」tab 须经 showApplicantTabs / applicantEntries 门控（无权不渲染）"
+    )
+    assert re.search(r'v-if="isApplicantRole"[\s\S]*?data-testid="p4-pane-mine"', delivery_src), (
         "「我的申请」pane 须 v-if=\"isApplicantRole\""
     )
 

@@ -74,4 +74,50 @@ describe('NL 加速器 P2 — 智能解析失败优雅降级（Bug3）', () => {
     expect(res.parse_status).toBe('ok');
     expect(res.actions[0]).toMatchObject({ kind: 'filter', target: 'query', payload: { query: 'GDP' } });
   });
+
+  it('P3 输入资源式 32 位编号时，不生成申请详情跳转', async () => {
+    postSkillMock.mockResolvedValueOnce({
+      items: [{ id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', status: 'pending', resourceName: '人口库' }],
+    });
+    const res = await parseNLAcceleratorLive(
+      'P3',
+      '查看 17ca754343fe4882bb099d12edf58b94 审批',
+      'ROLE_ORGAN_MANAGER',
+    );
+
+    expect(res.parse_status).toBe('partial');
+    expect(res.summary).toContain('不是资源编号');
+    expect(res.actions).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'navigate',
+        target: '#/request-flow/request/17ca754343fe4882bb099d12edf58b94',
+      }),
+    );
+    expect(postSkillMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('B1.1 审计助手输入非申请 32 位编号时，只给审计回放，不跳申请详情', async () => {
+    postSkillMock.mockResolvedValueOnce({
+      items: [{ id: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', status: 'pending', resourceName: '人口库' }],
+    });
+    const res = await parseNLAcceleratorLive(
+      'B1.1',
+      '回放 17ca754343fe4882bb099d12edf58b94',
+      'ROLE_BUSIAUDIT',
+    );
+
+    expect(res.parse_status).toBe('partial');
+    expect(res.actions).toHaveLength(1);
+    expect(res.actions[0]).toMatchObject({
+      kind: 'invoke',
+      target: 'audit.replay_evidence_chain',
+      payload: { request_id: '17ca754343fe4882bb099d12edf58b94' },
+    });
+    expect(res.actions).not.toContainEqual(
+      expect.objectContaining({
+        kind: 'navigate',
+        target: '#/request-flow/request/17ca754343fe4882bb099d12edf58b94',
+      }),
+    );
+  });
 });

@@ -338,9 +338,10 @@ DISPATCH_TABLE: dict[str, Handler] = {
     "reference.organ.options": request.handler_reference_organ_options,
     "reference.region.options": request.handler_reference_region_options,
     "reference.dict.options": request.handler_reference_dict_options,
-    # J1 — supply demand (3 cap, E5 F14 browser)
+    # J1 — supply demand (4 cap, E5 F14 browser)
     "demand.register": supply_demand_handlers.handler_demand_register,
-    "demand.phase.advance": supply_demand_handlers.handler_demand_phase_advance,
+    "demand.response.submit": supply_demand_handlers.handler_demand_response_submit,
+    "demand.close": supply_demand_handlers.handler_demand_close,
     "demand.list": supply_demand_handlers.handler_demand_list,
     # turn 6: J1 — requirement_intake (9 cap)
     "require.intent.submit": requirement_intake.handler_require_intent_submit,

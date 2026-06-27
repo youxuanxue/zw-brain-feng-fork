@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { useSnapshot, useWebUiConfig } from '@/composables/useSnapshot';
 import { authFetch } from '@/composables/useAuth';
 import { invokeActionStub } from '@/composables/useActionStub';
@@ -10,6 +11,7 @@ import { apiUrl } from '@/composables/useApiBase';
 
 // 编制能力 slug（单一调用入口；亦是段52 webui 渲染消费锚）。
 const COMPILE_SKILL = 'catalog.national_ext_elem.compile';
+const providerShellTitle = shellNavLabelByKey('provider');
 
 const { source } = useSnapshot();
 const webui = useWebUiConfig();
@@ -156,7 +158,7 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="国家扩展要素编制"

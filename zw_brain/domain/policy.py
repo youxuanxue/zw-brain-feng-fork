@@ -48,7 +48,7 @@ PERMISSION_ROLES = {
     "catalog.resource_view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "catalog.resource.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "request.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
-    "request.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
+    "request.view.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     # D55/P21：审批/受理详情对受理人（业务运营员）+ 部门审核人（部门管理员）皆可见——
     # 无条件由业务运营员受理即终；有条件先业务运营员受理、后部门管理员审核，两级皆看详情。
     "approval.view.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
@@ -320,25 +320,26 @@ PERMISSION_ROLES = {
     # reply/review/evaluate/escalate/close 各去 SECURITY_AUDIT，去后非空）；保留 objection.case.query
     # / objection.process.query / objection.metric.query 只读（审计可读异议态，不动）。
     # D55/P7：业务运营员退申请人身份（「处理别人申请≠提申请」）。提异议=用户侧动作，
-    # 业务运营员退出 create/submit；保留处置侧 accept/reject/assign/reply/review/evaluate/
-    # escalate/close + query（受理/处置异议是业务运营员核心职责）。
+    # 业务运营员退出 create/submit；处置侧按白皮书最小闭环拆责：
+    # 平台/主管侧（BUSIAUDIT）受理、分发、审查确认；责任部门（MANAGER）只提交核查回复。
     "objection.case.create.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "objection.case.submit.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
-    "objection.case.accept.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.accept.execute": {"ROLE_BUSIAUDIT"},
     "objection.case.reject.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "objection.case.assign.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "objection.case.reply.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
-    "objection.case.review.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    "objection.case.assign.execute": {"ROLE_BUSIAUDIT"},
+    "objection.case.reply.execute": {"ROLE_ORGAN_MANAGER"},
+    "objection.case.review.execute": {"ROLE_BUSIAUDIT"},
     "objection.case.evaluate.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.escalate.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.close.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.case.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     # D55/P7：登记需求=申请人动作，业务运营员退出 demand.register（退申请人身份）。
     "demand.register.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
-    # demand.phase.advance / demand.list 保留业务运营员：需求汇总是运营员核心职责，工作台
-    # 「待汇总需求」深链依赖之；去掉会空其汇总工作面（乔布斯决策：保留，与 P7 字面「去 demand.list」
-    # 相左，按最优职责口径——汇总≠提需求）。
-    "demand.phase.advance.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
+    # demand.response.submit 是提供方对同一张需求单的确认提供/拒绝/补正响应动作；
+    # 申请方只能登记和跟踪，不替提供方响应。
+    "demand.response.submit.execute": {"ROLE_ORGAN_MANAGER"},
+    # demand.close 是需求方看见提供方结论后的确认收口动作；提供方不替需求方关闭。
+    "demand.close.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER"},
     "demand.list.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT"},
     "objection.process.query.execute": {"ROLE_ORGAN_OPERATER", "ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},
     "objection.metric.query.execute": {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"},

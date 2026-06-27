@@ -380,10 +380,10 @@ def test_brain_dispatch_catalog_lifecycle_audit_chain(repo, brain):
     # 由异议发起方操作员提交；后续处置（assign/reply/review/close）仍由平台/部门侧驱动。
     common = {"confirmed": True, "objection_id": objection_id}
     _invoke(brain, "objection.case.submit", {**common, "role": "ROLE_ORGAN_OPERATER"})
-    _invoke(brain, "objection.case.assign", {**common, "target_status": "platform_investigating"})
-    _invoke(brain, "objection.case.assign", {**common, "target_status": "provider_investigating"})
-    _invoke(brain, "objection.case.reply", {**common, "node_name": "部门核查回复", "opinion": "已核实", "action_result": "submitted"})
-    _invoke(brain, "objection.case.review", {**common, "decision": "resolve", "resolved_summary": "已修正"})
+    _invoke(brain, "objection.case.assign", {**common, "role": "ROLE_BUSIAUDIT", "target_status": "platform_investigating"})
+    _invoke(brain, "objection.case.assign", {**common, "role": "ROLE_BUSIAUDIT", "target_status": "provider_investigating"})
+    _invoke(brain, "objection.case.reply", {**common, "role": "ROLE_ORGAN_MANAGER", "node_name": "部门核查回复", "opinion": "已核实", "action_result": "submitted"})
+    _invoke(brain, "objection.case.review", {**common, "role": "ROLE_BUSIAUDIT", "decision": "resolve", "resolved_summary": "已修正"})
     _invoke(brain, "objection.case.evaluate", {**common, "role": "ROLE_ORGAN_OPERATER",
             "solved_flag": True, "overall_score": 5, "comment": "处理及时"})
     _invoke(brain, "objection.case.close", common)

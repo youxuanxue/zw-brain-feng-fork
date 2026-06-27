@@ -15,12 +15,12 @@ import {
  *    - 授权角色（后端 policy = 审批人 ROLE_ORGAN_MANAGER）对已授权申请 → 「收回授权」可见可点；
  *    - 非授权角色（申请人 ROLE_ORGAN_OPERATER）→ 「收回授权」从 DOM 完全消失（toHaveCount(0)）。
  * B. P4 调用记录表（ops.service.invocation.query）：凭据页能渲染「调用记录」段。
- * C. P5 受理并起草申请：未先匹配目录前按钮 disabled（去写死 resource_id 后的诚实门控）。
+ * C. P5 供需响应：确认提供前必须填写或匹配关联资源（去写死 resource_id 后的诚实门控）。
  *
  * 守护点：
  *   zw-brain-web/src/lib/pageAccess.ts ACTION_ROLE_GATES（application.grant.revoke/suspend）
  *   + zw-brain-web/src/pages/P3RequestDetail.vue v-if=canPerformAction
- *   + P4Credential.vue 调用记录段 + P5DemandMatchDetail.vue 先匹配再起草。
+ *   + P4Credential.vue 调用记录段 + P5DemandMatchDetail.vue 先匹配或填写关联资源再确认提供。
  */
 
 /** 取第一条 granted / in_delivery 申请的 request_id（撤回/暂停只对已授权态渲染）。 */
@@ -90,8 +90,8 @@ test.describe('J1 撤回/暂停授权 + 调用记录 渲染与角色不可见', 
     await expect(page.getByRole('heading', { name: '调用记录' })).toBeVisible({ timeout: 10_000 });
   });
 
-  test('P5 受理并起草申请：未匹配目录前 disabled（去写死 resource_id 诚实门控）', async ({ page }) => {
-    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_OPERATER`);
+  test('P5 供需响应：未填写关联资源前不能确认提供（去写死 resource_id 诚实门控）', async ({ page }) => {
+    const snap = await page.request.get(`${E2E_BASE_URL}/api/snapshot?role=ROLE_ORGAN_MANAGER`);
     test.skip(!snap.ok(), 'snapshot not reachable');
     const snapBody = (await snap.json()) as Record<string, unknown>;
     const provider = (snapBody.provider ?? {}) as Record<string, unknown>;
@@ -99,11 +99,10 @@ test.describe('J1 撤回/暂停授权 + 调用记录 渲染与角色不可见', 
     const dmId = String(matches[0]?.id ?? '');
     test.skip(!dmId, 'no demand_match row');
 
-    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, `#/provider/inbox/demand-match/${dmId}`);
-    const draftBtn = page.getByRole('button', { name: '受理并起草申请' });
-    await expect(draftBtn).toBeVisible();
-    // 未先点「检索匹配目录」命中真实资源前，起草按钮应 disabled（不再错绑固定 resource_id）。
-    await expect(draftBtn).toBeDisabled();
+    await page.locator('#response-note').fill('可提供，请先补关联资源编号');
+    await page.getByRole('button', { name: '确认提供' }).click();
+    await expect(page.locator('.toast-stack')).toContainText('请填写关联资源');
   });
 });

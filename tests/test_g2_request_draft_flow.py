@@ -89,6 +89,39 @@ def test_repeat_create_reuses_existing_draft(brain) -> None:
     assert len(drafts) == 1
 
 
+def test_repeat_create_reuses_need_fix_request(brain) -> None:
+    first = _unwrap(invoke_trusted(brain, "request.create", {"resource_id": _RESOURCE_ID, "confirmed": True}, role=_OPERATER))
+    rid = first["request_id"]
+    store = brain._state_store.database_store
+    store.application_repo.update_status(rid, "need-fix", tenant_id="sd-default")
+
+    second = _unwrap(invoke_trusted(brain, "request.create", {"resource_id": _RESOURCE_ID, "confirmed": True}, role=_OPERATER))
+
+    assert second.get("reused_existing") is True
+    assert second["request_id"] == rid
+    records = [
+        r for r in store.application_repo.list_records(tenant_id="sd-default")
+        if (r.payload_json or {}).get("resourceId") == _RESOURCE_ID
+    ]
+    assert len(records) == 1
+
+
+def test_repeat_create_only_reuses_current_applicant_request(brain) -> None:
+    other = _unwrap(invoke_trusted(brain, "request.create", {"resource_id": _RESOURCE_ID, "confirmed": True}, role="ROLE_ORGAN_MANAGER"))
+    store = brain._state_store.database_store
+    store.application_repo.update_status(other["request_id"], "need-fix", tenant_id="sd-default")
+
+    mine = _unwrap(invoke_trusted(brain, "request.create", {"resource_id": _RESOURCE_ID, "confirmed": True}, role=_OPERATER))
+
+    assert mine.get("reused_existing") is not True
+    assert mine["request_id"] != other["request_id"]
+    records = [
+        r for r in store.application_repo.list_records(tenant_id="sd-default")
+        if (r.payload_json or {}).get("resourceId") == _RESOURCE_ID
+    ]
+    assert len(records) == 2
+
+
 def test_draft_submit_transitions_to_pending(brain) -> None:
     created = _unwrap(invoke_trusted(brain, "request.create", {"resource_id": _RESOURCE_ID, "confirmed": True}, role=_OPERATER))
     rid = created["request_id"]

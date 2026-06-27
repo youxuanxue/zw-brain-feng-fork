@@ -4,9 +4,8 @@
 - meta 合并而非数据合并：BR (BusinessRequirement) 不复制原始 demand 的业务字段
   (purpose / period / files 等)；仅持 application_ids 列表 + merge_reason + 时间戳。
 - 不引入新 schema：复用 application_record 表，kind='demand' / 'business_requirement'
-  存于 payload_json["kind"]；6 步 phase 存于 payload_json["demand_phase"]；BR 引用
+  存于 payload_json["kind"]；供需三态存于 payload_json["response_status"]；BR 引用
   存于 payload_json["application_ids"]。
-- 规则匹配（同 title 前缀 / 同 target_resource_hint）；AI 推荐归 E3 Wave 2，不在本期。
 
 国家通道占位 (feature §scenario 5)：payload_json["channel_class"]="national" 即
 标识；Wave 1 不实施完整国家直达流程。
@@ -19,13 +18,14 @@ from typing import Any
 
 from sqlalchemy import select
 
+import zw_brain.shared.clock as clock
 from zw_brain.domain.models import ApplicationRecord
 from zw_brain.domain.repositories.application import ApplicationRepository
-from zw_brain.domain.supply_demand_phase import (
-    PHASE_GAP_DISCOVERED,
-    PHASE_PROVIDER_RESPONDED,
-    PHASE_SUBSCRIBED,
-    assert_phase_transition,
+from zw_brain.domain.supply_demand_status import (
+    DEMAND_STATUS_CLOSED,
+    DEMAND_STATUS_PENDING_RESPONSE,
+    DEMAND_STATUS_RESPONDED,
+    assert_status_transition,
 )
 from zw_brain.shared.db import create_session_factory
 
@@ -45,7 +45,7 @@ class SupplyDemandRepository:
         self.app_repo = ApplicationRepository()
 
     # ------------------------------------------------------------------
-    # demand lifecycle (6 步 phase)
+    # demand lifecycle (三态 response_status)
     # ------------------------------------------------------------------
 
     def register_demand(
@@ -60,17 +60,17 @@ class SupplyDemandRepository:
         target_org_code: str | None = None,
         target_org_name: str | None = None,
         channel_class: str = "internal",
-        phase: str = PHASE_GAP_DISCOVERED,
+        response_status: str = DEMAND_STATUS_PENDING_RESPONSE,
     ) -> dict[str, Any]:
         """登记需求 (P3 供需对接段「找不到数据」入口)."""
         payload = {
             "id": demand_id,
-            "status": "submitted",
+            "status": response_status,
             "applicant": applicant,
             "applicantDept": applicant_dept,
             "kind": "demand",
             "title": title,
-            "demand_phase": phase,
+            "response_status": response_status,
             "target_resource_hint": target_resource_hint,
             "target_org_code": target_org_code,
             "target_org_name": target_org_name,
@@ -79,24 +79,58 @@ class SupplyDemandRepository:
         self.app_repo.upsert_from_request(payload, tenant_id=tenant_id)
         return payload
 
-    def advance_phase(
+    def submit_response(
         self,
         demand_id: str,
-        next_phase: str,
         *,
         tenant_id: str = "sd-default",
+        decision: str,
+        response_note: str,
+        resource_ref: str | None = None,
+        responded_by: str | None = None,
     ) -> dict[str, Any]:
         record = self._get_record(demand_id, tenant_id=tenant_id)
         payload = _load_payload(record)
         if payload.get("kind") != "demand":
             raise KeyError(f"not a demand record: {demand_id}")
-        current = str(payload.get("demand_phase") or PHASE_GAP_DISCOVERED)
-        assert_phase_transition(current, next_phase)
-        payload["demand_phase"] = next_phase
-        if next_phase == PHASE_PROVIDER_RESPONDED:
-            payload["status"] = "approved"
-        elif next_phase == PHASE_SUBSCRIBED:
-            payload["status"] = "effective"
+        current = str(payload.get("response_status") or DEMAND_STATUS_PENDING_RESPONSE)
+        assert_status_transition(current, DEMAND_STATUS_RESPONDED)
+        if decision not in {"provide", "reject", "need_fix"}:
+            raise ValueError(f"invalid demand response decision: {decision}")
+        if not response_note.strip():
+            raise ValueError("response_note is required")
+        if decision == "provide" and not str(resource_ref or "").strip():
+            raise ValueError("resource_ref is required when decision=provide")
+        payload["response_status"] = DEMAND_STATUS_RESPONDED
+        payload["status"] = DEMAND_STATUS_RESPONDED
+        payload["provider_decision"] = decision
+        payload["provider_response_note"] = response_note
+        payload["provider_resource_ref"] = resource_ref or ""
+        if responded_by is not None:
+            payload["provider_response_by"] = responded_by
+        self.app_repo.upsert_from_request(payload, tenant_id=tenant_id)
+        return payload
+
+    def close_demand(
+        self,
+        demand_id: str,
+        *,
+        tenant_id: str = "sd-default",
+        close_note: str | None = None,
+        closed_by: str | None = None,
+    ) -> dict[str, Any]:
+        record = self._get_record(demand_id, tenant_id=tenant_id)
+        payload = _load_payload(record)
+        if payload.get("kind") != "demand":
+            raise KeyError(f"not a demand record: {demand_id}")
+        current = str(payload.get("response_status") or DEMAND_STATUS_PENDING_RESPONSE)
+        assert_status_transition(current, DEMAND_STATUS_CLOSED)
+        payload["response_status"] = DEMAND_STATUS_CLOSED
+        payload["status"] = DEMAND_STATUS_CLOSED
+        payload["closed_note"] = str(close_note or "").strip()
+        payload["closed_at"] = clock.now_datetime()
+        if closed_by is not None:
+            payload["closed_by"] = closed_by
         self.app_repo.upsert_from_request(payload, tenant_id=tenant_id)
         return payload
 
@@ -107,11 +141,11 @@ class SupplyDemandRepository:
         return _load_payload(record)
 
     def list_demands(
-        self, *, tenant_id: str = "sd-default", phase: str | None = None
+        self, *, tenant_id: str = "sd-default", response_status: str | None = None
     ) -> list[dict[str, Any]]:
         SessionLocal = create_session_factory()
         with SessionLocal() as session:
-            # full-scan-ok: kind/demand_phase 存 payload_json JSON 列，需 SQL JSON 算子
+            # full-scan-ok: kind/response_status 存 payload_json JSON 列，需 SQL JSON 算子
             # （SQLite vs PG 分支）才能下推；当前演示规模 <500 行，先内存过滤。
             # trigger: Application 表万级 或 多租户 → repo 改为按 application_kind 列拆分
             # 后用 SQL where，或引入复合索引。详见 docs/preflight-debt.md 同条 entry。
@@ -126,7 +160,7 @@ class SupplyDemandRepository:
             payload = _load_payload(r)
             if payload.get("kind") != "demand":
                 continue
-            if phase is not None and payload.get("demand_phase") != phase:
+            if response_status is not None and payload.get("response_status") != response_status:
                 continue
             out.append(payload)
         return out

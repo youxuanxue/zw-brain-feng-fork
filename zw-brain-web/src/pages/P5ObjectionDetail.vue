@@ -81,12 +81,21 @@ const rawStatus = computed(() => {
   return String(repo.status ?? d.status ?? '');
 });
 const isPendingAccept = computed(() => rawStatus.value === 'submitted');
+const isProviderInvestigating = computed(() => rawStatus.value === 'provider_investigating');
+const isPlatformInvestigating = computed(() => rawStatus.value === 'platform_investigating');
 const canAccept = computed(() => canPerformAction('objection.case.accept', role.value));
+const canReply = computed(() => canPerformAction('objection.case.reply', role.value));
+const canReview = computed(() => canPerformAction('objection.case.review', role.value));
 // 原 B11 督办孤儿页（零入口）折叠：升级督办归位异议处理方面，角色门与原 B11 一致（决策见 route-table）。
 const canEscalate = computed(() => canPerformAction('objection.case.escalate', role.value));
 
 const headerMeta = computed(() => {
-  if (dispute.value) return isPendingAccept.value ? '受理后进入核查环节' : '提交回复后进入复核环节';
+  if (dispute.value) {
+    if (isPendingAccept.value) return '受理后进入核查';
+    if (isProviderInvestigating.value) return '提交核查回复后进入确认';
+    if (isPlatformInvestigating.value) return '确认解决或退回继续核查';
+    return `当前：${formatTodoStatus(rawStatus.value)}`;
+  }
   if (source.value === 'live') return '当前列表中无此异议';
   return '正在加载……';
 });
@@ -124,6 +133,20 @@ async function markResolved() {
   });
 }
 
+async function returnForInvestigation() {
+  if (!requireOpinion()) return;
+  await invokeActionStub({
+    skillId: 'objection.case.review',
+    payload: {
+      objection_id: id.value,
+      decision: 'return',
+      resolved_summary: opinion.value.trim(),
+    },
+    successTitle: '已退回继续核查',
+    refreshSnapshotAfter: true,
+  });
+}
+
 // 升级督办——事件式过程标记，不改 case.status（objection.case.escalate 后端零改动）。
 // 升级复用主回复意见（同一份核实结论），不另设独立理由框、不写死成品口径；空则拦截。
 async function escalate() {
@@ -155,7 +178,7 @@ async function escalate() {
           @click="acceptCase"
         >受理</button>
       </DetailActions>
-      <template v-if="dispute && !isPendingAccept">
+      <template v-if="dispute && (isProviderInvestigating || isPlatformInvestigating)">
         <div class="opinion-box">
           <label for="opinion">回复意见</label>
           <textarea
@@ -166,11 +189,28 @@ async function escalate() {
           />
         </div>
         <DetailActions>
-          <button type="button" class="gov-btn gov-btn-primary" @click="submitReply">提交回复</button>
-          <button type="button" class="gov-btn" @click="markResolved">标记已解决</button>
+          <button
+            v-if="isProviderInvestigating && canReply"
+            type="button"
+            class="gov-btn gov-btn-primary"
+            @click="submitReply"
+          >提交核查回复</button>
+          <button
+            v-if="isPlatformInvestigating && canReview"
+            type="button"
+            class="gov-btn gov-btn-primary"
+            @click="markResolved"
+          >确认解决</button>
+          <button
+            v-if="isPlatformInvestigating && canReview"
+            type="button"
+            class="gov-btn"
+            @click="returnForInvestigation"
+          >退回核查</button>
           <button v-if="canEscalate" type="button" class="gov-btn gov-btn-secondary" @click="escalate">升级督办</button>
         </DetailActions>
       </template>
+      <p v-else-if="dispute && !isPendingAccept" class="lifecycle-note">当前状态无需在本页办理。</p>
     </section>
   </main>
 </template>

@@ -19,6 +19,7 @@ import zw_brain.shared.clock as clock
 from zw_brain.command.brain import DEFAULT_DISCOVERY_QUERY, InvalidStateError, NotFoundError
 from zw_brain.command.deps import HandlerDeps, SkillContext
 from zw_brain.domain import resource_labels
+from zw_brain.domain.application_dedupe import existing_request_for_applicant
 from zw_brain.domain.approval_flow_baseline import start_approval_workflow_from_baseline
 from zw_brain.domain.approval_flow_schema import ApprovalFlowSchemaRepo
 from zw_brain.domain.approval_flow_walker import (
@@ -49,6 +50,17 @@ def _resolve_actor_org(actor: str, reference: ReferenceService) -> dict[str, Any
         return {"org_code": rec.org_code, "org_name": (organ or {}).get("org_name") or rec.org_code}
     except Exception:  # noqa: BLE001 — 身份带出旁路，失败不破创建主路径
         return None
+
+
+def _existing_request_response(request: dict[str, Any], deps: HandlerDeps) -> dict[str, Any]:
+    request_id = str(request["id"])
+    task = deps.view.delivery.find_by_request_id(request_id)
+    return {
+        "request_id": request_id,
+        "task_id": task["id"] if task else None,
+        "status": request["status"],
+        "reused_existing": True,
+    }
 
 
 def _extract_shared_type(options: dict[str, Any], resource: dict[str, Any]) -> Any:
@@ -214,38 +226,34 @@ def _create_request(
     # 按 resourceId 查 resource_asset.access_policy_json）全失败，有条件单被误判无条件、
     # 受理即终，D55④ 受理→部门管理员审核两级被旁路。目录码直申（无 focused 资源）保持原语义。
     canonical_id = str(resource.get("focusedResourceCode") or resource["id"])
-    # G2：已存在同资源「草稿」→ 直接重入该草稿（幂等，避免重复点「申请」刷出一堆草稿单），
-    # 不报错；用户回到既有草稿继续编辑/确认提交。
-    existing_draft = next(
-        (
-            item
-            for item in deps.view.requests.list_all()  # Action C — read facade
-            if item.get("resourceId") == canonical_id and item.get("status") == "draft"
-        ),
-        None,
-    )
-    if existing_draft is not None:
-        task = deps.view.delivery.find_by_request_id(existing_draft["id"])
-        return {
-            "request_id": existing_draft["id"],
-            "task_id": task["id"] if task else None,
-            "status": existing_draft["status"],
-            "reused_draft": True,
-        }
-    # 已提交在办的申请（待受理/审批中/补录/汇总中）仍拦——不允许对同资源重复发起在办申请。
-    # 状态词汇桥接后有条件直提单落 'submitted'（受理两级入口态），一并计入在办。
-    existing = next(
-        (
-            item
-            for item in deps.view.requests.list_all()
-            if item.get("resourceId") == canonical_id and item["status"] in {"pending", "submitted", "supplementing", "summary-pending"}
-        ),
-        None,
+    applicant_actor = ctx.actor
+    runtime_requests = deps.view.requests.list_all()  # Action C — read facade
+    existing = existing_request_for_applicant(
+        runtime_requests,
+        canonical_id=canonical_id,
+        applicant_actor=applicant_actor,
     )
     if existing is not None:
-        raise InvalidStateError(f"active request already exists for resource {canonical_id}: {existing['id']}")
-
-    applicant_actor = ctx.actor
+        existing_status = str(existing.get("status") or "")
+        # application.resource.submit = 直提路径：命中既有草稿须当场提交进审批队列，
+        # 不能复用 draft 让 e2e/走查拿到 status='draft'（方案 B 桥接回归）。
+        if (
+            not as_draft
+            and skill_id == "application.resource.submit"
+            and existing_status == "draft"
+        ):
+            return _submit_request(
+                brain,
+                deps,
+                ctx,
+                str(existing["id"]),
+                role,
+                confirmed,
+            )
+        response = _existing_request_response(existing, deps)
+        if existing_status == "draft":
+            response["reused_draft"] = True
+        return response
 
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         request_id = deps.services.request.new_request_id()

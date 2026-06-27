@@ -39,6 +39,7 @@ const _viewCache = new Map<string, WorkbenchCacheEntry>();
 const _inflight = new Map<string, Promise<WorkbenchView>>();
 // 写后失效信号：bump 后所有已挂载的 useWorkbench 实例重拉（覆盖 P1 工作台等）。
 const _invalidationTick = ref(0);
+let _invalidationVersion = 0;
 
 function readCachedWorkbench(role: string): WorkbenchView | null {
   return _viewCache.get(role)?.data ?? null;
@@ -80,8 +81,11 @@ async function fetchWorkbenchView(role: string): Promise<WorkbenchView> {
 // FU-4 空闲预取：把某 role 的工作台拉进缓存，不触动任何已挂载实例的展示态。
 export async function prefetchWorkbench(role: string): Promise<void> {
   if (_viewCache.has(role)) return;
+  const version = _invalidationVersion;
   try {
-    writeCachedWorkbench(role, await fetchWorkbenchView(role));
+    const payload = await fetchWorkbenchView(role);
+    if (version !== _invalidationVersion) return;
+    writeCachedWorkbench(role, payload);
   } catch {
     // 预取失败静默——主动进工作台时 refresh() 会正常重试并回落 fixture/显错。
   }
@@ -89,8 +93,14 @@ export async function prefetchWorkbench(role: string): Promise<void> {
 
 // FU-3 写后失效：作废受影响 role 的工作台缓存，并通知已挂载实例重拉（无参=清全部）。
 export function invalidateWorkbench(role?: string): void {
-  if (role) _viewCache.delete(role);
-  else _viewCache.clear();
+  _invalidationVersion += 1;
+  if (role) {
+    _viewCache.delete(role);
+    _inflight.delete(role);
+  } else {
+    _viewCache.clear();
+    _inflight.clear();
+  }
   _invalidationTick.value += 1;
 }
 
@@ -124,8 +134,10 @@ export function useWorkbench(roleOverride?: string): UseWorkbenchResult {
       source.value = 'loading';
     }
     error.value = null;
+    const version = _invalidationVersion;
     try {
       const payload = await fetchWorkbenchView(role);
+      if (version !== _invalidationVersion) return;
       writeCachedWorkbench(role, payload);
       data.value = payload;
       source.value = 'live';

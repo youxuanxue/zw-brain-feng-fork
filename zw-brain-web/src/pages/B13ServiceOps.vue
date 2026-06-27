@@ -61,15 +61,11 @@ const readinessCards = computed(() => [
     <section class="panel panel-stack">
       <PageFocusHeader title="服务调用监控(待接入)" meta="网关运行只读面" />
 
-      <div class="focus-tab-row">
-        <span class="focus-tab active" role="tab" aria-selected="true">网关运行</span>
-        <button type="button" class="focus-tab refresh-btn" @click="refresh">刷新</button>
-      </div>
-
       <section class="focus-section">
         <header class="focus-section-head">
           <h2 class="focus-section-title">网关运行</h2>
           <DataSourceBadge :source="gateway.source.value" />
+          <button type="button" class="focus-tab refresh-btn" @click="refresh">刷新</button>
         </header>
         <div v-if="hasGatewaySignals" class="gw-count-strip" role="group" aria-label="网关运行状态汇总">
           <span class="gw-count gw-count--online"><strong>{{ gatewayCounts.online }}</strong> 在线</span>

@@ -104,10 +104,10 @@ export async function invokeActionStub(opts: ActionStubOptions): Promise<{ ok: b
         pushToast({ kind: 'ok', title: opts.successTitle ?? '已提交' });
       }
       if (opts.refreshSnapshotAfter !== false) {
-        // FU-3 写后失效：写能力改了真实库积压，作废该 role 的快照 + 工作台缓存再拉新——
-        //   工作台待办（workbench_backlog_projection 现算）不再停在写前的陈旧值。
-        invalidateSnapshot(role);
-        invalidateWorkbench(role);
+        // FU-3 写后失效：写能力常把事项从一个岗位推到另一个岗位（如异议提交后进
+        // 业务运营员收件箱、供需登记后进部门管理员收件箱），必须清全岗位缓存。
+        invalidateSnapshot();
+        invalidateWorkbench();
         void loadSnapshot(role);
       }
       return { ok: true, status: resp.status, data };

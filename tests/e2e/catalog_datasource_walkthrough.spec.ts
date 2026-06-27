@@ -36,9 +36,9 @@ test.describe('catalog datasource E2E walkthrough', () => {
   test('A: provider home header and role pills', async ({ page }) => {
     await setRole(page, 'ROLE_ORGAN_OPERATER');
     await gotoHash(page, '#/provider');
-    await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
     await expect(page.locator('body')).toContainText('先登记数据源，再编目或挂接');
-    const links = page.locator('.focus-link-pill');
+    const links = page.locator('.entry-link');
     const texts = (await links.allTextContents()).map((t) => t.trim());
     const dsIdx = texts.findIndex((t) => t.includes('数据源管理'));
     const inlineIdx = texts.findIndex((t) => t.includes('在线编制目录'));
@@ -48,7 +48,53 @@ test.describe('catalog datasource E2E walkthrough', () => {
 
     await setRole(page, 'ROLE_ORGAN_MANAGER');
     await gotoHash(page, '#/provider');
-    await expect(page.getByRole('heading', { name: '提供方管理' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
+  });
+
+  test('A2: provider home is the entry hub for allowed static child routes', async ({ page }) => {
+    const expectedByRole: Record<string, Array<{ label: string; href: string }>> = {
+      ROLE_ORGAN_OPERATER: [
+        { label: '数据源管理', href: '#/provider/datasources' },
+        { label: '在线编制目录', href: '#/provider/wizard/inline-catalog' },
+        { label: '反向编目', href: '#/provider/wizard/reverse-catalog' },
+        { label: '资源挂接', href: '#/provider/wizard/hookup-submit' },
+        { label: '接口服务注册', href: '#/provider/wizard/api-service' },
+      ],
+      ROLE_ORGAN_MANAGER: [
+        { label: '数据源管理', href: '#/provider/datasources' },
+        { label: '在线编制目录', href: '#/provider/wizard/inline-catalog' },
+        { label: '反向编目', href: '#/provider/wizard/reverse-catalog' },
+        { label: '资源挂接', href: '#/provider/wizard/hookup-submit' },
+        { label: '接口服务注册', href: '#/provider/wizard/api-service' },
+        { label: '目录审核', href: '#/provider/inbox/catalog-review' },
+        { label: '反向编目审核', href: '#/provider/inbox/field-decision' },
+        { label: '挂接审核', href: '#/provider/inbox/hookup-review' },
+        { label: '供需对接', href: '#/provider/inbox/demand-match' },
+        { label: '异议响应', href: '#/provider/inbox/objection' },
+      ],
+      ROLE_BUSIAUDIT: [
+        { label: '目录审核', href: '#/provider/inbox/catalog-review' },
+        { label: '异议响应', href: '#/provider/inbox/objection' },
+      ],
+    };
+
+    for (const [role, expected] of Object.entries(expectedByRole)) {
+      await setRole(page, role);
+      await gotoHash(page, '#/provider');
+      await expect(page.getByRole('heading', { name: '供数据' })).toBeVisible();
+      for (const item of expected) {
+        const link = page.locator(`a[href="${item.href}"]`, { hasText: item.label }).first();
+        await expect(link, `${role} should have ${item.href} on provider home`).toBeVisible();
+      }
+      await expect(page.getByTestId('catalog-manage-link')).toHaveAttribute('href', '#/provider/catalogs');
+      await expect(page.getByTestId('resource-manage-link')).toHaveAttribute('href', '#/provider/resources');
+    }
+
+    await setRole(page, 'ROLE_ORGAN_OPERATER');
+    await gotoHash(page, '#/provider');
+    await page.locator('a[href="#/provider/datasources"]', { hasText: '数据源管理' }).first().click();
+    await expect(page).toHaveURL(/#\/provider\/datasources$/, { timeout: 8_000 });
+    await expect(page.getByRole('heading', { name: '数据源管理' })).toBeVisible();
   });
 
   test('B: datasource manage CRUD and copy gate', async ({ page }) => {

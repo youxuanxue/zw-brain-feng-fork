@@ -2,8 +2,7 @@ import { invokeActionStub, pushToast } from '@/composables/useActionStub';
 import type { StructuredAction } from '@/composables/useNLAccelerator';
 
 /**
- * NL 加速器结构化动作的统一消费口（原 P3RequestFlow / B11ComplianceOps / B12IntegrationAdmin
- * 三份拷贝抽出）。
+ * NL 加速器结构化动作的统一消费口（P2Discovery 页内自定义 handler；P3/B11 等按需扩展）。
  *
  * - `invoke`：真调用能力（照旧）。
  * - `filter` / `draft`：只是建议/提示，**不谎称「已应用」**——#278 修了撒谎的源（NL 路由那个

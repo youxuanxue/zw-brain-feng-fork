@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import DeliveryEntryTabs from '@/components/DeliveryEntryTabs.vue';
 import { useDeliveryTasks, useSnapshot } from '@/composables/useSnapshot';
 import { getProductRole } from '@/composables/useProductRole';
 import { downloadDeliveryFile } from '@/composables/useDeliveryDownload';
@@ -9,7 +11,6 @@ import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { deriveRecordName, formatChannel, formatTime, shortId } from '@/lib/userLanguage';
 import { myRequests, myGrants } from '@/lib/roleProjection';
 import { canPlatformReviewRequests } from '@/lib/requestFlowRoles';
-import { filterByRouteAccess } from '@/lib/pageAccess';
 
 // 「办申请」导航解体（IA 重构）：消费方「我的数据」一站式入口收口到领数据——
 //   我的申请 (mine)   ：我作为需方发起的（草稿 / 在途 / 已办结），深链申请详情
@@ -20,6 +21,7 @@ import { filterByRouteAccess } from '@/lib/pageAccess';
 const tasks = useDeliveryTasks();
 const { source, data: snapshot } = useSnapshot();
 const role = getProductRole();
+const route = useRoute();
 
 // 申请人身份判定：受理岗（业务运营员）退申请人身份——「我的申请」「我的授权」不渲染
 // （无权 = 不可见）。delivery shell 角色集本就只含操作员 + 管理员（皆申请人），此处为纵深防御。
@@ -52,13 +54,18 @@ const taskItems = computed(() =>
 );
 
 type DeliveryTab = 'mine' | 'grants' | 'tasks';
+function tabFromRoute(): DeliveryTab {
+  const raw = String(route.query.tab ?? '');
+  if ((raw === 'mine' || raw === 'grants') && isApplicantRole.value) return raw;
+  if (raw === 'tasks') return 'tasks';
+  return isApplicantRole.value ? 'mine' : 'tasks';
+}
+
 // 申请人默认落「我的申请」；非申请人（纵深防御）落「交付任务」。
-const activeTab = ref<DeliveryTab>(isApplicantRole.value ? 'mine' : 'tasks');
-// 角色切换后若当前 tab 已不该出现（非申请人停在 mine/grants）→ 回落交付任务。
-watch(isApplicantRole, (applicant) => {
-  if (!applicant && (activeTab.value === 'mine' || activeTab.value === 'grants')) {
-    activeTab.value = 'tasks';
-  }
+const activeTab = ref<DeliveryTab>(tabFromRoute());
+// 统一入口深链：子页点击「我的申请 / 我的授权 / 交付任务」后由 query 驱动页签。
+watch([isApplicantRole, () => route.query.tab], () => {
+  activeTab.value = tabFromRoute();
 });
 
 const headerMeta = computed(() => {
@@ -71,42 +78,6 @@ const headerMeta = computed(() => {
   }
   return taskItems.value.length ? `${taskItems.value.length} 条任务 · 领取、下载、核对在此完成` : '暂无任务 · 审批通过后会出现在此';
 });
-
-const visibleSteps = computed(() => [
-  {
-    key: 'mine',
-    label: '申请进度',
-    count: mineCards.value.length,
-    active: activeTab.value === 'mine',
-    available: isApplicantRole.value,
-  },
-  {
-    key: 'grants',
-    label: '授权凭据',
-    count: grantCards.value.length,
-    active: activeTab.value === 'grants',
-    available: isApplicantRole.value,
-  },
-  {
-    key: 'tasks',
-    label: '交付任务',
-    count: taskItems.value.length,
-    active: activeTab.value === 'tasks',
-    available: true,
-  },
-].filter((step) => step.available));
-
-// 页头快捷链（统一过 filterByRouteAccess，无权深链不渲染）。提异议 / 审计回放为消费方入口。
-const headerLinks = computed(() =>
-  filterByRouteAccess(
-    [
-      { label: '提异议', href: '#/request-flow/objection/new' },
-      { label: '审计回放', href: '#/compliance-ops' },
-    ],
-    (l) => l.href,
-    role.value,
-  ),
-);
 
 function viewRequest(id: string) {
   window.location.hash = `#/request-flow/request/${id}`;
@@ -130,42 +101,21 @@ async function quickResubmit(id: string) {
   }
   await invokeActionStub({ skillId: 'request.submit', payload: { request_id: id }, successTitle: '已重新提交' });
 }
+
 </script>
 
 <template>
   <main class="focus-page">
     <section class="panel">
-      <PageFocusHeader title="领数据" :meta="headerMeta" :links="headerLinks" />
+      <PageFocusHeader title="领数据" :meta="headerMeta" />
 
-      <ol class="delivery-steps" aria-label="领数据进度">
-        <li
-          v-for="step in visibleSteps"
-          :key="step.key"
-          class="delivery-step"
-          :class="{ active: step.active }"
-        >
-          <span>{{ step.label }}</span>
-          <strong>{{ step.count }}</strong>
-        </li>
-      </ol>
-
-      <!-- 三视图分栏：一个视图只回答一个问题。我的申请 / 我的授权对非申请人不渲染（无权 = 不可见）。 -->
-      <nav class="view-tabs" aria-label="领数据视图">
-        <button
-          v-if="isApplicantRole"
-          type="button" class="view-tab" :class="{ active: activeTab === 'mine' }"
-          data-testid="p4-view-mine" @click="activeTab = 'mine'"
-        >我的申请</button>
-        <button
-          v-if="isApplicantRole"
-          type="button" class="view-tab" :class="{ active: activeTab === 'grants' }"
-          data-testid="p4-view-grants" @click="activeTab = 'grants'"
-        >我的授权</button>
-        <button
-          type="button" class="view-tab" :class="{ active: activeTab === 'tasks' }"
-          data-testid="p4-view-tasks" @click="activeTab = 'tasks'"
-        >交付任务</button>
-      </nav>
+      <DeliveryEntryTabs
+        :active="activeTab"
+        :show-applicant-tabs="isApplicantRole"
+        :mine-count="mineCards.length"
+        :grant-count="grantCards.length"
+        :task-count="taskItems.length"
+      />
 
       <!-- ── 视图 1：我的申请（需方发起，草稿 / 在途 / 已办结）──────────────── -->
       <div v-if="isApplicantRole" v-show="activeTab === 'mine'" data-testid="p4-pane-mine">
@@ -270,41 +220,6 @@ async function quickResubmit(id: string) {
 </template>
 
 <style scoped>
-.delivery-steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-  gap: 8px;
-  margin: 8px 0 16px;
-  padding: 0;
-  list-style: none;
-}
-.delivery-step {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 44px;
-  padding: 8px 12px;
-  border: 1px solid var(--b-border, #d4e2f4);
-  border-radius: 6px;
-  background: #fff;
-  color: var(--b-muted, #5c6370);
-  font-size: 13px;
-  line-height: 1.4;
-}
-.delivery-step.active {
-  border-color: var(--b-primary, #006be6);
-  background: #f2f7ff;
-  color: var(--b-neutral-text, #1a1d21);
-}
-.delivery-step strong {
-  font-size: 18px;
-  line-height: 1;
-  color: var(--b-primary, #006be6);
-}
-.view-tabs { display: flex; gap: 6px; margin: 4px 0 16px; border-bottom: 1px solid var(--b-border, #d4e2f4); }
-.view-tab { background: none; border: 0; border-bottom: 2px solid transparent; padding: 8px 16px; cursor: pointer; font-size: 14px; font-weight: 500; color: var(--b-muted, #5c6370); }
-.view-tab.active { color: var(--b-primary, #006be6); border-bottom-color: var(--b-primary, #006be6); font-weight: 600; }
 .gov-btn { padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid transparent; }
 .gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .gov-btn-secondary { background: #fff; border-color: var(--b-border, #d4e2f4); }

@@ -32,7 +32,7 @@ const PAGE_MATRIX: Array<{ role: string; hash: string; note: string; exempt?: st
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/request-flow/supply-demand', note: '登记需求' },
   { role: 'ROLE_ORGAN_OPERATER', hash: '#/delivery-exchange', note: '领数据：我的申请进度/授权/交付任务' },
   // #/zones-pack 专题包整面退出本期（D55/P6，#235）：路由已下线，移除死链行避免导航到已删路由。
-  { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider', note: '提供方管理' },
+  { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider', note: '供数据' },
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/objection', note: '异议响应收件箱' },
   // D57⑧：反向编目审核（部门审）归部门管理员；扫描随角色门同步，否则路由守卫弹走、扫的是别页。
   { role: 'ROLE_ORGAN_MANAGER', hash: '#/provider/inbox/field-decision', note: '反向编目审核收件箱（原字段审核/字段裁决）' },

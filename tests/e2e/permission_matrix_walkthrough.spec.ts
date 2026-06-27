@@ -13,6 +13,9 @@ import { E2E_BASE_URL, gotoHash, setRole, skipUnlessBackend, waitAppReady } from
 
 const SHOTS = '.testing/acceptance/permission-matrix-0610';
 
+/** start-local.sh 默认 ZW_BRAIN_DEV_IAM_BYPASS_ORG；部门二级审核 R11 要求管理员 org ∈ 提供方可见域。 */
+const DEV_BYPASS_ORG = '11370000MB284651XL';
+
 const ALL_NAV_LABELS = [
   // 「办申请」导航项随拆解退役（列表/受理归领数据/工作台，子路由保深链）。
   '工作台', '找数据', '领数据', '供数据',
@@ -60,7 +63,11 @@ async function mintConditionalDirectSubmit(
   const body = (await snap.json().catch(() => ({}))) as Record<string, unknown>;
   const discovery = (body.discovery ?? {}) as Record<string, unknown>;
   const resources = (discovery.resources ?? []) as Array<Record<string, unknown>>;
-  const conditional = resources.filter((r) => String(r.shareType ?? '') === '有条件共享');
+  const conditional = resources.filter(
+    (r) =>
+      String(r.shareType ?? '') === '有条件共享' &&
+      String(r.providerOrgCode ?? r.owner_org_id ?? '') === DEV_BYPASS_ORG,
+  );
   for (const r of conditional.slice(0, 12)) {
     const created = await invoke(api, 'application.resource.submit', {
       resource_id: String(r.id ?? ''),
@@ -70,7 +77,8 @@ async function mintConditionalDirectSubmit(
       query: 'e2e two-stage chain',
     });
     const reqId = String(created.request_id ?? '');
-    if (reqId) return { reqId, status: String(created.status ?? '') };
+    const status = String(created.status ?? '');
+    if (reqId && status === 'submitted') return { reqId, status };
   }
   return null;
 }

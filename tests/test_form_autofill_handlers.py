@@ -99,6 +99,16 @@ def test_create_attaches_form_fields_and_provenance(brain) -> None:
     assert by_key["apply_domain"]["dictType"] == "data_apply_field"  # 字典带出已挂
 
 
+def test_request_view_returns_draft_form_fields(brain) -> None:
+    """P3RequestDetail 读 request.view，不应依赖 snapshot 才能看到草稿申请表单。"""
+    req = _create_draft(brain, {"purpose": "人填的用途"})
+    out = _unwrap(invoke_trusted(brain, "request.view", {"request_id": req["id"]}, role=_OPERATER))
+    by_key = {f["key"]: f for f in out["formFields"]}
+    assert by_key["purpose"]["label"] == "申请用途"
+    assert by_key["purpose"]["value"] == "人填的用途"
+    assert by_key["purpose"]["locked"] is True
+
+
 def test_create_ai_suggestion_marked_pending(brain) -> None:
     req = _create_draft(brain, {"ai_suggested_fields": {"purpose": "AI 拟的用途"}})
     by_key = {f["key"]: f for f in _projected_request(req["id"])["formFields"]}

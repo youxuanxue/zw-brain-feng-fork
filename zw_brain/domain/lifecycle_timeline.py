@@ -103,7 +103,7 @@ def lifecycle_sideline_note(lifecycle_status: str | None) -> str:
 # ── 异议线脊柱（G）─────────────────────────────────────────────────────────
 # 异议 9 态机（ObjectionRepository.TRANSITIONS）折叠成单调 5 段办理脊柱：
 #   提交 → 受理 → 核查 → 办结 → 归档（5 段；归档为终态）。
-# 核查段细分（平台核查 / 部门核查）由当前 status 决定段标签 + holder；escalate 是事件式
+# 核查段和确认段由当前 status 决定段标签 + holder；escalate 是事件式
 # 督办（不改 status，见 _escalate_objection_case / list_supervised_cases）——脊柱不另设段、
 # 也无 "escalated" status 入口（D57：升级是 add_process 事件而非状态迁移，无任何路径产出
 # objection case status=="escalated"，故此处不为它建分支）。rejected 是支线终态（无 stepper，给 note）。
@@ -117,14 +117,14 @@ _OBJECTION_POINTER: dict[str, int] = {
     "resolved": 4,
     "closed": 5,
 }
-# 各 status 当前段的细分标签（核查段两态分流）+ holder（取真实角色门，缺则诚实留空不捏造）。
+# 各 status 当前段的业务标签 + holder（取真实角色门，缺则诚实留空不捏造）。
 _OBJECTION_CURRENT: dict[str, tuple[str, str]] = {
     # status: (当前段标签, holder)
     "submitted": ("待受理", "业务运营员（受理）"),
     "accepted": ("已受理·待核查", "业务运营员（核查）"),
-    "platform_investigating": ("平台核查中", "业务运营员（核查）"),
-    "provider_investigating": ("部门核查中", "部门管理员（部门核查）"),
-    "resolved": ("已办结·待确认", "申请方（确认/评价）"),
+    "platform_investigating": ("待确认", "业务运营员（审查）"),
+    "provider_investigating": ("核查中", "部门管理员（核查）"),
+    "resolved": ("已办结", "申请方（评价）"),
     "closed": ("已归档", ""),
 }
 _OBJECTION_REJECTED = "rejected"

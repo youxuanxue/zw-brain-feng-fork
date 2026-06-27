@@ -134,7 +134,7 @@ test('B2 链路：注册逐列填 10 列 → 审核发布 → 详情逐列回显
   const RES_CODE = (await page.getByTestId('hookup-resource-code').textContent())?.trim() ?? '';
   expect(RES_CODE, '资源标识应自动生成').toBeTruthy();
   await page.getByPlaceholder('例如：养老资源信息').fill(RES_TITLE);
-  await page.getByPlaceholder('t_xxx').fill('t_b2_field_demo');
+  await page.getByLabel('表名').fill('t_b2_field_demo');
 
   const fieldTable = page.getByTestId('hookup-field-table');
   // 行 1：xm / 姓名 / 字符串型 / 50 / 主键 / 非可空 + 更多（目录信息项 / 更新主键 / 标准 / 字典）。

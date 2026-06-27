@@ -49,10 +49,16 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   // /request-flow/request：申请人申请详情 + 补录（P3RequestDetail）；业务运营员也需进同一详情面
   // 执行已授权申请的合规收回 / 暂停（按钮再由 action gate 控制，无权 = 不可见）。
   { prefix: '/request-flow/request', roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'], redirectIfDenied: '/delivery-exchange' },
-  // /request-flow/objection：消费方「我的异议」收件箱/详情/发起（P3ObjectionInbox/Detail/New）。
+  // /request-flow/objection/new：发起异议是申请人动作，业务运营员只跟踪/归档，不展示发起面。
+  {
+    prefix: '/request-flow/objection/new',
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+    redirectIfDenied: '/request-flow/objection',
+  },
+  // /request-flow/objection：消费方「我的异议」收件箱/详情。
   // 页面不在路由层 gate（仅 page 内 canSubmit/canEvaluate/canClose 按 action 门控写动作），
-  // 沿用原 request-flow shell 消费方角色集 [OPERATER,MANAGER,BUSIAUDIT]——三者皆可查看自己的
-  // 异议（evaluate 含三者；submit=操作员/管理员；close=管理员/业务运营员）。
+  // 沿用原 request-flow shell 消费方角色集 [OPERATER,MANAGER,BUSIAUDIT]——三者皆可查看相关
+  // 异议（evaluate 含三者；submit/create=操作员/管理员；close=管理员/业务运营员）。
   {
     prefix: '/request-flow/objection',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
@@ -64,6 +70,12 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
     prefix: '/request-flow/supply-demand',
     roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
     redirectIfDenied: '/delivery-exchange',
+  },
+  // 领数据页签深链（?tab=mine|grants|tasks）：消费方 OPERATER/MANAGER 可见；BUSIAUDIT 退申请人身份。
+  {
+    prefix: '/delivery-exchange',
+    roles: ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+    redirectIfDenied: '/workbench',
   },
   // J2 在线编制 ↔ 目录审核收件箱（OPERATER 提交后切到 reviewer 应直接看到待办）
   // D55/P11：管理员也可直接进在线编制（经 hierarchy 有 create 权，加入后不再被踢到 inbox）
@@ -97,8 +109,11 @@ export const ROUTE_ROLE_OVERRIDES: ReadonlyArray<{
   // G1：挂接审核（pages/P5HookupReviewInbox.vue → canApprove）—— 照 v5「资源挂接审核 = 部门管理员」
   // 校正（撤回 R-007 交叉审），与后端 resource.asset.review={ROLE_ORGAN_MANAGER} set-equal。
   { prefix: '/provider/inbox/hookup-review', roles: ['ROLE_ORGAN_MANAGER'] },
-  // G6：异议响应（pages/P5ObjectionDetail.vue）—— v5「异议核查 = 业务运营员 + 部门管理员」，
-  // 业务运营员可受理；与后端 objection.case.accept/assign/reply/review/close（含 BUSIAUDIT）一致。
+  // 供需响应（pages/P5DemandMatchDetail.vue → demand.response.submit）—— 提供方管理员确认提供 /
+  // 拒绝提供 / 驳回补正；申请方只登记和跟踪，业务运营员不替提供方响应。
+  { prefix: '/provider/inbox/demand-match', roles: ['ROLE_ORGAN_MANAGER'] },
+  // G6：异议响应（pages/P5ObjectionDetail.vue）—— 收件箱两方共用；按钮再按 action gate 拆责：
+  // 业务运营员受理/审查确认，部门管理员提交责任部门核查回复。
   { prefix: '/provider/inbox/objection', roles: ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'] },
   // C5（D50）国家扩展要素编制（pages/P5NationalExtElem.vue → canCompileNationalExtElem）。
   // 角色门：MANAGER+BUSIAUDIT；flag 门（snapshot.webui.nationalChannel.enabled）在 hub/页内另把守。
@@ -206,6 +221,11 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'resource.api.withdraw': ['ROLE_ORGAN_MANAGER'],
   'resource.api.test': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   // P3 供需 / 交付
+  'demand.register': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  // P3SupplyDemand：需求方看到提供方响应后确认完成并关闭需求。
+  'demand.close': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
+  // P5DemandMatchDetail：提供方对同一张需求单确认提供 / 拒绝 / 补正，按 v5 非汇总版归部门管理员。
+  'demand.response.submit': ['ROLE_ORGAN_MANAGER'],
   'delivery.trigger_recovery': ['ROLE_ORGAN_MANAGER'],
   // 'service.publish_or_suspend' 已删（减法）：全 zw-brain-web/src 无任何 CTA/skillId 调用它
   // （仅 registry/pages.generated.ts 自动清单列入），UI 上线/暂停服务统一走 resource.api.withdraw。
@@ -217,14 +237,17 @@ export const ACTION_ROLE_GATES: Readonly<Record<string, readonly string[]>> = {
   'objection.case.escalate': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   'objection.case.close': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P5ObjectionInbox/Detail 受理（D57①，R6）：异议收件箱纳入 submitted 态 + 接通受理动作，
-  // v5 异议受理=业务运营员（+管理员），与后端 objection.case.accept set-equal。
-  'objection.case.accept': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
+  // 平台/主管侧受理与审查确认；责任部门只提交核查回复。
+  'objection.case.accept': ['ROLE_BUSIAUDIT'],
+  'objection.case.reply': ['ROLE_ORGAN_MANAGER'],
+  'objection.case.review': ['ROLE_BUSIAUDIT'],
   // C5（D50）P5 国家扩展要素编制 — 与后端 policy catalog.national_ext_elem.compile.execute set-equal。
   'catalog.national_ext_elem.compile': ['ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // C6（D50）P3 国家直达转报 — 与后端 policy application.escalate_national.execute set-equal。
   'application.escalate_national': ['ROLE_BUSIAUDIT'],
   // P3ObjectionDetail 提交 / 评价（permission-matrix-0610）：提交=异议提出方（操作员/管理员，
   // v5「异议提出 = 部门操作员、部门管理员」）；评价=三岗位。与后端 set-equal。
+  'objection.case.create': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   'objection.case.submit': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER'],
   'objection.case.evaluate': ['ROLE_ORGAN_OPERATER', 'ROLE_ORGAN_MANAGER', 'ROLE_BUSIAUDIT'],
   // P4Credential 调用记录段。D57⑥：安全审计员退服务调用监控（全局面随 service-ops 导航一并收窄）；
@@ -255,8 +278,20 @@ export function hasRole(role: string, target: string): boolean {
   return role === target;
 }
 
-export function isRouteAllowedForRole(path: string, role: string): boolean {
+/** Strip query / hash so `#/delivery-exchange?tab=mine` matches shell/overrides on `/delivery-exchange`. */
+export function normalizeRoutePath(path: string): string {
   const normalized = path.startsWith('/') ? path : `/${path}`;
+  const q = normalized.indexOf('?');
+  const h = normalized.indexOf('#');
+  let end = normalized.length;
+  if (q >= 0) end = Math.min(end, q);
+  if (h >= 0) end = Math.min(end, h);
+  const base = normalized.slice(0, end);
+  return base || '/';
+}
+
+export function isRouteAllowedForRole(path: string, role: string): boolean {
+  const normalized = normalizeRoutePath(path);
   if (normalized === '/' || PUBLIC_ROUTE_PREFIXES.some((p) => normalized.startsWith(p))) {
     return true;
   }

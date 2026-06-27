@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction } from '@/lib/pageAccess';
@@ -12,6 +13,7 @@ import { shortId, displayRecordName } from '@/lib/userLanguage';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -56,7 +58,11 @@ const items = computed((): InboxRow[] => {
       status: String(it.status ?? ''),
       kind: String(it.objection_kind ?? ''),
       holder: _currentHolder(it.statusTimeline),
-      targetLabel: String(it.target_label ?? it.target_id ?? ''),
+      targetLabel: displayRecordName(
+        it.target_label ?? it.target_id,
+        it.target_id,
+        '关联对象',
+      ),
       targetHref: String(it.target_href ?? ''),
     };
   });
@@ -80,7 +86,7 @@ async function accept(objectionId: string) {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader :title="isPendingScope ? '待受理异议' : '异议响应收件箱'" :meta="headerMeta" />
 

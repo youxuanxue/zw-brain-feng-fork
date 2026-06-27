@@ -29,7 +29,21 @@ test.describe('P3 J1 异议浏览器闭环', () => {
 
   test('异议列表页可达', async ({ page }) => {
     await gotoHash(page, '#/request-flow/objection');
+    await expect(page.getByRole('heading', { name: '领数据' })).toBeVisible();
     await expect(page.getByRole('heading', { name: '我的异议' })).toBeVisible();
     await expect(page.getByRole('link', { name: '发起异议' })).toBeVisible();
+  });
+
+  test('领数据前三个入口可从异议页跳回对应页签', async ({ page }) => {
+    for (const target of [
+      { label: '我的申请', tab: 'mine', pane: 'p4-pane-mine' },
+      { label: '我的授权', tab: 'grants', pane: 'p4-pane-grants' },
+      { label: '交付任务', tab: 'tasks', pane: 'p4-pane-tasks' },
+    ]) {
+      await gotoHash(page, '#/request-flow/objection');
+      await page.getByRole('link', { name: new RegExp(`^${target.label}\\s*\\d*$`) }).click();
+      await expect(page).toHaveURL(new RegExp(`#\\/delivery-exchange\\?tab=${target.tab}$`));
+      await expect(page.getByTestId(target.pane)).toBeVisible();
+    }
   });
 });

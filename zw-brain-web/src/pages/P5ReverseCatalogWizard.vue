@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import DetailActions from '@/components/DetailActions.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
@@ -34,6 +35,7 @@ interface ColumnRow {
   data_type: string;
 }
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const step = ref<Step>(1);
 const resourceOrigin = ref<ResourceOrigin>('front');
 const selectedEndpointId = ref('');
@@ -208,7 +210,7 @@ const headerMeta = computed(() => {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="反向编目"

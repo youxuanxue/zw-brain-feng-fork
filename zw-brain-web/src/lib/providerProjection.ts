@@ -11,6 +11,11 @@ export interface ProviderRow {
   status: string;
   source: 'projection' | 'derived';
   target_resource_hint?: string;
+  applicant_dept?: string;
+  response_status?: string;
+  provider_decision?: string;
+  provider_response_note?: string;
+  provider_resource_ref?: string;
   /** D57⑨/R10：挂接审核被审登记信息（去盲批）——真实登记字段，缺省诚实留空。 */
   detail?: {
     kindLabel: string;
@@ -133,20 +138,27 @@ export function deriveHookupReviews(provider: Record<string, unknown>): Provider
     }));
 }
 
+export function demandRecordToProviderRow(record: unknown): ProviderRow {
+  const it = asRecord(record);
+  return {
+    id: String(it.id ?? it.demand_code ?? ''),
+    title: safeRecordTitle(it.title, it.id ?? it.demand_code, '供需对接'),
+    catalog: safeCatalogName(it.source, it.matched_catalog),
+    status: String(it.status ?? it.response_status ?? 'pending'),
+    source: 'projection' as const,
+    target_resource_hint: String(it.target_resource_hint ?? it.targetResourceHint ?? ''),
+    applicant_dept: String(it.applicant_dept ?? it.applicantDept ?? ''),
+    response_status: String(it.response_status ?? it.status ?? ''),
+    provider_decision: String(it.provider_decision ?? ''),
+    provider_response_note: String(it.provider_response_note ?? ''),
+    provider_resource_ref: String(it.provider_resource_ref ?? ''),
+  };
+}
+
 export function deriveDemandMatches(provider: Record<string, unknown>): ProviderRow[] {
   const explicit = Array.isArray(provider.demand_matches) ? provider.demand_matches : [];
   if (explicit.length) {
-    return explicit.map((row) => {
-      const it = asRecord(row);
-      return {
-        id: String(it.id ?? it.demand_code ?? ''),
-        title: safeRecordTitle(it.title, it.id ?? it.demand_code, '供需对接'),
-        catalog: safeCatalogName(it.source, it.matched_catalog),
-        status: String(it.status ?? 'pending'),
-        source: 'projection' as const,
-        target_resource_hint: String(it.target_resource_hint ?? it.targetResourceHint ?? ''),
-      };
-    });
+    return explicit.map(demandRecordToProviderRow);
   }
   const direct = asRecord(provider.directAccess);
   const demands = Array.isArray(direct.demands) ? direct.demands : [];

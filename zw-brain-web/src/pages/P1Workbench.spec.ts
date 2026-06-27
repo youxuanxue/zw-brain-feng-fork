@@ -140,6 +140,20 @@ describe('P1Workbench 行内办理', () => {
     expect(w.find('[data-testid="workbench-todo-link"]').exists()).toBe(true);
   });
 
+  it('待办带 note → 在行内展示办理提示', async () => {
+    setProductRole('ROLE_ORGAN_OPERATER');
+    viewRef.value = makeView([
+      {
+        ...plainTodo,
+        note: '尚未提交的申请草稿，也可在「领数据-我的申请」继续办理。',
+      },
+    ]);
+    const w = mountPage();
+    await w.vm.$nextTick();
+
+    expect(w.find('.p1-note').text()).toContain('领数据-我的申请');
+  });
+
   it('decision-list 且至少一条记录有权（业务运营员）→ 可展开办理', async () => {
     setProductRole('ROLE_BUSIAUDIT');
     viewRef.value = makeView([listTodo]);

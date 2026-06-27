@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue';
 import { useNLAccelerator, type StructuredAction } from '@/composables/useNLAccelerator';
 
-// F7 通用 NL 加速器面板：嵌到 P2/P3/B1.1/B1.2 主页面 hero 右侧。
+// F7 通用 NL 加速器面板：嵌到 P2/P3 主页面 hero 右侧。
 //   - 默认折叠（icon 按钮显示）；展开后 380px 侧抽屉
 //   - input + 3-5 preset chip
 //   - submit → useNLAccelerator.parse() → StructuredAction[] 渲染
@@ -33,16 +33,6 @@ const COPY_BY_ANCHOR: Record<string, typeof DEFAULT_COPY> = {
     label: '申请助手',
     hint: '输入一句申请或审批诉求，生成可执行建议。',
     placeholder: '例如：帮我草拟停车场数据申请',
-  },
-  'B1.1': {
-    label: '审计助手',
-    hint: '输入一句审计诉求，定位异常、统计或回放证据链。',
-    placeholder: '例如：查本周异常审批热点',
-  },
-  'B1.2': {
-    label: '接入助手',
-    hint: '输入一句接入诉求，定位外部 Agent 注册与安全检查动作。',
-    placeholder: '例如：检查外部 Agent 注册材料',
   },
 };
 

@@ -12,8 +12,6 @@ import { loadSnapshot, useWebUiConfig } from '@/composables/useSnapshot';
 import { getProductRole } from '@/composables/useProductRole';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
 import DataSourceBadge from '@/components/DataSourceBadge.vue';
-import NLAcceleratorPanel from '@/components/NLAcceleratorPanel.vue';
-import { consumeNLAction } from '@/lib/consumeNLAction';
 import { trustPillClass, TRUST_LABELS, PKG_STATUS_LABELS } from '@/lib/packageDisplay';
 
 // 外部系统 —— 外来系统接入治理的独立模块（「接入扩展中心」容器已解体，负责人 2026-06-05 裁）。
@@ -31,8 +29,6 @@ import { trustPillClass, TRUST_LABELS, PKG_STATUS_LABELS } from '@/lib/packageDi
 // 诚实校准：已接入 ≠ 已能跑（待执行桥 AgentRuntime 打通），页头 meta 说一次，不重复。
 //
 // 仅 ROLE_SYSTEM 可见（0609 权限梳理 P2 外部系统收归平台运维员；productShellNav 角色门 + 路由 beforeEach 守卫）。
-
-const NL_PRESETS_B12 = ['未审核能力包', '近 7 天 IAM 失败', '看接入故障'];
 
 const packages = usePackageList();
 const role = getProductRole();
@@ -155,11 +151,7 @@ async function onTrustLevelChange(pkgId: string): Promise<void> {
 <template>
   <main class="focus-page">
     <section class="panel panel-stack">
-      <PageFocusHeader title="外部系统" meta="外来系统经平台审批接入、信任评估与启停——已接入 ≠ 已能跑">
-        <template #aside>
-          <NLAcceleratorPanel page-anchor="B1.2" :presets="NL_PRESETS_B12" @action="consumeNLAction" />
-        </template>
-      </PageFocusHeader>
+      <PageFocusHeader title="外部系统" meta="外来系统经平台审批接入、信任评估与启停——已接入 ≠ 已能跑" />
 
       <section class="national-card" data-testid="national-channel-ops-card" aria-label="国家通道接入状态">
         <div class="national-card-main">

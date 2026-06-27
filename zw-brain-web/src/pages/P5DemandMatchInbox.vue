@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { deriveDemandMatches } from '@/lib/providerProjection';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { shortId } from '@/lib/userLanguage';
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 
@@ -14,15 +16,15 @@ const items = computed(() => deriveDemandMatches(provider.value as Record<string
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   const n = items.value.length;
-  if (!n) return '暂无国家平台供需对接';
+  if (!n) return '暂无待响应需求';
   const derived = items.value.some((i) => i.source === 'derived');
-  return derived ? `${n} 条国家平台需求待对接（由直达资源汇总）` : `${n} 条供需待办`;
+  return derived ? `${n} 条上级平台需求待对接（由直达资源汇总）` : `${n} 条供需待办`;
 });
 </script>
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="供需对接收件箱"
@@ -44,7 +46,7 @@ const headerMeta = computed(() => {
           </tr>
         </tbody>
       </table>
-      <p v-else-if="source === 'live'" class="focus-empty">暂无国家平台供需需求。</p>
+      <p v-else-if="source === 'live'" class="focus-empty">暂无待响应需求。</p>
       <p v-else class="focus-empty">等待数据装载……</p>
     </section>
   </main>

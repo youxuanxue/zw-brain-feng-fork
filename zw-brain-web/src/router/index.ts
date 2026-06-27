@@ -1,6 +1,7 @@
 import { createRouter, createWebHashHistory, type RouteRecordRaw } from 'vue-router';
 import { getProductRole } from '@/composables/useProductRole';
 import { pushToast } from '@/composables/useActionStub';
+import { shellNavLabelByKey, ENGINES_PAGE_TITLE } from '@/config/productShellNav';
 import { defaultRouteForRole, isRouteAllowedForRole } from '@/lib/pageAccess';
 import P1Workbench from '@/pages/P1Workbench.vue';
 import P2Discovery from '@/pages/P2Discovery.vue';
@@ -48,14 +49,17 @@ import PLogin from '@/pages/PLogin.vue';
 // hash 模式 + 主入口枚举对齐旧 vanilla bundle ROUTES（参见 src/router/route-table.md）。
 // F3：P5 六条子路由 + P7 详情已实装；P2/P4/B1.2 部分辅助子路由仍占位。
 // 收编：三引擎配置归入 B1.2（/integration-admin/engines），不再作为独立主入口。
+const discoveryShellTitle = shellNavLabelByKey('discovery');
+const providerShellTitle = shellNavLabelByKey('provider');
+
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: '/workbench' },
 
   // P1 工作台
   { path: '/workbench', name: 'P1-workbench', component: P1Workbench, meta: { page: 'P1' } },
 
-  // P2 资源发现
-  { path: '/discovery', name: 'P2-discovery', component: P2Discovery, meta: { page: 'P2', title: 'P2 资源发现' } },
+  // P2 找数据
+  { path: '/discovery', name: 'P2-discovery', component: P2Discovery, meta: { page: 'P2', title: discoveryShellTitle } },
   { path: '/discovery/catalog-browse', component: P2CatalogBrowse, meta: { page: 'P2', title: 'P2 目录浏览' } },
   { path: '/discovery/resource/:id', component: P2ResourceDetail, meta: { page: 'P2', title: 'P2 资源详情' } },
   { path: '/discovery/catalog/:code', component: P2CatalogDetail, meta: { page: 'P2', title: 'P2 目录详情' } },
@@ -80,8 +84,8 @@ const routes: RouteRecordRaw[] = [
   { path: '/delivery-exchange/task/:id', component: P4DeliveryTaskDetail, meta: { page: 'P4', title: 'P4 交付任务详情' } },
   { path: '/delivery-exchange/credential/:id', component: P4Credential, meta: { page: 'P4', title: 'P4 凭据领取' } },
 
-  // P5 提供方管理
-  { path: '/provider', name: 'P5-provider', component: P5Provider, meta: { page: 'P5', title: 'P5 提供方管理' } },
+  // P5 供数据
+  { path: '/provider', name: 'P5-provider', component: P5Provider, meta: { page: 'P5', title: providerShellTitle } },
   { path: '/provider/national-ext-elem', component: P5NationalExtElem, meta: { page: 'P5', title: 'P5 国家扩展要素编制' } },
   { path: '/provider/wizard/inline-catalog', component: P5InlineCatalogWizard, meta: { page: 'P5', title: 'P5 在线编制目录' } },
   // T9：供数侧目录/资源「管理清单」子路由——由「供数据」概览卡点入，不进 PRODUCT_SHELL_NAV、
@@ -121,7 +125,7 @@ const routes: RouteRecordRaw[] = [
   // 后台四模块（「接入扩展中心」容器解体，2026-06-05 负责人裁）：外部系统 / 流程与表单配置 / 身份治理
   // 各自独立左导航；路径保留 /integration-admin 前缀（零路由 churn，契约测试不破）。
   { path: '/integration-admin', name: 'B1.2-integration', component: B12IntegrationAdmin, meta: { page: 'B1.2', title: '外部系统' } },
-  { path: '/integration-admin/engines', component: EnginesAdmin, meta: { page: 'B1.2', title: '流程与表单配置' } },
+  { path: '/integration-admin/engines', component: EnginesAdmin, meta: { page: 'B1.2', title: ENGINES_PAGE_TITLE } },
   { path: '/integration-admin/iam-governance', component: B12IamGovernance, meta: { page: 'B1.2', title: '身份治理' } },
   { path: '/integration-admin/package/:id', component: B12PackageDetail, meta: { page: 'B1.2', title: '外部系统详情' } },
 

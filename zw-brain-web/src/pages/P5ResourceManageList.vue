@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ProviderManageList from '@/components/ProviderManageList.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { providerResourceRows } from '@/lib/providerProjection';
 import { canViewProviderAssets } from '@/lib/requestFlowRoles';
@@ -9,6 +10,7 @@ import { getProductRole } from '@/composables/useProductRole';
 // 供数侧「资源管理清单」（T9）：按生命周期浏览本部门已挂接资源全量行。纯 snapshot 投影、只读管理态——
 // 不在左导航增项（守左导航场景页 ≤10 约束），由「供数据」概览卡点入。视图门=供数三岗位只读浏览
 // （业务方 2026-06-09：操作员也需看本部门清单）；清单无行内管理动作。表壳复用 ProviderManageList。
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -25,7 +27,7 @@ const meta = computed(() => {
   <ProviderManageList
     title="资源管理清单"
     :meta="meta"
-    :back-link="{ label: '提供方管理', href: '#/provider' }"
+    :back-link="{ label: providerShellTitle, href: '#/provider' }"
     :links="[
       { label: '目录管理清单', href: '#/provider/catalogs' },
       { label: '资源挂接', href: '#/provider/wizard/hookup-submit' },

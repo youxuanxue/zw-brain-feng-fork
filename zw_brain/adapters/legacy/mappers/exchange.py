@@ -12,6 +12,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from sqlalchemy import select
@@ -26,6 +27,7 @@ from zw_brain.adapters.legacy._common import (
 )
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
+from zw_brain.domain.application_dedupe import prefer_application_record
 from zw_brain.domain.models import (
     ApprovalCaseRecord,
     ApprovalDecisionRecord,
@@ -132,38 +134,222 @@ class ExchangeMapper:
         self.tenant_id = tenant_id
         self.application_repo = ApplicationRepository()
         self.adapter_repo = ExternalAdapterRepository()
+        self._legacy_apply_by_unique_key: dict[tuple[str, str, str], str] = {}
+        self._legacy_apply_alias: dict[str, str] = {}
+        self._current_stats: ImportStats | None = None
 
     def import_dump(self, dump_path: Path) -> ImportStats:
         schema = schema_from_dump_name(dump_path.name)
         stats = ImportStats(schema=schema, dump_path=dump_path)
         legacy_system = legacy_system_for(schema)
         started_at = datetime.now(UTC)
+        self._current_stats = stats
+        self._legacy_apply_by_unique_key.clear()
+        self._legacy_apply_alias.clear()
 
-        for table, row in MysqldumpParser(dump_path).iter_rows():
-            if table not in self.HANDLED_TABLES:
-                stats.skip(table)
+        try:
+            rows_by_table: dict[str, list[dict[str, Any]]] = {table: [] for table in self.HANDLED_TABLES}
+            for table, row in MysqldumpParser(dump_path).iter_rows():
+                if table not in self.HANDLED_TABLES:
+                    stats.skip(table)
+                    continue
+                stats.bump_source(table)
+                rows_by_table[table].append(row)
+
+            def process(table: str, row: dict[str, Any]) -> None:
+                try:
+                    if table == "data_require":
+                        self._map_data_require(row, legacy_system)
+                    elif table == "data_original_require":
+                        self._map_data_original_require(row, legacy_system)
+                    elif table == "data_apply":
+                        self._map_data_apply(row, legacy_system)
+                    elif table == "data_apply_course":
+                        self._map_data_apply_course(row, legacy_system)
+                    elif table == "data_apply_dept_approve":
+                        self._map_data_apply_dept_approve(row, legacy_system)
+                    elif table == "data_apply_authrization":
+                        self._map_data_apply_authrization(row, legacy_system)
+                    stats.bump(table)
+                except KeyError as exc:
+                    stats.bump(table, "errors")
+                    key = f"{table}.missing_field:{exc.args[0]}"
+                    stats.skipped[key] = stats.skipped.get(key, 0) + 1
+
+            for table in ("data_require", "data_original_require"):
+                for row in rows_by_table[table]:
+                    process(table, row)
+            for row in self._select_data_apply_rows(rows_by_table["data_apply"], legacy_system, stats):
+                process("data_apply", row)
+            for table in ("data_apply_course", "data_apply_dept_approve", "data_apply_authrization"):
+                for row in rows_by_table[table]:
+                    process(table, row)
+
+            finish_run(self.adapter_repo, stats, adapter_slug=self.ADAPTER_SLUG, dump_path=dump_path, started_at=started_at, tenant_id=self.tenant_id)
+            return stats
+        finally:
+            self._current_stats = None
+
+    def _legacy_apply_unique_key(
+        self,
+        *,
+        legacy_system: str,
+        resource_id: Any,
+        applicant_org_id: Any,
+        applicant_dept: str,
+        applicant_name: str,
+    ) -> tuple[str, str, str] | None:
+        rid = str(resource_id or "").strip()
+        applicant = str(applicant_name or "").strip()
+        if not rid or not applicant:
+            return None
+        org = str(applicant_org_id or applicant_dept or "").strip()
+        return legacy_system, rid, f"{org}:{applicant}"
+
+    def _remember_legacy_apply(
+        self,
+        apply_id: str,
+        *,
+        legacy_system: str,
+        resource_id: Any,
+        applicant_org_id: Any,
+        applicant_dept: str,
+        applicant_name: str,
+    ) -> str | None:
+        key = self._legacy_apply_unique_key(
+            legacy_system=legacy_system,
+            resource_id=resource_id,
+            applicant_org_id=applicant_org_id,
+            applicant_dept=applicant_dept,
+            applicant_name=applicant_name,
+        )
+        if key is None:
+            self._legacy_apply_alias[apply_id] = apply_id
+            return apply_id
+        known = self._legacy_apply_alias.get(apply_id)
+        if known == apply_id:
+            return apply_id
+        if known:
+            return None
+        kept = self._legacy_apply_by_unique_key.get(key)
+        if kept is None:
+            self._legacy_apply_by_unique_key[key] = apply_id
+            self._legacy_apply_alias[apply_id] = apply_id
+            return apply_id
+        self._legacy_apply_alias[apply_id] = kept
+        if self._current_stats is not None:
+            self._current_stats.add_issue(
+                "duplicate_application_collapsed",
+                "data_apply",
+                apply_id,
+                {"canonical_apply_id": kept, "resource_id": key[1], "applicant_key": key[2]},
+                severity="warn",
+            )
+        return None
+
+    def _canonical_apply_id(self, apply_id: Any, *, child_table: str | None = None) -> str | None:
+        raw = str(apply_id or "").strip()
+        if not raw:
+            return None
+        if self._current_stats is not None and raw not in self._legacy_apply_alias:
+            self._current_stats.add_issue(
+                "missing_application_skipped",
+                child_table or "data_apply_child",
+                raw,
+                {"reason": "child row references a data_apply row that was not imported"},
+                severity="warn",
+            )
+            return None
+        return self._legacy_apply_alias.get(raw, raw)
+
+    def _data_apply_candidate(self, row: dict[str, Any], legacy_system: str) -> Any:
+        scrubbed = {k: v for k, v in row.items() if k not in APPLY_DROP_FIELDS}
+        apply_id = str(scrubbed.get("id") or "")
+        applicant_name = scrubbed.get("contact") or scrubbed.get("creator_name") or scrubbed.get("creator") or "未提供"
+        applicant_dept = scrubbed.get("apply_org_name") or scrubbed.get("dept") or "unknown"
+        return SimpleNamespace(
+            application_code=apply_id,
+            status=APPLY_STATUS_MAP.get(coerce_int(scrubbed.get("status")), "submitted"),
+            payload_json={
+                "id": apply_id,
+                "source_ref": f"{legacy_system}:data_apply:{apply_id}",
+                "legacy_object_ref": apply_id,
+                "resourceId": scrubbed.get("resource_id"),
+                "applicant": applicant_name,
+                "applicant_org_id": scrubbed.get("apply_org_id"),
+                "applicantDept": applicant_dept,
+                "create_time": coerce_time(scrubbed.get("create_time")),
+            },
+            created_at=None,
+            updated_at=None,
+        )
+
+    def _select_data_apply_rows(
+        self,
+        rows: list[dict[str, Any]],
+        legacy_system: str,
+        stats: ImportStats,
+    ) -> list[dict[str, Any]]:
+        selected_by_key: dict[tuple[str, str, str], dict[str, Any]] = {}
+        passthrough_ids: set[str] = set()
+
+        for row in rows:
+            apply_id = str(row.get("id") or "")
+            scrubbed = {k: v for k, v in row.items() if k not in APPLY_DROP_FIELDS}
+            applicant_name = scrubbed.get("contact") or scrubbed.get("creator_name") or scrubbed.get("creator") or "未提供"
+            applicant_dept = scrubbed.get("apply_org_name") or scrubbed.get("dept") or "unknown"
+            key = self._legacy_apply_unique_key(
+                legacy_system=legacy_system,
+                resource_id=scrubbed.get("resource_id"),
+                applicant_org_id=scrubbed.get("apply_org_id"),
+                applicant_dept=applicant_dept,
+                applicant_name=applicant_name,
+            )
+            if key is None:
+                self._legacy_apply_alias[apply_id] = apply_id
+                passthrough_ids.add(apply_id)
                 continue
-            try:
-                if table == "data_require":
-                    self._map_data_require(row, legacy_system)
-                elif table == "data_original_require":
-                    self._map_data_original_require(row, legacy_system)
-                elif table == "data_apply":
-                    self._map_data_apply(row, legacy_system)
-                elif table == "data_apply_course":
-                    self._map_data_apply_course(row, legacy_system)
-                elif table == "data_apply_dept_approve":
-                    self._map_data_apply_dept_approve(row, legacy_system)
-                elif table == "data_apply_authrization":
-                    self._map_data_apply_authrization(row, legacy_system)
-                stats.bump(table)
-            except KeyError as exc:
-                stats.bump(table, "errors")
-                key = f"{table}.missing_field:{exc.args[0]}"
-                stats.skipped[key] = stats.skipped.get(key, 0) + 1
+            current = selected_by_key.get(key)
+            if current is None or prefer_application_record(
+                self._data_apply_candidate(row, legacy_system),
+                self._data_apply_candidate(current, legacy_system),
+            ):
+                selected_by_key[key] = row
 
-        finish_run(self.adapter_repo, stats, adapter_slug=self.ADAPTER_SLUG, dump_path=dump_path, started_at=started_at, tenant_id=self.tenant_id)
-        return stats
+        selected_ids = {str(row.get("id") or "") for row in selected_by_key.values()} | passthrough_ids
+        for key, selected in selected_by_key.items():
+            selected_id = str(selected.get("id") or "")
+            self._legacy_apply_by_unique_key[key] = selected_id
+            self._legacy_apply_alias[selected_id] = selected_id
+
+        for row in rows:
+            apply_id = str(row.get("id") or "")
+            if apply_id in selected_ids:
+                continue
+            scrubbed = {k: v for k, v in row.items() if k not in APPLY_DROP_FIELDS}
+            applicant_name = scrubbed.get("contact") or scrubbed.get("creator_name") or scrubbed.get("creator") or "未提供"
+            applicant_dept = scrubbed.get("apply_org_name") or scrubbed.get("dept") or "unknown"
+            key = self._legacy_apply_unique_key(
+                legacy_system=legacy_system,
+                resource_id=scrubbed.get("resource_id"),
+                applicant_org_id=scrubbed.get("apply_org_id"),
+                applicant_dept=applicant_dept,
+                applicant_name=applicant_name,
+            )
+            selected_id = self._legacy_apply_by_unique_key.get(key) if key is not None else None
+            if selected_id:
+                self._legacy_apply_alias[apply_id] = selected_id
+            stats.skipped["data_apply.duplicate_application_collapsed"] = (
+                stats.skipped.get("data_apply.duplicate_application_collapsed", 0) + 1
+            )
+            stats.add_issue(
+                "duplicate_application_collapsed",
+                "data_apply",
+                apply_id,
+                {"canonical_apply_id": selected_id or "", "resource_id": scrubbed.get("resource_id")},
+                severity="warn",
+            )
+        return [row for row in rows if str(row.get("id") or "") in selected_ids]
 
     def _map_data_require(self, row: dict[str, Any], legacy_system: str) -> None:
         require_id = row["require_id"]
@@ -208,6 +394,15 @@ class ExchangeMapper:
         status = APPLY_STATUS_MAP.get(coerce_int(scrubbed.get("status")), "submitted")
         applicant_name = scrubbed.get("contact") or scrubbed.get("creator_name") or scrubbed.get("creator") or "未提供"
         applicant_dept = scrubbed.get("apply_org_name") or scrubbed.get("dept") or "unknown"
+        if self._remember_legacy_apply(
+            apply_id,
+            legacy_system=legacy_system,
+            resource_id=scrubbed.get("resource_id"),
+            applicant_org_id=scrubbed.get("apply_org_id"),
+            applicant_dept=applicant_dept,
+            applicant_name=applicant_name,
+        ) is None:
+            return
         self.application_repo.upsert_from_request(
             {
                 "id": apply_id,
@@ -380,7 +575,8 @@ class ExchangeMapper:
     def _map_data_apply_course(self, row: dict[str, Any], legacy_system: str) -> None:
         scrubbed = {k: v for k, v in row.items() if k not in APPLY_COURSE_DROP_FIELDS}  # drop hmac
         course_id = scrubbed["id"]
-        apply_id = scrubbed.get("apply_id")
+        raw_apply_id = scrubbed.get("apply_id")
+        apply_id = self._canonical_apply_id(raw_apply_id, child_table="data_apply_course")
         if not apply_id or coerce_int(scrubbed.get("status")) == -1:
             return  # apply_id missing or row marked deleted in legacy
         step_status = COURSE_STATUS_TO_STEP_STATUS.get(coerce_int(scrubbed.get("status"), 0), "pending")
@@ -523,7 +719,7 @@ class ExchangeMapper:
 
     def _map_data_apply_dept_approve(self, row: dict[str, Any], legacy_system: str) -> None:
         dept_approve_id = row["id"]
-        apply_id = row.get("apply_id")
+        apply_id = self._canonical_apply_id(row.get("apply_id"), child_table="data_apply_dept_approve")
         if not apply_id:
             return
         status_int = coerce_int(row.get("status"), 0)
@@ -664,7 +860,7 @@ class ExchangeMapper:
 
     def _map_data_apply_authrization(self, row: dict[str, Any], legacy_system: str) -> None:
         authz_id = row["id"]
-        apply_id = row.get("apply_id")
+        apply_id = self._canonical_apply_id(row.get("apply_id"), child_table="data_apply_authrization")
         if not apply_id:
             return
         delivery_state = AUTHZ_APPLY_STATUS_TO_DELIVERY_STATE.get(coerce_int(row.get("apply_status")), "pending")

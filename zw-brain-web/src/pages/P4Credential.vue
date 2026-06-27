@@ -255,7 +255,7 @@ async function reissue() {
       </p>
       </section>
 
-      <section v-if="hasCredential && canViewInvocations" class="detail-block invoke-records">
+      <section v-if="canViewInvocations && (hasCredential || credentialView)" class="detail-block invoke-records">
         <h2 class="sub-title">调用记录</h2>
         <p v-if="invocationLoading" class="focus-empty">加载中……</p>
         <p v-else-if="invocationError" class="focus-empty">{{ invocationError }}</p>

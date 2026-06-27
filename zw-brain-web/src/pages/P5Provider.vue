@@ -8,14 +8,31 @@ import {
   providerCatalogSummary,
   providerResourceSummary,
 } from '@/lib/providerProjection';
-import { filterByRouteAccess, isRouteAllowedForRole } from '@/lib/pageAccess';
+import { filterByRouteAccess } from '@/lib/pageAccess';
 import { canCompileNationalExtElem, canViewProviderAssets } from '@/lib/requestFlowRoles';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 
 const provider = useProvider();
 const { source } = useSnapshot();
 const role = getProductRole();
+const providerShellTitle = shellNavLabelByKey('provider');
 
 const counts = computed(() => providerTodoCounts(provider.value as Record<string, unknown>));
+
+// 协作待办（次区）：审核 / 供需对接 / 异议——计数 + 进详情收件箱；简单发布/审核/受理已收口工作台行内。
+const collabCards = computed(() => {
+  const c = counts.value;
+  return [
+    { key: 'field-decision', label: '反向编目审核', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
+    { key: 'hookup-review', label: '挂接审核', value: c.hookup, href: '#/provider/inbox/hookup-review' },
+    { key: 'demand-match', label: '供需对接', value: c.demand, href: '#/provider/inbox/demand-match' },
+    { key: 'objection', label: '异议响应', value: c.objection, href: '#/provider/inbox/objection' },
+  ];
+});
+
+const visibleStatCards = computed(() =>
+  filterByRouteAccess(collabCards.value, (c) => c.href, role.value),
+);
 
 // 目录 / 资源管理概览（负责人加注）：本部门「编了多少 / 在审多少 / 待发布 / 已发布」管理态，
 // 让供数人不止看审批待办、还看到自己经手目录与资源的整体情况（真实 snapshot 派生）。
@@ -24,30 +41,6 @@ const counts = computed(() => providerTodoCounts(provider.value as Record<string
 const canViewAssetOverview = computed(() => canViewProviderAssets(role.value));
 const catalogSummary = computed(() => providerCatalogSummary(provider.value as Record<string, unknown>));
 const resourceSummary = computed(() => providerResourceSummary(provider.value as Record<string, unknown>));
-
-// 协作待办（次区）：审核 / 供需对接 / 异议——计数 + 进**详情收件箱**的导航入口（收件箱办的是
-// 工作台不收的多步/长列表流：反向草稿逐字核、异议回复评价、供需撮合）；逐条"点一下就办"的
-// 简单是/否（发布/审核/受理）已统一收口到工作台行内办理，本页不再重复承载办理队列。
-const collabCards = computed(() => {
-  const c = counts.value;
-  return [
-    // E3（6.4#16）：去工程黑话「字段审核/字段裁决」。该收件箱办理的是「反向编目草稿」的部门审
-    // （动作 catalog.entry.reverse_draft.confirm/reject，D57⑧ 第一级=部门管理员；通过后汇入
-    // 「目录审核」catalog-review 平台档由业务运营员复核）——按操作实体命名「反向编目审核」，
-    // 与「反向编目向导」同词、不与「目录审核」撞名（一词一概念，0608 命名 GATE-2）。
-    { key: 'field-decision', label: '反向编目审核', value: c.fieldDec, href: '#/provider/inbox/field-decision' },
-    { key: 'hookup-review', label: '挂接审核', value: c.hookup, href: '#/provider/inbox/hookup-review' },
-    { key: 'demand-match', label: '供需对接', value: c.demand, href: '#/provider/inbox/demand-match' },
-    { key: 'objection', label: '异议响应', value: c.objection, href: '#/provider/inbox/objection' },
-  ];
-});
-
-// 按当前 role 过滤协作待办卡（单源 = isRouteAllowedForRole，与路由守卫同口径）：
-// 挂接审核归部门管理员（G1 照 v5 校正）；反向编目审核（部门审）归部门管理员（D57⑧）；
-// 异议响应部门管理员 + 业务运营员（G6）。部门操作员对协作待办全不可见（无权进）。
-const visibleStatCards = computed(() =>
-  filterByRouteAccess(collabCards.value, (c) => c.href, role.value),
-);
 
 // 国家扩展要素编制入口：角色门（MANAGER+BUSIAUDIT）∧ flag 门
 // （snapshot.webui.nationalChannel.enabled）。flag-off / 无权 → 入口完全不渲染（无权=不可见）。
@@ -59,34 +52,55 @@ const showNationalExtElem = computed(
   () => canCompileNationalExtElem(role.value) && nationalChannelEnabled.value,
 );
 
+const providerEntrySections = computed(() => {
+  const sections = [
+    {
+      key: 'maintain',
+      title: '维护数据',
+      items: [
+        { label: '数据源管理', desc: '登记前置库，供反向编目和资源挂接使用', href: '#/provider/datasources' },
+        { label: '在线编制目录', desc: '手工编制并提交本部门目录', href: '#/provider/wizard/inline-catalog' },
+        { label: '反向编目', desc: '从已登记数据源选择表并生成目录草稿', href: '#/provider/wizard/reverse-catalog' },
+        { label: '资源挂接', desc: '把库表、文件或接口挂到目录下', href: '#/provider/wizard/hookup-submit' },
+        { label: '接口服务注册', desc: '登记代理接口服务并提交审核', href: '#/provider/wizard/api-service' },
+      ],
+    },
+    {
+      key: 'review',
+      title: '审核与响应',
+      items: [
+        { label: '目录审核', desc: '处理目录部门审或平台审', href: '#/provider/inbox/catalog-review' },
+        { label: '反向编目审核', desc: '审核反向编目草稿', href: '#/provider/inbox/field-decision' },
+        { label: '挂接审核', desc: '审核资源挂接登记', href: '#/provider/inbox/hookup-review' },
+        { label: '供需对接', desc: '响应需求方登记的数据缺口', href: '#/provider/inbox/demand-match' },
+        { label: '异议响应', desc: '受理、核查或回复异议', href: '#/provider/inbox/objection' },
+        ...(showNationalExtElem.value
+          ? [{ label: '国家扩展要素编制', desc: '编制并审核国家通道扩展要素', href: '#/provider/national-ext-elem' }]
+          : []),
+      ],
+    },
+  ];
+  return sections
+    .map((section) => ({
+      ...section,
+      items: filterByRouteAccess(section.items, (it) => it.href, role.value),
+    }))
+    .filter((section) => section.items.length > 0);
+});
+
 const headerMeta = computed(() => {
   if (source.value !== 'live') return '正在加载……';
   return '先登记数据源，再编目或挂接；发布与审核在工作台办理';
 });
 
-// 供数主线动作提升到页头药丸区（参考找数据页的入口药丸样式）。
-// 在线编制目录、反向编目、资源挂接、接口服务注册，按角色权限过滤（无权=不可见）。
-const providerHeaderLinks = computed(() => {
-  const items = [
-    { label: '数据源管理', href: '#/provider/datasources', route: '/provider/datasources' },
-    { label: '在线编制目录', href: '#/provider/wizard/inline-catalog', route: '/provider/wizard/inline-catalog' },
-    { label: '反向编目', href: '#/provider/wizard/reverse-catalog', route: '/provider/wizard/reverse-catalog' },
-    { label: '资源挂接', href: '#/provider/wizard/hookup-submit', route: '/provider/wizard/hookup-submit' },
-    { label: '接口服务注册', href: '#/provider/wizard/api-service', route: '/provider/wizard/api-service' },
-  ];
-  // 无权=不可见：按路由可达性过滤（单源 = isRouteAllowedForRole，与导航/路由守卫同口径），
-  // 不另猜 cap 名（未注册 cap 会对全角色放行，反而越权可见）。
-  return items.filter((it) => isRouteAllowedForRole(it.route, role.value));
-});
 </script>
 
 <template>
   <main class="focus-page">
     <section class="panel">
       <PageFocusHeader
-        title="提供方管理"
+        :title="providerShellTitle"
         :meta="headerMeta"
-        :links="providerHeaderLinks"
       />
 
       <!-- 目录 / 资源管理概览（负责人加注）：本部门目录 / 资源的管理态全局感（只读现算）。
@@ -123,18 +137,6 @@ const providerHeaderLinks = computed(() => {
         </div>
       </section>
 
-      <a
-        v-if="showNationalExtElem"
-        href="#/provider/national-ext-elem"
-        class="nat-ext-entry"
-        data-testid="national-ext-elem-entry"
-      >
-        <strong>国家扩展要素编制</strong>
-        <em>与政务目录编制双轨独立，走业务部门→主管部门审核后待国家通道同步</em>
-      </a>
-
-      <!-- 协作待办（次区，0605#8）：审核 / 供需对接 / 异议从首屏主视觉降为次级一行；
-           进详情收件箱办多步/长列表流。简单发布/审核/受理已收口工作台行内。 -->
       <section v-if="source === 'live' && visibleStatCards.length" class="collab-zone" aria-label="协作待办">
         <h3 class="section-title collab-title">协作待办</h3>
         <div class="stat-grid">
@@ -142,6 +144,18 @@ const providerHeaderLinks = computed(() => {
             <strong>{{ c.value }}</strong>
             <em>{{ c.label }}</em>
           </a>
+        </div>
+      </section>
+
+      <section v-if="providerEntrySections.length" class="entry-zone" aria-label="供数据入口">
+        <div v-for="section in providerEntrySections" :key="section.key" class="entry-section">
+          <h3 class="section-title">{{ section.title }}</h3>
+          <div class="entry-grid">
+            <a v-for="item in section.items" :key="item.href" :href="item.href" class="entry-link">
+              <strong>{{ item.label }}</strong>
+              <em>{{ item.desc }}</em>
+            </a>
+          </div>
         </div>
       </section>
 
@@ -160,14 +174,18 @@ const providerHeaderLinks = computed(() => {
 .manage-breakdown { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
 .manage-breakdown li { font-size: 13px; color: var(--b-neutral-text, #1a1d21); }
 .manage-breakdown b { font-weight: 700; color: var(--b-primary, #006be6); margin-left: 4px; }
-.collab-zone { margin-top: 28px; }
-.collab-title { margin: 0 0 10px; }
-.stat-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; }
-.stat-card { display: grid; gap: 4px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #fff; }
-.stat-card strong { font-size: 22px; color: var(--b-primary, #006be6); }
-.stat-card em { font-style: normal; font-size: 13px; color: var(--b-muted, #5c6370); }
-.nat-ext-entry { display: grid; gap: 4px; margin-top: 20px; padding: 14px 16px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; text-decoration: none; color: inherit; background: #f5f9fe; }
-.nat-ext-entry strong { font-size: 14px; color: var(--b-primary, #006be6); }
-.nat-ext-entry em { font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); }
+.entry-zone { display: grid; gap: 18px; margin-top: 24px; }
+.entry-section { display: grid; gap: 10px; }
+.entry-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+.entry-link { display: grid; gap: 4px; min-height: 76px; padding: 12px 14px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; color: inherit; text-decoration: none; }
+.entry-link:hover { border-color: var(--b-primary, #006be6); background: var(--b-bg-subtle, #e8f2fc); text-decoration: none; }
+.entry-link strong { font-size: 14px; color: var(--b-primary, #006be6); }
+.entry-link em { font-style: normal; font-size: 12px; line-height: 1.45; color: var(--b-muted, #5c6370); }
 .section-title { margin: 0; font-size: 14px; font-weight: 600; }
+.collab-zone { margin-top: 24px; }
+.collab-title { margin-bottom: 10px; }
+.stat-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px; }
+.stat-card { display: grid; gap: 4px; min-height: 72px; padding: 12px 14px; border: 1px solid var(--b-border, #d4e2f4); border-radius: 8px; background: #fff; color: inherit; text-decoration: none; }
+.stat-card strong { font-size: 22px; color: var(--b-primary, #006be6); line-height: 1; }
+.stat-card em { font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); }
 </style>

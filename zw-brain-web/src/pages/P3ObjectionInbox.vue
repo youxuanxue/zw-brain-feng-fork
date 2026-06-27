@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import DeliveryEntryTabs from '@/components/DeliveryEntryTabs.vue';
 import { authFetch } from '@/composables/useAuth';
 import { getProductRole } from '@/composables/useProductRole';
+import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus, todoStatusTone } from '@/lib/statusLabels';
 import { shortId, displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
 import { OBJECTION_TYPE_ZH, formatObjectionType } from '@/lib/objectionLabels';
@@ -36,6 +38,8 @@ const STATUS_OPTIONS = [
 const items = ref<ObjectionRow[]>([]);
 const loading = ref(true);
 const error = ref<string | null>(null);
+const role = getProductRole();
+const canCreateObjection = computed(() => canPerformAction('objection.case.create', role.value));
 
 const filterType = ref<string>('');
 const filterStatus = ref<string>('');
@@ -139,13 +143,17 @@ function clearFilters() {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/delivery-exchange">← 领数据</a></nav>
     <section class="panel">
       <PageFocusHeader
-        title="我的异议"
+        title="领数据"
         :meta="headerMeta"
-        :links="[{ label: '发起异议', href: '#/request-flow/objection/new' }]"
       />
+      <DeliveryEntryTabs active="objections" :objection-count="items.length" />
+
+      <div class="section-head">
+        <h2>我的异议</h2>
+        <a v-if="canCreateObjection" class="gov-btn gov-btn-primary" href="#/request-flow/objection/new">发起异议</a>
+      </div>
 
       <div v-if="!loading && items.length" class="filter-bar">
         <label class="filter-field">
@@ -197,7 +205,9 @@ function clearFilters() {
         </tbody>
       </table>
       <p v-else-if="!loading && items.length" class="focus-empty">当前筛选无匹配记录。<a href="#" @click.prevent="clearFilters">清除筛选</a></p>
-      <p v-else-if="!loading" class="focus-empty">暂无异议记录。<a href="#/request-flow/objection/new">发起第一条异议</a></p>
+      <p v-else-if="!loading" class="focus-empty">
+        暂无异议记录。<a v-if="canCreateObjection" href="#/request-flow/objection/new">发起第一条异议</a>
+      </p>
     </section>
   </main>
 </template>
@@ -205,6 +215,31 @@ function clearFilters() {
 <style scoped>
 .row-link { color: var(--b-primary, #006be6); font-size: 13px; text-decoration: none; }
 .row-link:hover { text-decoration: underline; }
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0 12px;
+}
+.section-head h2 {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1.4;
+  color: var(--b-neutral-text, #1a1d21);
+}
+.gov-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  line-height: 1.3;
+}
+.gov-btn-primary { background: var(--b-primary, #006be6); color: #fff; }
 .filter-bar {
   display: flex; gap: 16px; align-items: center; padding: 12px 0;
   border-bottom: 1px solid var(--b-border-subtle, #eef1f5);

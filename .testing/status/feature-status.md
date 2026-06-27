@@ -7,12 +7,12 @@
 > status = f(SPEC, MEASUREMENT, SIGN-OFF)，每次 preflight 现算，不手敲、不存第二份。
 > **Done** = 测试真绿 ∧ 业务签字；**Ready** = 已签未绿；**InTest** = 绿/在测但未签（代码完成待签字）；**Draft** = 纯意图；**Backlog** = 排期外（`# Deferred:`）。
 
-> 测量基线：captured_at=`2026-06-26T03:50:56Z` · 指纹新鲜绿 35/39（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
+> 测量基线：captured_at=`2026-06-27T08:11:07Z` · 指纹新鲜绿 30/39（信任锚=内容指纹，非 git_sha；squash 免疫，测试/规格变即失效）
 
-> 合计 50：Done 35 / Ready 4 / InTest 0 / Draft 0 / Backlog 11
+> 合计 50：Done 30 / Ready 9 / InTest 0 / Draft 0 / Backlog 11
 
 
-## Wave 0 · 机械守卫 + J1 黄金链路  （Done 11 · Ready 1 · Backlog 1）
+## Wave 0 · 机械守卫 + J1 黄金链路  （Done 10 · Ready 2 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -28,9 +28,9 @@
 | j1-credential-issue.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-resource-discovery.feature | **Done** | 测量=绿 / 签字=已签 |
 | ops-gateway-heartbeat.feature | **Done** | 测量=绿 / 签字=已签 |
-| ops-service-invocation.feature | **Done** | 测量=绿 / 签字=已签 |
+| ops-service-invocation.feature | **Ready** | 测量=未绿 / 签字=已签 |
 
-## Wave 1 · J1 闭环 + J2 挂数  （Done 14 · Ready 1 · Backlog 1）
+## Wave 1 · J1 闭环 + J2 挂数  （Done 10 · Ready 5 · Backlog 1）
 
 | feature | status | 依据 |
 |---|---|---|
@@ -41,15 +41,15 @@
 | j1-objection-content.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-resource.feature | **Done** | 测量=绿 / 签字=已签 |
 | j1-objection-use.feature | **Done** | 测量=绿 / 签字=已签 |
-| j1-role-projection-views.feature | **Done** | 测量=绿 / 签字=已签 |
+| j1-role-projection-views.feature | **Ready** | 测量=未绿 / 签字=已签 |
 | j1-supply-demand-meta-merge.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-department-review.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-online-catalog-compile.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-platform-publish.feature | **Done** | 测量=绿 / 签字=已签 |
 | j2-resource-mount.feature | **Ready** | 测量=未绿 / 签字=已签 |
-| webui-action-role-binding.feature | **Done** | 测量=绿 / 签字=已签 |
-| webui-pages-real-data.feature | **Done** | 测量=绿 / 签字=已签 |
-| webui-routing-cleanup.feature | **Done** | 测量=绿 / 签字=已签 |
+| webui-action-role-binding.feature | **Ready** | 测量=未绿 / 签字=已签 |
+| webui-pages-real-data.feature | **Ready** | 测量=未绿 / 签字=已签 |
+| webui-routing-cleanup.feature | **Ready** | 测量=未绿 / 签字=已签 |
 
 ## Wave 2 · 三引擎 + B1 + 共享专区  （Done 7 · Backlog 5）
 

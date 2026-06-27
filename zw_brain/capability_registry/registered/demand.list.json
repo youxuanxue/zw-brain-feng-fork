@@ -1,7 +1,7 @@
 {
   "slug": "demand.list",
   "title": "查询供需需求列表",
-  "description": "列出当前租户登记的 demand 记录，可按 phase 筛选。",
+  "description": "列出当前租户登记的 demand 记录，可按 response_status 筛选。",
   "version": "1.0.0",
   "input_schema": {
     "type": "object",
@@ -12,7 +12,7 @@
       "role": {
         "type": "string"
       },
-      "phase": {
+      "response_status": {
         "type": "string"
       }
     }

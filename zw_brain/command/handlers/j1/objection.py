@@ -237,18 +237,31 @@ def _reply_objection_case(brain, deps, ctx, payload: dict[str, Any]) -> dict[str
     def mutation(audit_id: str, actor: str) -> dict[str, Any]:
         repo = deps.repos.objection
         try:
-            record = repo.add_process(
-                objection_id,
-                node_name=str(payload.get("node_name", "提交核查回复")),
-                action_type="reply",
-                action_result=str(payload.get("action_result", "submitted")),
-                handler_org_id=payload.get("handler_org_id"),
-                handler_snapshot_json={"actor": actor, "role": role} | safe_json(payload.get("handler_snapshot_json") or {}),
-                opinion=payload.get("opinion"),
-                evidence=payload.get("evidence") or [],
-            )
+            current = repo.get_case(objection_id, tenant_id=_DEFAULT_TENANT_ID)
+            if current is None:
+                raise KeyError(objection_id)
+            common = {
+                "node_name": str(payload.get("node_name", "提交核查回复")),
+                "action_type": "reply",
+                "action_result": str(payload.get("action_result", "submitted")),
+                "handler_org_id": payload.get("handler_org_id"),
+                "handler_snapshot_json": {"actor": actor, "role": role}
+                | safe_json(payload.get("handler_snapshot_json") or {}),
+                "opinion": payload.get("opinion"),
+                "evidence": payload.get("evidence") or [],
+            }
+            if current.status == "provider_investigating":
+                record = repo.transition_case(
+                    objection_id,
+                    "platform_investigating",
+                    **common,
+                )
+            else:
+                record = repo.add_process(objection_id, **common)
         except KeyError as exc:
             raise NotFoundError(objection_id) from exc
+        except ValueError as exc:
+            raise InvalidStateError(str(exc)) from exc
         deps.append_audit_feed("objection.case.reply", objection_id, "ok", actor)
         return objection_ser.case_to_dict(record) | {"audit_id": audit_id}
 
@@ -456,4 +469,3 @@ def handler_objection_process_query(deps: HandlerDeps, ctx: SkillContext, payloa
     brain = deps.brain_legacy if deps is not None else None  # Action A: backward-compat alias; lifted in Action B together with SkillPipeline.
     skill_id = ctx.skill_id
     return _query_objection_process(brain, deps, ctx, str(payload["objection_id"]))
-

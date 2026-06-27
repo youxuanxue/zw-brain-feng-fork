@@ -13,6 +13,7 @@ export default defineConfig({
     'p5_b12_unlock.spec.ts',
     'j1_objection_browser.spec.ts',
     'j1_supply_demand_browser.spec.ts',
+    'sd_objection_full_chain.spec.ts',
     'j1_catalog_drilldown.spec.ts',
     'j1_data_gap.spec.ts',
     'p4_delivery_detail.spec.ts',

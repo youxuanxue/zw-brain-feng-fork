@@ -830,13 +830,13 @@
     {
       "skill_id": "demand.list",
       "title": "查询供需需求列表",
-      "description": "列出当前租户登记的 demand 记录，可按 phase 筛选。",
+      "description": "列出当前租户登记的 demand 记录，可按 response_status 筛选。",
       "mode": "read",
       "human_confirmation_required": false,
       "audit_required": true,
       "args": [
         {
-          "name": "phase",
+          "name": "response_status",
           "required": false,
           "type": "string"
         },
@@ -3947,13 +3947,18 @@
       ]
     },
     {
-      "skill_id": "demand.phase.advance",
-      "title": "推进供需需求阶段",
-      "description": "按 6 步状态机推进 demand 的 demand_phase。",
+      "skill_id": "demand.close",
+      "title": "关闭供需需求",
+      "description": "需求方确认提供方响应结果后关闭供需需求，完成登记、响应、确认闭环。",
       "mode": "write",
       "human_confirmation_required": true,
       "audit_required": true,
       "args": [
+        {
+          "name": "close_note",
+          "required": false,
+          "type": "string"
+        },
         {
           "name": "confirmed",
           "required": true,
@@ -3961,11 +3966,6 @@
         },
         {
           "name": "demand_id",
-          "required": true,
-          "type": "string"
-        },
-        {
-          "name": "next_phase",
           "required": true,
           "type": "string"
         },
@@ -4027,6 +4027,51 @@
         {
           "name": "title",
           "required": true,
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "skill_id": "demand.response.submit",
+      "title": "提交供需响应",
+      "description": "提供方对供需需求提交确认提供、拒绝提供或驳回补正结论；确认提供时必须关联资源。",
+      "mode": "write",
+      "human_confirmation_required": true,
+      "audit_required": true,
+      "args": [
+        {
+          "name": "confirmed",
+          "required": true,
+          "type": "boolean"
+        },
+        {
+          "name": "decision",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "demand_id",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "resource_ref",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "response_note",
+          "required": true,
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "required": false,
+          "type": "string"
+        },
+        {
+          "name": "tenant_id",
+          "required": false,
           "type": "string"
         }
       ]

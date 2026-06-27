@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue';
 import PageFocusHeader from '@/components/PageFocusHeader.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import ReferencePicker from '@/components/ReferencePicker.vue';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub, pushToast } from '@/composables/useActionStub';
@@ -14,6 +15,7 @@ import {
   type DatasourceEndpointRow,
 } from '@/lib/datasourceEndpoints';
 
+const providerShellTitle = shellNavLabelByKey('provider');
 const { source } = useSnapshot();
 const provider = useProvider();
 const role = getProductRole();
@@ -215,7 +217,7 @@ function onOrgCleared() {
 
 <template>
   <main class="focus-page">
-    <nav class="crumbs"><a href="#/provider">← 提供方管理</a></nav>
+    <nav class="crumbs"><a href="#/provider">← {{ providerShellTitle }}</a></nav>
     <section class="panel">
       <PageFocusHeader
         title="数据源管理"

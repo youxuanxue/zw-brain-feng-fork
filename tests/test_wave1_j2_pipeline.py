@@ -1098,7 +1098,7 @@ def test_j2_provider_objection_response_full_chain(brain, provider_catalog_sampl
     """J2 提供方 e2e 链（catalog 维度代表）：
       申请方 OPERATER create → submit → 平台 BUSIAUDIT accept → assign provider_investigating
       → 提供方 MANAGER 视角 query (target_ref + target_org_id + dimension=catalog 命中本异议)
-      → 提供方 MANAGER reply → MANAGER review resolve → 申请方 OPERATER evaluate → close
+      → 提供方 MANAGER reply → 平台 BUSIAUDIT review resolve → 申请方 OPERATER evaluate → close
     断言：终态 closed + audit chain 含 7 类事件 + capability_call 7+ 条 + query filter 命中本异议。
     """
     if provider_catalog_sample is None:
@@ -1165,12 +1165,12 @@ def test_j2_provider_objection_response_full_chain(brain, provider_catalog_sampl
         "handler_org_id": provider_org,
         "role": "ROLE_ORGAN_MANAGER", "confirmed": True,
     })
-    # Step 7: provider MANAGER review → resolved
+    # Step 7: 平台 BUSIAUDIT 复核 → resolved（提供方 reply 后回平台确认，MANAGER 无权 review）
     resolved = _call(brain, "objection.case.review", {
         "objection_id": objection_id,
         "decision": "resolve",
         "resolved_summary": "提供方已修正字段缺失",
-        "role": "ROLE_ORGAN_MANAGER", "confirmed": True,
+        "role": "ROLE_BUSIAUDIT", "confirmed": True,
     })
     assert resolved["status"] == "resolved"
     # Step 8: 申请方 OPERATER evaluate（resolved 后才允许）
@@ -1272,7 +1272,7 @@ def test_j2_objection_reply_rejected_for_operater_role(brain, provider_catalog_s
 
 def test_j2_objection_reply_allowed_for_manager_cross_dept(brain, provider_catalog_sample):
     """正向 — ROLE_ORGAN_MANAGER 跨部门调 reply 应允许（policy 不限 dept；本期不实装跨部门拒绝）。
-    断言 reply 成功流转 process record + status 仍为 provider_investigating（reply 不改 status）。"""
+    断言 reply 成功流转 process record + status 回到 platform_investigating（供平台复核）。"""
     if provider_catalog_sample is None:
         pytest.skip("sd-default canonical 缺 owner_org_id 非空的 active catalog；F4 fixture 缺位")
 
@@ -1313,4 +1313,4 @@ def test_j2_objection_reply_allowed_for_manager_cross_dept(brain, provider_catal
         "handler_org_id": other_org,
         "role": "ROLE_ORGAN_MANAGER", "confirmed": True,
     })
-    assert reply_result["status"] == "provider_investigating", reply_result
+    assert reply_result["status"] == "platform_investigating", reply_result

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import ProviderManageList from '@/components/ProviderManageList.vue';
+import { shellNavLabelByKey } from '@/config/productShellNav';
 import type { ProviderAssetRow } from '@/lib/providerProjection';
 import { useProvider, useSnapshot } from '@/composables/useSnapshot';
 import { invokeActionStub } from '@/composables/useActionStub';
@@ -12,6 +13,7 @@ import { getProductRole } from '@/composables/useProductRole';
 // 纯 snapshot 投影、只读管理态——不在左导航增项（守左导航场景页 ≤10 约束），由「供数据」概览卡点入。
 // 视图门=供数三岗位只读浏览（业务方 2026-06-09：操作员=编制者也需看本部门清单跟踪状态）；
 // C：草稿行加行内「继续编辑」「提交审核」（编制岗位 canAuthorInlineCatalog 才渲染）。表壳复用 ProviderManageList。
+const providerShellTitle = shellNavLabelByKey('provider');
 const provider = useProvider();
 const { source } = useSnapshot();
 const role = getProductRole();
@@ -42,7 +44,7 @@ async function onRowAction({ actionId }: { actionId: string; row: ProviderAssetR
   <ProviderManageList
     title="目录管理清单"
     :meta="meta"
-    :back-link="{ label: '提供方管理', href: '#/provider' }"
+    :back-link="{ label: providerShellTitle, href: '#/provider' }"
     :links="[
       { label: '资源管理清单', href: '#/provider/resources' },
       { label: '在线编制目录', href: '#/provider/wizard/inline-catalog' },

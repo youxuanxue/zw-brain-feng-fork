@@ -17,7 +17,6 @@ from zw_brain.domain.repositories.governance_projection import GovernanceProject
 from zw_brain.domain.repositories.objection import ObjectionRepository
 from zw_brain.domain.repositories.resource_api import ResourceApiRepository
 from zw_brain.domain.repositories.supply_demand import SupplyDemandRepository
-from zw_brain.domain.supply_demand_phase import PHASE_REGISTERED
 from zw_brain.domain.web_snapshot_redaction import redact_webui_snapshot
 from zw_brain.shared import audit as audit_bus
 from zw_brain.shared import db as db_module
@@ -158,7 +157,6 @@ def _seed_inbox_rows() -> None:
         applicant="u-demo",
         applicant_dept="市数据局",
         tenant_id=TENANT,
-        phase=PHASE_REGISTERED,
         target_resource_hint="低保对象",
     )
 
@@ -174,6 +172,107 @@ def test_manager_snapshot_includes_provider_inbox_arrays(brain: BrainService) ->
     assert len(provider["hookup_reviews"]) >= 1
     assert len(provider["demand_matches"]) >= 1
     assert provider["field_decisions"][0]["id"] == "cat-proj-field-001"
+
+
+def test_provider_demand_response_writes_decision_and_resource(brain: BrainService) -> None:
+    _seed_inbox_rows()
+    out = invoke_trusted(
+        brain,
+        "demand.response.submit",
+        {
+            "demand_id": "dem-proj-match-001",
+            "decision": "provide",
+            "response_note": "确认可提供低保对象目录",
+            "resource_ref": "cat-low-income-001",
+            "confirmed": True,
+        },
+        role="ROLE_ORGAN_MANAGER",
+        snapshot=actor_snapshot("ROLE_ORGAN_MANAGER", org_code=SEED_ORG),
+    )["result"]
+    assert out["provider_decision"] == "provide"
+    assert out["provider_resource_ref"] == "cat-low-income-001"
+    assert out["status"] == "responded"
+
+    listed = invoke_trusted(
+        brain,
+        "demand.list",
+        {},
+        role="ROLE_ORGAN_OPERATER",
+        snapshot=actor_snapshot("ROLE_ORGAN_OPERATER", org_code=SEED_ORG),
+    )
+    row = next(item for item in listed["items"] if item["id"] == "dem-proj-match-001")
+    assert row["response_status"] == "responded"
+    assert row["provider_decision"] == "provide"
+    assert row["provider_response_note"] == "确认可提供低保对象目录"
+    assert row["provider_resource_ref"] == "cat-low-income-001"
+
+
+def test_operater_cannot_submit_provider_response(brain: BrainService) -> None:
+    from zw_brain.command.brain import AccessDeniedError
+
+    _seed_inbox_rows()
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(
+            brain,
+            "demand.response.submit",
+            {
+                "demand_id": "dem-proj-match-001",
+                "decision": "provide",
+                "response_note": "申请方不能替提供方响应",
+                "resource_ref": "cat-x",
+                "confirmed": True,
+            },
+            role="ROLE_ORGAN_OPERATER",
+            snapshot=actor_snapshot("ROLE_ORGAN_OPERATER", org_code=SEED_ORG),
+        )
+
+
+def test_applicant_role_can_close_responded_demand(brain: BrainService) -> None:
+    _seed_inbox_rows()
+    invoke_trusted(
+        brain,
+        "demand.response.submit",
+        {
+            "demand_id": "dem-proj-match-001",
+            "decision": "provide",
+            "response_note": "确认可提供低保对象目录",
+            "resource_ref": "cat-low-income-001",
+            "confirmed": True,
+        },
+        role="ROLE_ORGAN_MANAGER",
+        snapshot=actor_snapshot("ROLE_ORGAN_MANAGER", org_code=SEED_ORG),
+    )
+    out = invoke_trusted(
+        brain,
+        "demand.close",
+        {
+            "demand_id": "dem-proj-match-001",
+            "close_note": "需求方确认完成",
+            "confirmed": True,
+        },
+        role="ROLE_ORGAN_OPERATER",
+        snapshot=actor_snapshot("ROLE_ORGAN_OPERATER", org_code=SEED_ORG),
+    )["result"]
+    assert out["response_status"] == "closed"
+    assert out["closed_note"] == "需求方确认完成"
+
+
+def test_busiaudit_cannot_close_demand(brain: BrainService) -> None:
+    from zw_brain.command.brain import AccessDeniedError
+
+    _seed_inbox_rows()
+    with pytest.raises(AccessDeniedError):
+        invoke_trusted(
+            brain,
+            "demand.close",
+            {
+                "demand_id": "dem-proj-match-001",
+                "close_note": "不应由业务运营员关闭",
+                "confirmed": True,
+            },
+            role="ROLE_BUSIAUDIT",
+            snapshot=actor_snapshot("ROLE_BUSIAUDIT", org_code=SEED_ORG),
+        )
 
 
 def test_operater_snapshot_includes_provider_for_inline_authoring(brain: BrainService) -> None:
@@ -341,7 +440,7 @@ def test_hookup_and_demand_projection_shapes(brain: BrainService) -> None:
     assert hookup["status"] == "pending_review"
     assert demand["id"] == "dem-proj-match-001"
     assert demand["title"]
-    assert demand["status"] == "registered"
+    assert demand["status"] == "pending_response"
     assert demand["target_resource_hint"] == "低保对象"
 
 

@@ -6,6 +6,7 @@ import { displayRecordName, stripKindSuffix } from '@/lib/userLanguage';
 const props = defineProps<{
   resource: Record<string, unknown>;
   showAction?: boolean;
+  existingRequest?: Record<string, unknown> | null;
 }>();
 
 const item = computed(() => {
@@ -53,6 +54,8 @@ const displayTitle = computed(() =>
   stripKindSuffix(displayRecordName(item.value.name, item.value.id, '资源')),
 );
 
+const existingRequestId = computed(() => String(props.existingRequest?.id ?? ''));
+
 const emit = defineEmits<{
   (e: 'apply', id: string): void;
 }>();
@@ -87,10 +90,17 @@ const emit = defineEmits<{
     </ul>
     <p v-if="isRecallCandidate" class="res-pending">该目录已收录，正在录入，暂无详情与申请入口。</p>
     <footer v-if="!isRecallCandidate" class="res-foot">
-      <!-- A1（0605#1）：只有申请人岗位 +「已发布（机器值 active）」资源可申请。
-           ResourceCard 仍始终给详情入口；申请 CTA 由父级申请人权限 + active 机器值共同门控。 -->
+      <!-- 已有本人申请时优先回到申请详情；否则只有申请人岗位 + active 资源可发起。 -->
+      <a
+        v-if="showAction && existingRequestId"
+        :href="`#/request-flow/request/${encodeURIComponent(existingRequestId)}`"
+        class="gov-btn gov-btn-primary"
+        data-testid="resource-existing-request"
+      >
+        查看申请
+      </a>
       <button
-        v-if="showAction && item.lifecycleStatus === 'active'"
+        v-else-if="showAction && item.lifecycleStatus === 'active'"
         type="button"
         class="gov-btn gov-btn-primary"
         data-skill="request.create"
