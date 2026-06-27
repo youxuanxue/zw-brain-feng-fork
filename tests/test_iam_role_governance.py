@@ -349,6 +349,62 @@ def test_browser_session_live_disable_R001() -> None:
         resolve_trusted_role({}, actor_snapshot=snap2)
 
 
+def test_session_endpoint_reflects_live_bindings_after_assign() -> None:
+    """R-001 browser parity: /auth/iaf/session must re-enrich bindings, not only skill calls."""
+    from tempfile import TemporaryDirectory
+
+    from tests._iaf_rest_http import (
+        KeyFixture,
+        bootstrap_iaf_runtime,
+        establish_session,
+        http_request,
+        run_server,
+        stop_server,
+    )
+    from zw_brain.domain.repositories.governance_projection import GovernanceProjectionRepository
+    from zw_brain.shared.auth_session import SESSION_COOKIE_NAME
+
+    with TemporaryDirectory() as tmp, bootstrap_iaf_runtime(tmp):
+        keys = KeyFixture()
+        server, thread, port = run_server()
+        try:
+            session_id, _ = establish_session(port, keys)
+            status, _, body1 = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/session",
+                headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_id}"},
+            )
+            assert status == 200, body1
+            snap1 = (body1 or {}).get("actor_snapshot") or {}
+            ctx1 = snap1.get("available_contexts") or []
+            org_roles1 = {(c.get("org_code"), c.get("role_code")) for c in ctx1 if isinstance(c, dict)}
+            assert ("ORG-A", "ROLE_ORGAN_OPERATER") in org_roles1
+            assert ("ORG-B", "ROLE_ORGAN_MANAGER") not in org_roles1
+
+            repo = GovernanceProjectionRepository()
+            repo.assign_actor_role(
+                external_actor_id="trusted-user",
+                org_code="ORG-B",
+                role_code="ROLE_ORGAN_MANAGER",
+                tenant_id="sd-default",
+                granted_by="test-harness",
+            )
+
+            status, _, body2 = http_request(
+                "GET",
+                f"http://127.0.0.1:{port}/auth/iaf/session",
+                headers={"Cookie": f"{SESSION_COOKIE_NAME}={session_id}"},
+            )
+            assert status == 200, body2
+            snap2 = (body2 or {}).get("actor_snapshot") or {}
+            contexts = snap2.get("available_contexts") or []
+            org_roles = {(c.get("org_code"), c.get("role_code")) for c in contexts if isinstance(c, dict)}
+            assert ("ORG-A", "ROLE_ORGAN_OPERATER") in org_roles
+            assert ("ORG-B", "ROLE_ORGAN_MANAGER") in org_roles
+        finally:
+            stop_server(server, thread)
+
+
 def test_token_roles_ignored_binding_is_authority_R006() -> None:
     """R-006: product authz roles come from actor_org_role_binding, NOT the IAM token.
     (a) token carries a role but NO active binding → denied; (b) token role X, binding role Y → Y wins."""

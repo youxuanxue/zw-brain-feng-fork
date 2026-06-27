@@ -60,6 +60,8 @@ export interface AuthSnapshot {
 
 const _state = ref<AuthSnapshot | null>(null);
 const _loading = ref<boolean>(false);
+/** IAM 绑定（岗位/机构）相对上次会话快照发生变化时递增，供 App 作废 snapshot 缓存并重拉。 */
+export const sessionBindingRevision = ref(0);
 
 function _readClaims(claims: unknown): Record<string, unknown> {
   return claims && typeof claims === 'object' ? (claims as Record<string, unknown>) : {};
@@ -491,6 +493,34 @@ function _allowedProductRolesFromSnapshot(snapshot: AuthSnapshot): string[] {
     roles.push(sessionRole);
   }
   return Array.from(new Set(roles));
+}
+
+function _sessionBindingFingerprint(snapshot: AuthSnapshot | null): string {
+  if (!snapshot) return '';
+  const roles = _allowedProductRolesFromSnapshot(snapshot).slice().sort().join(',');
+  const actor = snapshot.actor_snapshot ?? {};
+  const org = String(
+    snapshot.current_org_code
+      || (actor as { current_org_code?: string }).current_org_code
+      || (actor as { org_code?: string }).org_code
+      || snapshot.user?.orgCode
+      || '',
+  );
+  const currentRole = String((actor as { current_role?: string }).current_role ?? '');
+  return `${roles}|${org}|${currentRole}`;
+}
+
+/** 从 BFF 重读会话并同步 live IAM 绑定（身份治理分派后岗位/机构以此为准）。 */
+export async function refreshLiveSessionFromServer(): Promise<boolean> {
+  const before = _sessionBindingFingerprint(_state.value ?? _readLocalSnapshot());
+  const fresh = await _readCurrentSession().catch(() => null);
+  if (!fresh?.authenticated) return false;
+  const after = _sessionBindingFingerprint(fresh);
+  if (before !== after) {
+    sessionBindingRevision.value += 1;
+    return true;
+  }
+  return false;
 }
 
 /** 登录后会话 actor_snapshot.current_role → 顶栏岗位与路由守卫。 */

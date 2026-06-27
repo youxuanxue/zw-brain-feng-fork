@@ -79,6 +79,17 @@ def test_role_switch_uses_soft_snapshot_load() -> None:
     assert "_cache" in snap
 
 
+def test_app_syncs_live_session_bindings_after_bootstrap() -> None:
+    app = (REPO / "zw-brain-web" / "src" / "App.vue").read_text(encoding="utf-8")
+    auth = (REPO / "zw-brain-web" / "src" / "composables" / "useAuth.ts").read_text(encoding="utf-8")
+    assert "refreshLiveSessionFromServer" in auth
+    assert "sessionBindingRevision" in auth
+    assert "await refreshLiveSessionFromServer()" in app
+    assert "watch(sessionBindingRevision" in app
+    assert "invalidateSnapshot()" in app
+    assert "visibilitychange" in app
+
+
 def test_allowed_roles_reactive_after_login() -> None:
     app = (REPO / "zw-brain-web" / "src" / "App.vue").read_text(encoding="utf-8")
     assert "const allowedRoles = computed" in app

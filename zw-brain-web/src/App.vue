@@ -11,8 +11,10 @@ import {
   isAuthLoading,
   logout,
   PRODUCT_ROLE_LABELS,
+  refreshLiveSessionFromServer,
+  sessionBindingRevision,
 } from '@/composables/useAuth';
-import { loadSnapshot, prefetchSnapshot, useWebUiConfig, useSnapshot } from '@/composables/useSnapshot';
+import { loadSnapshot, prefetchSnapshot, useWebUiConfig, useSnapshot, invalidateSnapshot } from '@/composables/useSnapshot';
 import { prefetchWorkbench } from '@/composables/useWorkbench';
 import { pushToast } from '@/composables/useActionStub';
 import ActionToast from '@/components/ActionToast.vue';
@@ -82,6 +84,8 @@ async function refreshAll() {
       if (!isLoginRoute.value) await router.replace('/login');
       return;
     }
+    // 身份治理分派新岗位/机构后，本地 sessionStorage 可能仍是登录快照；先对齐 live 绑定再拉 snapshot。
+    await refreshLiveSessionFromServer().catch(() => false);
     if (!hasAllowedProductRoles()) {
       if (route.path !== '/workbench') await router.replace('/workbench');
       return;
@@ -183,8 +187,19 @@ watch(snapSource, (s) => {
   if (s === 'live' && hasAllowedProductRoles()) scheduleSiblingPrefetch();
 });
 
+watch(sessionBindingRevision, () => {
+  if (!user.value) return;
+  invalidateSnapshot();
+  _prefetchScheduled = false;
+  void loadSnapshot(currentRole.value);
+});
+
 onMounted(() => {
   void refreshAll();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    void refreshLiveSessionFromServer();
+  });
 });
 
 watch(
@@ -262,7 +277,7 @@ watch(
           </header>
           <div class="login-gate-card-body">
             <div class="login-gate-iam-box no-product-role-hint">
-              若您刚完成 IAM 绑定，请等待管理员同步岗位后刷新页面；仍无法进入时请提供登录账号与所属组织，便于管理员排查。
+              若您刚完成 IAM 绑定，请刷新页面或切回此标签页，系统会自动同步新岗位；仍无法进入时请提供登录账号与所属组织，便于管理员排查。
             </div>
             <div class="login-gate-actions">
               <button

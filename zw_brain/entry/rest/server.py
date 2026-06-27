@@ -269,6 +269,20 @@ def _session_current_org_code(session: AuthSession) -> str:
     ).strip()
 
 
+def _session_with_live_actor_snapshot(session: AuthSession) -> AuthSession:
+    """R-001 parity for browser session reads: live actor_org_role_binding on /session and /refresh.
+
+    Skill/snapshot calls already re-enrich via ``_trusted_skill_payload``; without this, the WebUI
+    keeps login-time ``available_contexts`` / ``role_codes`` until cookie expiry even after IAM
+    assigns a new org/role in 身份治理.
+    """
+    if session.development_iam_bypass:
+        return session
+    snapshot = get_service().enrich_actor_snapshot_for_session(dict(session.actor_snapshot))
+    updated = _AUTH_SESSION_STORE.update_actor_snapshot(session.session_id, snapshot)
+    return updated if updated is not None else session
+
+
 def _session_public_payload(session: AuthSession) -> dict[str, Any]:
     """在 AuthSession.public_payload() 之上额外注入 `current_org_name`（会话当前机构名）。
 
@@ -1192,6 +1206,7 @@ class RestHandler(BaseHTTPRequestHandler):
             if session is None:
                 self._json(401, {"error": "session_missing"})
                 return
+            session = _session_with_live_actor_snapshot(session)
             payload = json.dumps(_session_public_payload(session), ensure_ascii=False).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -1309,6 +1324,7 @@ class RestHandler(BaseHTTPRequestHandler):
             if updated is None:
                 self._json(401, {"error": "session_expired"})
                 return
+            updated = _session_with_live_actor_snapshot(updated)
             self._respond_with_session(updated)
         except IafOidcError as exc:
             if "HTTP 401" in str(exc):
