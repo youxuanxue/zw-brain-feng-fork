@@ -67,8 +67,12 @@ test.describe('J1 数据缺位修复（D45）', () => {
     test.skip(mineReqs.length === 0, '当前登录身份无本人发起的在途/草稿申请（clean 库该 dev-bypass 操作员未发起过，诚实空、非缺位）');
     const rows = page.getByTestId('p4-pane-mine').locator('.focus-table tbody tr');
     await expect(rows.first()).toBeVisible({ timeout: 10_000 });
-    // 全量真实（非 seed 精选）：本人有 own 申请时，UI 渲染行数随真实库现算，不被截断到 seed 5 条。
-    expect(await rows.count(), '我的申请应全量真实现算（非 seed 5 精选）').toBeGreaterThan(5);
+    // 全量真实（非 seed 精选）：UI 行数须与 snapshot 本人现算条数一致；富库时顺带证不被截断到 seed 5 条。
+    const rendered = await rows.count();
+    expect(rendered, '我的申请应与 snapshot 本人现算条数一致（全量、非 seed 精选截断）').toBe(mineReqs.length);
+    if (mineReqs.length > 5) {
+      expect(rendered, '富库下我的申请不应被截断到 seed 5 条').toBeGreaterThan(5);
+    }
     // 每行有资源名（申请类，非需求噪声）。
     await expect(rows.first()).not.toBeEmpty();
   });

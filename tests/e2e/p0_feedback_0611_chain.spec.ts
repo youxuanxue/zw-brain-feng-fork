@@ -146,9 +146,9 @@ test('链路2：反向编目两级审核全链——操作员UI创建→管理�
   // 1) 部门操作员：供数据入口区「反向编目」与「在线编制目录」并列，点入口进向导。
   await setRole(page, 'ROLE_ORGAN_OPERATER');
   await gotoHash(page, '#/provider');
-  const reverseEntry = page.locator('a.entry-link', { hasText: '反向编目' });
+  const reverseEntry = page.locator('a.entry-link[href="#/provider/wizard/reverse-catalog"]');
   await expect(reverseEntry).toHaveCount(1, { timeout: 15_000 });
-  await expect(page.locator('a.entry-link', { hasText: '在线编制目录' })).toHaveCount(1);
+  await expect(page.locator('a.entry-link[href="#/provider/wizard/inline-catalog"]')).toHaveCount(1);
   await reverseEntry.click();
   await expect(page.getByRole('heading', { name: '反向编目' })).toBeVisible({ timeout: 15_000 });
   await gotoHash(page, '#/provider/wizard/reverse-catalog/detail');

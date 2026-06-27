@@ -75,7 +75,12 @@ const providerEntrySections = computed(() => {
         { label: '供需对接', desc: '响应需求方登记的数据缺口', href: '#/provider/inbox/demand-match' },
         { label: '异议响应', desc: '受理、核查或回复异议', href: '#/provider/inbox/objection' },
         ...(showNationalExtElem.value
-          ? [{ label: '国家扩展要素编制', desc: '编制并审核国家通道扩展要素', href: '#/provider/national-ext-elem' }]
+          ? [{
+              label: '国家扩展要素编制',
+              desc: '编制并审核国家通道扩展要素',
+              href: '#/provider/national-ext-elem',
+              testId: 'national-ext-elem-entry',
+            }]
           : []),
       ],
     },
@@ -151,7 +156,13 @@ const headerMeta = computed(() => {
         <div v-for="section in providerEntrySections" :key="section.key" class="entry-section">
           <h3 class="section-title">{{ section.title }}</h3>
           <div class="entry-grid">
-            <a v-for="item in section.items" :key="item.href" :href="item.href" class="entry-link">
+            <a
+              v-for="item in section.items"
+              :key="item.href"
+              :href="item.href"
+              class="entry-link"
+              :data-testid="item.testId"
+            >
               <strong>{{ item.label }}</strong>
               <em>{{ item.desc }}</em>
             </a>

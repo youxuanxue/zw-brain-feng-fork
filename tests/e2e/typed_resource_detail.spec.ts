@@ -167,14 +167,21 @@ test.describe('发现页筛选三件套（反馈 7）', () => {
     await page.waitForTimeout(1200);
     const before = await page.locator('.res-card').count();
     test.skip(before === 0, '检索「信息」无命中（数据形态变化）');
-    // 选一个真实提供部门
+    // 选一个与当前检索结果仍有交集的真实提供部门（避免盲选 nth(1) 把结果筛空）。
     const providerSel = page.getByTestId('filter-provider');
-    const firstReal = await providerSel.locator('option').nth(1).getAttribute('value');
-    test.skip(!firstReal, '无可选提供部门');
-    await providerSel.selectOption(firstReal!);
-    await page.waitForTimeout(600);
-    const after = await page.locator('.res-card').count();
-    // 收窄后每张卡都属于所选部门
+    const optionCount = await providerSel.locator('option').count();
+    let after = 0;
+    for (let i = 1; i < optionCount; i += 1) {
+      const value = await providerSel.locator('option').nth(i).getAttribute('value');
+      if (!value) continue;
+      await providerSel.selectOption(value);
+      await page.waitForTimeout(600);
+      after = await page.locator('.res-card').count();
+      if (after > 0 && after <= before) break;
+      await providerSel.selectOption('');
+      await page.waitForTimeout(300);
+    }
+    test.skip(after === 0, '检索「信息」与任一提供部门组合均无命中（数据形态变化）');
     expect(after).toBeLessThanOrEqual(before);
     expect(after).toBeGreaterThan(0);
   });

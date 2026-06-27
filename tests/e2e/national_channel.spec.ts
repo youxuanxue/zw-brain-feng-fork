@@ -56,6 +56,8 @@ test.describe('国家通道 角色门 + flag 门', () => {
   test('国家通道待转报工作台入口：BUSIAUDIT 可见 / OPERATER 不渲染', async ({ page }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开（起栈需 ZW_BRAIN_NATIONAL_CHANNEL_ENABLED=1）');
     seedNationalEscalateFixture();
+    await page.reload();
+    await waitAppReady(page);
 
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/workbench');
@@ -83,6 +85,8 @@ test.describe('国家通道 角色门 + flag 门', () => {
   }) => {
     test.skip(!(await nationalChannelEnabled(page)), '国家通道 flag 未开');
     seedNationalEscalateFixture();
+    await page.reload();
+    await waitAppReady(page);
 
     await setRole(page, 'ROLE_BUSIAUDIT');
     await gotoHash(page, '#/workbench');
