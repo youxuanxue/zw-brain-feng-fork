@@ -8,6 +8,7 @@ Covers the application–approval–grant arc end-to-end:
 
 Real secrets dropped at boundary: `data_apply.app_key`, `data_apply_course.hmac`.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -25,6 +26,7 @@ from zw_brain.adapters.legacy._common import (
     finish_run,
     schema_from_dump_name,
 )
+from zw_brain.adapters.legacy.clean_filter import SkipUnclean, is_clean_record
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
 from zw_brain.domain.application_dedupe import prefer_application_record
@@ -130,12 +132,16 @@ class ExchangeMapper:
     }
     ADAPTER_SLUG = "legacy.exchange.import"
 
-    def __init__(self, *, tenant_id: str = DEFAULT_TENANT):
+    def __init__(self, *, tenant_id: str = DEFAULT_TENANT, only_clean: bool = False):
         self.tenant_id = tenant_id
+        self.only_clean = only_clean
         self.application_repo = ApplicationRepository()
         self.adapter_repo = ExternalAdapterRepository()
         self._legacy_apply_by_unique_key: dict[tuple[str, str, str], str] = {}
         self._legacy_apply_alias: dict[str, str] = {}
+        # --only-clean：本轮被过滤（不达标）的申请 id；其 course/dept_approve/authrization 子记录一并 skip，
+        # 避免「孤儿审批/交付」（指向已过滤申请）。
+        self._filtered_apply_ids: set[str] = set()
         self._current_stats: ImportStats | None = None
 
     def import_dump(self, dump_path: Path) -> ImportStats:
@@ -146,6 +152,7 @@ class ExchangeMapper:
         self._current_stats = stats
         self._legacy_apply_by_unique_key.clear()
         self._legacy_apply_alias.clear()
+        self._filtered_apply_ids.clear()
 
         try:
             rows_by_table: dict[str, list[dict[str, Any]]] = {table: [] for table in self.HANDLED_TABLES}
@@ -171,6 +178,9 @@ class ExchangeMapper:
                     elif table == "data_apply_authrization":
                         self._map_data_apply_authrization(row, legacy_system)
                     stats.bump(table)
+                except SkipUnclean as exc:
+                    # --only-clean：不达标申请记录跳过且记账（可审计，非静默）。
+                    stats.skip(f"{table}.unclean:{exc.reason}")
                 except KeyError as exc:
                     stats.bump(table, "errors")
                     key = f"{table}.missing_field:{exc.args[0]}"
@@ -339,9 +349,7 @@ class ExchangeMapper:
             selected_id = self._legacy_apply_by_unique_key.get(key) if key is not None else None
             if selected_id:
                 self._legacy_apply_alias[apply_id] = selected_id
-            stats.skipped["data_apply.duplicate_application_collapsed"] = (
-                stats.skipped.get("data_apply.duplicate_application_collapsed", 0) + 1
-            )
+            stats.skipped["data_apply.duplicate_application_collapsed"] = stats.skipped.get("data_apply.duplicate_application_collapsed", 0) + 1
             stats.add_issue(
                 "duplicate_application_collapsed",
                 "data_apply",
@@ -394,14 +402,33 @@ class ExchangeMapper:
         status = APPLY_STATUS_MAP.get(coerce_int(scrubbed.get("status")), "submitted")
         applicant_name = scrubbed.get("contact") or scrubbed.get("creator_name") or scrubbed.get("creator") or "未提供"
         applicant_dept = scrubbed.get("apply_org_name") or scrubbed.get("dept") or "unknown"
-        if self._remember_legacy_apply(
-            apply_id,
-            legacy_system=legacy_system,
-            resource_id=scrubbed.get("resource_id"),
-            applicant_org_id=scrubbed.get("apply_org_id"),
-            applicant_dept=applicant_dept,
-            applicant_name=applicant_name,
-        ) is None:
+        if self.only_clean:
+            ok, reason = is_clean_record(
+                "application",
+                {
+                    "resourceId": scrubbed.get("resource_id"),
+                    "resource_name": scrubbed.get("resource_name"),
+                    "applicantDept": applicant_dept,
+                    "use_reason": scrubbed.get("use_reason"),
+                    "use_item": scrubbed.get("use_item"),
+                    "other_reason": scrubbed.get("other_reason"),
+                },
+            )
+            if not ok:
+                # 记下被过滤的申请 id，供其审批/交付子记录联动跳过（消除孤儿）。
+                self._filtered_apply_ids.add(str(apply_id))
+                raise SkipUnclean(reason)
+        if (
+            self._remember_legacy_apply(
+                apply_id,
+                legacy_system=legacy_system,
+                resource_id=scrubbed.get("resource_id"),
+                applicant_org_id=scrubbed.get("apply_org_id"),
+                applicant_dept=applicant_dept,
+                applicant_name=applicant_name,
+            )
+            is None
+        ):
             return
         self.application_repo.upsert_from_request(
             {
@@ -576,6 +603,8 @@ class ExchangeMapper:
         scrubbed = {k: v for k, v in row.items() if k not in APPLY_COURSE_DROP_FIELDS}  # drop hmac
         course_id = scrubbed["id"]
         raw_apply_id = scrubbed.get("apply_id")
+        if self.only_clean and str(raw_apply_id) in self._filtered_apply_ids:
+            raise SkipUnclean("application.parent_filtered")
         apply_id = self._canonical_apply_id(raw_apply_id, child_table="data_apply_course")
         if not apply_id or coerce_int(scrubbed.get("status")) == -1:
             return  # apply_id missing or row marked deleted in legacy
@@ -623,16 +652,18 @@ class ExchangeMapper:
                 "step_name": step_name,
                 "decision_mode": "single",
                 "status": step_status,
-                "approver_scope_json": safe_json({
-                    "org_id": scrubbed.get("org_id"),
-                    "org_name": scrubbed.get("org_name"),
-                    "user_code": scrubbed.get("user_code"),
-                    "user_name": scrubbed.get("user_name"),
-                    "approve_person": scrubbed.get("approve_person"),
-                    "approve_phone": scrubbed.get("approve_phone"),
-                    "flow_code": scrubbed.get("flow_code"),
-                    "flow_name": scrubbed.get("flow_name"),
-                }),
+                "approver_scope_json": safe_json(
+                    {
+                        "org_id": scrubbed.get("org_id"),
+                        "org_name": scrubbed.get("org_name"),
+                        "user_code": scrubbed.get("user_code"),
+                        "user_name": scrubbed.get("user_name"),
+                        "approve_person": scrubbed.get("approve_person"),
+                        "approve_phone": scrubbed.get("approve_phone"),
+                        "flow_code": scrubbed.get("flow_code"),
+                        "flow_name": scrubbed.get("flow_name"),
+                    }
+                ),
                 "started_at": coerce_datetime(scrubbed.get("create_time")),
                 "completed_at": coerce_datetime(scrubbed.get("create_time")) if step_status == "completed" else None,
             }
@@ -646,24 +677,26 @@ class ExchangeMapper:
 
             decision_record = None
             if step_status == "completed":
-                decision_record = session.execute(
-                    select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)
-                ).scalar_one_or_none()
+                decision_record = session.execute(select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)).scalar_one_or_none()
                 decision_payload = {
                     "step_id": step.id,
                     "decision": decision,
                     "decision_reason": scrubbed.get("opinion"),
-                    "actor_snapshot_json": safe_json({
-                        "user_code": scrubbed.get("user_code"),
-                        "user_name": scrubbed.get("user_name"),
-                        "org_id": scrubbed.get("org_id"),
-                        "org_name": scrubbed.get("org_name"),
-                    }),
-                    "evidence_json": safe_json({
-                        "course_id": course_id,
-                        "attachment": scrubbed.get("attachment"),
-                        "check_status": scrubbed.get("check_status"),
-                    }),
+                    "actor_snapshot_json": safe_json(
+                        {
+                            "user_code": scrubbed.get("user_code"),
+                            "user_name": scrubbed.get("user_name"),
+                            "org_id": scrubbed.get("org_id"),
+                            "org_name": scrubbed.get("org_name"),
+                        }
+                    ),
+                    "evidence_json": safe_json(
+                        {
+                            "course_id": course_id,
+                            "attachment": scrubbed.get("attachment"),
+                            "check_status": scrubbed.get("check_status"),
+                        }
+                    ),
                 }
                 if decision_record is None:
                     decision_record = ApprovalDecisionRecord(**decision_payload)
@@ -672,11 +705,7 @@ class ExchangeMapper:
                 else:
                     for k, v in decision_payload.items():
                         setattr(decision_record, k, v)
-            steps_for_case = list(
-                session.execute(
-                    select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)
-                ).scalars()
-            )
+            steps_for_case = list(session.execute(select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)).scalars())
             ordered_steps = sorted(
                 steps_for_case,
                 key=lambda item: (
@@ -719,6 +748,8 @@ class ExchangeMapper:
 
     def _map_data_apply_dept_approve(self, row: dict[str, Any], legacy_system: str) -> None:
         dept_approve_id = row["id"]
+        if self.only_clean and str(row.get("apply_id")) in self._filtered_apply_ids:
+            raise SkipUnclean("application.parent_filtered")
         apply_id = self._canonical_apply_id(row.get("apply_id"), child_table="data_apply_dept_approve")
         if not apply_id:
             return
@@ -763,10 +794,12 @@ class ExchangeMapper:
                 "step_name": step_name,
                 "decision_mode": "department",
                 "status": step_status,
-                "approver_scope_json": safe_json({
-                    "approve_org_code": approve_org_code,
-                    "approve_org_name": approve_org_name,
-                }),
+                "approver_scope_json": safe_json(
+                    {
+                        "approve_org_code": approve_org_code,
+                        "approve_org_name": approve_org_name,
+                    }
+                ),
                 "started_at": coerce_datetime(row.get("create_time")),
                 "completed_at": coerce_datetime(row.get("create_time")) if step_status == "completed" else None,
             }
@@ -780,21 +813,23 @@ class ExchangeMapper:
 
             decision_record = None
             if step_status == "completed" and decision is not None:
-                decision_record = session.execute(
-                    select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)
-                ).scalar_one_or_none()
+                decision_record = session.execute(select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)).scalar_one_or_none()
                 decision_payload = {
                     "step_id": step.id,
                     "decision": decision,
                     "decision_reason": None,
-                    "actor_snapshot_json": safe_json({
-                        "approve_org_code": approve_org_code,
-                        "approve_org_name": approve_org_name,
-                    }),
-                    "evidence_json": safe_json({
-                        "dept_approve_id": dept_approve_id,
-                        "legacy_status": status_int,
-                    }),
+                    "actor_snapshot_json": safe_json(
+                        {
+                            "approve_org_code": approve_org_code,
+                            "approve_org_name": approve_org_name,
+                        }
+                    ),
+                    "evidence_json": safe_json(
+                        {
+                            "dept_approve_id": dept_approve_id,
+                            "legacy_status": status_int,
+                        }
+                    ),
                 }
                 if decision_record is None:
                     decision_record = ApprovalDecisionRecord(**decision_payload)
@@ -804,11 +839,7 @@ class ExchangeMapper:
                     for k, v in decision_payload.items():
                         setattr(decision_record, k, v)
             # 重排步骤顺序，department 步与 single 步混合按时间排序
-            steps_for_case = list(
-                session.execute(
-                    select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)
-                ).scalars()
-            )
+            steps_for_case = list(session.execute(select(ApprovalStepRecord).where(ApprovalStepRecord.approval_case_id == case.id)).scalars())
             ordered_steps = sorted(
                 steps_for_case,
                 key=lambda item: (
@@ -860,6 +891,8 @@ class ExchangeMapper:
 
     def _map_data_apply_authrization(self, row: dict[str, Any], legacy_system: str) -> None:
         authz_id = row["id"]
+        if self.only_clean and str(row.get("apply_id")) in self._filtered_apply_ids:
+            raise SkipUnclean("application.parent_filtered")
         apply_id = self._canonical_apply_id(row.get("apply_id"), child_table="data_apply_authrization")
         if not apply_id:
             return
@@ -875,19 +908,21 @@ class ExchangeMapper:
                     DeliveryTaskRecord.delivery_code == apply_id,
                 )
             ).scalar_one_or_none()
-            grant_snapshot = safe_json({
-                "authz_id": authz_id,
-                "limit_day": row.get("limit_day"),
-                "status": row.get("status"),
-                "apply_status": row.get("apply_status"),
-                "opinion": row.get("opinion"),
-                "handler_code": row.get("handler_code"),
-                "handler_name": row.get("handler_name"),
-                "org_id": row.get("org_id"),
-                "org_name": row.get("org_name"),
-                "res_type": row.get("res_type"),
-                "create_time": coerce_time(row.get("create_time")),
-            })
+            grant_snapshot = safe_json(
+                {
+                    "authz_id": authz_id,
+                    "limit_day": row.get("limit_day"),
+                    "status": row.get("status"),
+                    "apply_status": row.get("apply_status"),
+                    "opinion": row.get("opinion"),
+                    "handler_code": row.get("handler_code"),
+                    "handler_name": row.get("handler_name"),
+                    "org_id": row.get("org_id"),
+                    "org_name": row.get("org_name"),
+                    "res_type": row.get("res_type"),
+                    "create_time": coerce_time(row.get("create_time")),
+                }
+            )
             if delivery_state == "granted":
                 # C-1 凭据诚实化：真实授权表 data_apply_authrization **无 per-grant 凭据列**，
                 # 真凭据在网关域 dsp_service.api_service_app.SECRET、且与 apply_id 无绑定供数
@@ -897,10 +932,7 @@ class ExchangeMapper:
                 # 段 66 守卫此处显式处理凭据态（不静默、不回潮捏造）。
                 grant_snapshot["credential"] = None
                 grant_snapshot["credential_status"] = "not_issued"
-                grant_snapshot["credential_status_reason"] = (
-                    "历史授权未携带凭据（旧授权表无凭据列，真凭据在网关域、待 apply_id↔service↔app "
-                    "绑定供数）；如需可重新签发。"
-                )
+                grant_snapshot["credential_status_reason"] = "历史授权未携带凭据（旧授权表无凭据列，真凭据在网关域、待 apply_id↔service↔app 绑定供数）；如需可重新签发。"
             payload = {"access_grant": grant_snapshot, "kind": "apply_grant"}
             channel = row.get("res_type") or "exchange"
             if task is None:

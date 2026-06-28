@@ -309,6 +309,20 @@ docker run --rm \
 
 如需清空并重建目标库，可在确认数据可丢弃后追加 `--reset-db`（该路径会自动设置 `ZW_BRAIN_ALLOW_SCHEMA_RESET=1` 走显式破坏性重置；不带 `--reset-db` 时迁移批走 `ensure_runtime_schema()` 的 alembic 向前迁移、**不 DROP**，D58）。
 
+如旧平台 dump 含脏业务记录（测试/未命名标题、纯数字或「测试」用途、缺机构、悬空引用…），可追加 `--only-clean` 只导入符合 zw-brain 标准的干净业务记录（目录/资源/申请），不达标的在导入时跳过且记 `stats.skip`（行级、可审计，承 D11：不是造假，是只收够格的真实数据）；治理基线（机构/区划/字典/actor）不过滤。判据集中在 `zw_brain/adapters/legacy/clean_filter.is_clean_record`（业务方可调）。报告会记录 `only_clean: true`。全量 vs 干净的差异对照见 `docs/deployment/clean-vs-full-seed.md`。
+
+```bash
+docker run --rm \
+  -v /path/to/desensitized-legacy-dumps:/legacy-dumps:ro \
+  -v /opt/zw-brain/reports:/reports \
+  -e ZW_BRAIN_DATABASE_URL=postgresql+psycopg://zw_brain:***@db.intranet:5432/zw_brain \
+  zw-brain:1.0.0 \
+  zw-brain-migrate-legacy \
+    --dumps-dir /legacy-dumps --profile customer-core-v1 \
+    --strict --acceptance --only-clean \
+    --report /reports/legacy-migration-clean-report.json
+```
+
 ## 7. 运维命令
 
 查看日志：

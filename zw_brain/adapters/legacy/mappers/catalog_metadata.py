@@ -15,6 +15,7 @@ new states; consumers can still re-bin via decision_payload_json. Dropped at row
 data_resource.del_desc / stop_desc are kept (audit content), but no real secrets exist
 in these tables.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -31,6 +32,7 @@ from zw_brain.adapters.legacy._common import (
     finish_run,
     schema_from_dump_name,
 )
+from zw_brain.adapters.legacy.clean_filter import SkipUnclean, is_clean_record
 from zw_brain.adapters.legacy.parser import MysqldumpParser
 from zw_brain.adapters.legacy.tenant_normalizer import DEFAULT_TENANT, legacy_system_for
 from zw_brain.domain.models import (
@@ -108,8 +110,9 @@ class CatalogMetadataMapper:
     }
     ADAPTER_SLUG = "legacy.catalog_metadata.import"
 
-    def __init__(self, *, tenant_id: str = DEFAULT_TENANT):
+    def __init__(self, *, tenant_id: str = DEFAULT_TENANT, only_clean: bool = False):
         self.tenant_id = tenant_id
+        self.only_clean = only_clean
         self.catalog_repo = CatalogRepository()
         self.resource_repo = ResourceApiRepository()
         self.metadata_repo = MetadataEvidenceRepository()
@@ -162,11 +165,12 @@ class CatalogMetadataMapper:
                 elif table in {"catalog_quality_task", "catalog_quality_result"}:
                     self._map_quality_evidence(table, row, legacy_system)
                 stats.bump(table)
+            except SkipUnclean as exc:
+                # --only-clean：不达标业务记录跳过且记账（可审计，非静默）。
+                stats.skip(f"{table}.unclean:{exc.reason}")
             except KeyError as exc:
                 stats.bump(table, "errors")
-                stats.skipped[f"{table}.missing_field:{exc.args[0]}"] = (
-                    stats.skipped.get(f"{table}.missing_field:{exc.args[0]}", 0) + 1
-                )
+                stats.skipped[f"{table}.missing_field:{exc.args[0]}"] = stats.skipped.get(f"{table}.missing_field:{exc.args[0]}", 0) + 1
 
         finish_run(self.adapter_repo, stats, adapter_slug=self.ADAPTER_SLUG, dump_path=dump_path, started_at=started_at, tenant_id=self.tenant_id)
         return stats
@@ -179,13 +183,16 @@ class CatalogMetadataMapper:
         if legacy_catalog_ref is None or legacy_catalog_ref == "":
             return None
         text = str(legacy_catalog_ref)
-        return self.legacy_mapping_repo.resolve_canonical_ref(
-            legacy_system=legacy_system,
-            legacy_object_type="data_catalog",
-            legacy_object_ref=text,
-            canonical_type="catalog_entry",
-            tenant_id=self.tenant_id,
-        ) or text
+        return (
+            self.legacy_mapping_repo.resolve_canonical_ref(
+                legacy_system=legacy_system,
+                legacy_object_type="data_catalog",
+                legacy_object_ref=text,
+                canonical_type="catalog_entry",
+                tenant_id=self.tenant_id,
+            )
+            or text
+        )
 
     def _rebind_catalog_code(self, legacy_catalog_ref: Any, catalog_code: str) -> None:
         if legacy_catalog_ref is None or legacy_catalog_ref == "":
@@ -199,6 +206,13 @@ class CatalogMetadataMapper:
         cata_id = row["cata_id"]
         cata_code = row.get("cata_code") or cata_id
         catalog_code = str(cata_code)
+        if self.only_clean:
+            ok, reason = is_clean_record(
+                "catalog",
+                {"name": row.get("cata_title"), "id": catalog_code, "provider": row.get("org_code")},
+            )
+            if not ok:
+                raise SkipUnclean(reason)
         lifecycle = CATALOG_STATUS_TO_LIFECYCLE.get(row.get("status"), "draft")
         contact = {
             "contact_name": row.get("contact_name"),
@@ -485,6 +499,11 @@ class CatalogMetadataMapper:
     def _map_data_basic_elem_catalog(self, row: dict[str, Any], legacy_system: str) -> None:
         cata_id = str(row["cata_id"])
         catalog_code = f"basic-elem:{cata_id}"
+        if self.only_clean:
+            # 基础元素目录可无 provider（参考数据），仅按名称过滤测试/未命名（不要求机构，避免误伤）。
+            ok, reason = is_clean_record("resource", {"name": row.get("cata_title"), "id": catalog_code})
+            if not ok:
+                raise SkipUnclean(reason)
         # `version` is part of legacy PK; first import wins as the basic_element catalog body.
         self.catalog_repo.upsert_from_resource(
             {
@@ -520,13 +539,16 @@ class CatalogMetadataMapper:
         cata_id = str(row["cata_id"])
         column_code = str(row["column_code"])
         cata_version = row.get("cata_version")
-        catalog_code = self.legacy_mapping_repo.resolve_canonical_ref(
-            legacy_system=legacy_system,
-            legacy_object_type="data_basic_elem_catalog",
-            legacy_object_ref=cata_id,
-            canonical_type="catalog_entry",
-            tenant_id=self.tenant_id,
-        ) or f"basic-elem:{cata_id}"
+        catalog_code = (
+            self.legacy_mapping_repo.resolve_canonical_ref(
+                legacy_system=legacy_system,
+                legacy_object_type="data_basic_elem_catalog",
+                legacy_object_ref=cata_id,
+                canonical_type="catalog_entry",
+                tenant_id=self.tenant_id,
+            )
+            or f"basic-elem:{cata_id}"
+        )
         # Item code combines column_code + cata_version to keep historical versions
         # addressable, since the legacy PK is (cata_id, cata_version, column_code).
         item_code = f"basic-elem:{cata_id}:{cata_version}:{column_code}"
@@ -552,6 +574,10 @@ class CatalogMetadataMapper:
     def _map_data_resource(self, row: dict[str, Any], legacy_system: str) -> None:
         res_id = row["res_id"]
         resource_code = str(row.get("res_code") or res_id)
+        if self.only_clean:
+            ok, reason = is_clean_record("resource", {"name": row.get("res_name"), "id": resource_code})
+            if not ok:
+                raise SkipUnclean(reason)
         lifecycle = RESOURCE_STATUS_TO_LIFECYCLE.get(coerce_int(row.get("status")), "draft")
         resource_kind = _normalize_resource_kind(row.get("res_type"))
         catalog_code = self._catalog_code_for(row.get("cata_id"), legacy_system)
@@ -643,9 +669,7 @@ class CatalogMetadataMapper:
         binding_code = str(_first(row, "binding_id", "table_id", default=resource_code))
         catalog_code = self._catalog_code_for(_first(row, "catalog_id", "cata_id"), legacy_system) or "unknown"
         source_column = _first(row, "table_column_id", "column_id", "field_name", "column_name")
-        mapping_code = str(
-            _first(row, "mapping_code", "id", default=f"{catalog_item_code}:{resource_code}:{binding_code}")
-        )
+        mapping_code = str(_first(row, "mapping_code", "id", default=f"{catalog_item_code}:{resource_code}:{binding_code}"))
         # Guard the (tenant_id, catalog_item_code, resource_code, binding_code, status)
         # unique constraint when legacy data has multiple link rows for the same triple:
         # if an active row already exists with a *different* mapping_code, demote the new
@@ -707,17 +731,60 @@ class CatalogMetadataMapper:
             resource_code = str(_first(row, "table_meta_id", "meta_id", default=meta_id))
             binding_code = str(_first(row, "table_meta_id", default=resource_code))
             snapshot_ref = f"{resource_code}:db_meta_column:{meta_id}"
-            schema_json = _sanitized_ref(row, include=("meta_id", "table_meta_id", "column_name", "comment", "remark", "format", "length", "is_pk", "is_null", "meta_standard", "meta_standard_cn", "sensitive_level", "order_id", "need_encrypt", "column_precision"))
+            schema_json = _sanitized_ref(
+                row,
+                include=(
+                    "meta_id",
+                    "table_meta_id",
+                    "column_name",
+                    "comment",
+                    "remark",
+                    "format",
+                    "length",
+                    "is_pk",
+                    "is_null",
+                    "meta_standard",
+                    "meta_standard_cn",
+                    "sensitive_level",
+                    "order_id",
+                    "need_encrypt",
+                    "column_precision",
+                ),
+            )
         elif table == "db_meta_table":
             resource_code = str(_first(row, "meta_id", default=meta_id))
             binding_code = str(_first(row, "meta_id", default=resource_code))
             snapshot_ref = f"{resource_code}:db_meta_table:{meta_id}"
-            schema_json = _sanitized_ref(row, include=("meta_id", "database_meta_id", "table_name", "comment", "unique_code", "remark", "update_cycle", "sensitive_level", "data_count", "recommend_status"))
+            schema_json = _sanitized_ref(
+                row, include=("meta_id", "database_meta_id", "table_name", "comment", "unique_code", "remark", "update_cycle", "sensitive_level", "data_count", "recommend_status")
+            )
         else:
             resource_code = str(_first(row, "resource_id", "res_id", "rc_resource_id", "meta_id", default=meta_id))
             binding_code = _first(row, "binding_id", "table_id", "area_id")
             snapshot_ref = f"{resource_code}:{table}:{meta_id}"
-            schema_json = _sanitized_ref(row, include=("meta_id", "meta_name", "model_id", "version", "table_name", "column_name", "name_cn", "name_en", "data_type", "data_format", "length", "comment", "org_code", "org_name", "region_code", "region_name", "gather_type", "status"))
+            schema_json = _sanitized_ref(
+                row,
+                include=(
+                    "meta_id",
+                    "meta_name",
+                    "model_id",
+                    "version",
+                    "table_name",
+                    "column_name",
+                    "name_cn",
+                    "name_en",
+                    "data_type",
+                    "data_format",
+                    "length",
+                    "comment",
+                    "org_code",
+                    "org_name",
+                    "region_code",
+                    "region_name",
+                    "gather_type",
+                    "status",
+                ),
+            )
         self.metadata_repo.upsert_schema_snapshot(
             {
                 "snapshot_ref": snapshot_ref,
@@ -853,14 +920,16 @@ class CatalogMetadataMapper:
                 "step_name": step_name,
                 "decision_mode": "single",
                 "status": step_status,
-                "approver_scope_json": safe_json({
-                    "check_user_id": row.get("check_user_id"),
-                    "check_user_name": row.get("check_user_name"),
-                    "node_code": row.get("node_code"),
-                    "node_name": row.get("node_name"),
-                    "actor_code": row.get("actor_code"),
-                    "flow_code": row.get("flow_code"),
-                }),
+                "approver_scope_json": safe_json(
+                    {
+                        "check_user_id": row.get("check_user_id"),
+                        "check_user_name": row.get("check_user_name"),
+                        "node_code": row.get("node_code"),
+                        "node_name": row.get("node_name"),
+                        "actor_code": row.get("actor_code"),
+                        "flow_code": row.get("flow_code"),
+                    }
+                ),
                 "started_at": coerce_datetime(row.get("check_time")),
                 "completed_at": coerce_datetime(row.get("check_time")) if step_status == "completed" else None,
             }
@@ -873,9 +942,7 @@ class CatalogMetadataMapper:
                     setattr(step, key, value)
             decision_record = None
             if step_status == "completed":
-                decision_record = session.execute(
-                    select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)
-                ).scalar_one_or_none()
+                decision_record = session.execute(select(ApprovalDecisionRecord).where(ApprovalDecisionRecord.step_id == step.id)).scalar_one_or_none()
                 decision_payload = {
                     "step_id": step.id,
                     "decision": decision,
@@ -995,6 +1062,7 @@ class CatalogMetadataMapper:
 # ----------------------------------------------------------------------
 # helpers
 # ----------------------------------------------------------------------
+
 
 def _channel_legacy_id(table: str, row: dict[str, Any], resource_code: str) -> str:
     if table.endswith("url"):

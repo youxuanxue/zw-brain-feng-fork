@@ -43,6 +43,9 @@ class MigrationOptions:
     strict: bool = False
     require_zero_conflicts: bool = False
     dry_run: bool = False
+    # 干净数据导入：只收符合 zw-brain 标准的业务记录（目录/资源/申请），不达标跳过且记
+    # stats.skip（承 #359 mapper 层 only_clean）。治理基线（机构/区划/字典/actor）不过滤。
+    only_clean: bool = False
 
 
 class MigrationError(RuntimeError):
@@ -125,7 +128,7 @@ def run_migration(options: MigrationOptions) -> dict[str, Any]:
         else:
             ensure_runtime_schema()
 
-    runner = LegacyImportRunner(tenant_id=options.tenant_id)
+    runner = LegacyImportRunner(tenant_id=options.tenant_id, only_clean=options.only_clean)
     imports: list[dict[str, Any]] = []
     for schema in schemas:
         handled_tables = _handled_tables_for_schema(runner, schema)
@@ -310,6 +313,7 @@ def _base_report(options: MigrationOptions) -> dict[str, Any]:
         "strict": options.strict,
         "require_zero_conflicts": options.require_zero_conflicts,
         "dry_run": options.dry_run,
+        "only_clean": options.only_clean,
         "status": "pending",
         "errors": [],
     }

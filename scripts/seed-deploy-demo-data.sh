@@ -18,6 +18,7 @@ case "$REPORT_DIR_HOST" in
 esac
 DB_URL="${ZW_BRAIN_DEMO_DATABASE_URL:-postgresql+psycopg://zw_brain:zw_brain@postgres:5432/zw_brain}"
 RESET=0
+ONLY_CLEAN=0
 
 usage() {
   cat <<'USAGE'
@@ -32,12 +33,16 @@ Environment:
 
 Options:
   --reset                         drop/rebuild the target PostgreSQL schema first
+  --only-clean                    只导入符合 zw-brain 标准的干净业务记录（目录/资源/申请）；
+                                  不达标的跳过并记 stats.skip(<table>.unclean:<reason>)。治理基线不过滤。
+                                  （全量含脏数据/真实规模：不带本旗标即可。）
 USAGE
 }
 
 for arg in "$@"; do
   case "$arg" in
     --reset) RESET=1 ;;
+    --only-clean) ONLY_CLEAN=1 ;;
     --help|-h) usage; exit 0 ;;
     *) echo "[demo-seed] unknown arg: $arg" >&2; usage >&2; exit 2 ;;
   esac
@@ -50,6 +55,13 @@ done
 }
 
 mkdir -p "$REPORT_DIR_HOST"
+
+# --only-clean 透传到容器内导入器：业务记录只收干净数据（治理基线不过滤）。
+ONLY_CLEAN_FLAG=""
+if [[ "$ONLY_CLEAN" -eq 1 ]]; then
+  ONLY_CLEAN_FLAG="--only-clean"
+  echo "[demo-seed] --only-clean：目录/资源/申请只收干净数据，不达标的跳过并记账（治理基线不过滤）"
+fi
 
 docker network inspect "$NETWORK_NAME" >/dev/null
 
@@ -90,7 +102,7 @@ fi
 # 生产迁移（zw-brain-migrate-legacy / run_acceptance_migration）走全 11 schema，不受此 demo 取舍影响。
 for schema in dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example dsp_pipelines; do
   echo "[demo-seed] import $schema"
-  python scripts/import_legacy_dumps.py import "$schema" --json > "'"$REPORT_DIR_CONTAINER"'/import-${schema}.json"
+  python scripts/import_legacy_dumps.py import "$schema" '"$ONLY_CLEAN_FLAG"' --json > "'"$REPORT_DIR_CONTAINER"'/import-${schema}.json"
 done
 
 # e2e/demo fixtures（容器内 in-network，写 postgres:5432，不依赖 host 端口——避免 host-venv 连

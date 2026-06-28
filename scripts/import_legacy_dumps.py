@@ -10,6 +10,7 @@ Subcommands:
 
 The mapper subcommands (`import`, `verify`) are wired in subsequent commits.
 """
+
 from __future__ import annotations
 
 import argparse
@@ -72,17 +73,11 @@ def cmd_verify(args: argparse.Namespace) -> int:
     if args.json:
         print(json.dumps(report, ensure_ascii=False))
     else:
-        print(
-            f"verify tenant={tenant}  total_mappings={report['total_mappings']}  "
-            f"total_unresolved={report['total_unresolved']}  total_conflicted={report['total_conflicted']}"
-        )
+        print(f"verify tenant={tenant}  total_mappings={report['total_mappings']}  total_unresolved={report['total_unresolved']}  total_conflicted={report['total_conflicted']}")
         print(f"{'canonical_type':<36} {'mapped':>8} {'resolved':>10} {'unresolved':>12} {'conflicted':>12}  sample_missing")
         for row in report["by_type"]:
             sample_str = ", ".join(row["sample_unresolved"]) if row["sample_unresolved"] else ""
-            print(
-                f"  {row['canonical_type']:<34} {row['mapped']:>8} {row['resolved']:>10} "
-                f"{row['unresolved']:>12} {row['conflicted']:>12}  {sample_str}"
-            )
+            print(f"  {row['canonical_type']:<34} {row['mapped']:>8} {row['resolved']:>10} {row['unresolved']:>12} {row['conflicted']:>12}  {sample_str}")
     if args.strict and report["failed"]:
         return 2
     return 0
@@ -90,9 +85,9 @@ def cmd_verify(args: argparse.Namespace) -> int:
 
 # P0-C：现场最常需要补 manifest 的 issue 类型（其他 issue 是数据/流程问题，落 csv 帮助小）
 _DEFAULT_UNMAPPED_ISSUE_TYPES: tuple[str, ...] = (
-    "unmapped_permission",       # 旧权限未在 capability-mapping-manifest 命中 → 补 manifest
-    "missing_role_mapping",      # 旧 role 未在 role-mapping-manifest 命中 → 补 manifest
-    "iam_account_missing",       # IAM 未注入 / 占位 sub fail-closed → 走 ingest 流程或催 IAM
+    "unmapped_permission",  # 旧权限未在 capability-mapping-manifest 命中 → 补 manifest
+    "missing_role_mapping",  # 旧 role 未在 role-mapping-manifest 命中 → 补 manifest
+    "iam_account_missing",  # IAM 未注入 / 占位 sub fail-closed → 走 ingest 流程或催 IAM
     "missing_org_relationship",  # 用户无组织绑定 → 补 pub_user_organ 数据或人工裁决
 )
 
@@ -116,12 +111,14 @@ def _write_unmapped_csv(path: Path, issues: list[dict]) -> int:
         writer = csv.DictWriter(fh, fieldnames=["issue_type", "table", "legacy_ref", "detail_json"], lineterminator="\n")
         writer.writeheader()
         for issue in rows:
-            writer.writerow({
-                "issue_type": str(issue.get("type") or ""),
-                "table": str(issue.get("table") or ""),
-                "legacy_ref": str(issue.get("legacy_ref") or ""),
-                "detail_json": json.dumps(issue.get("detail") or {}, ensure_ascii=False),
-            })
+            writer.writerow(
+                {
+                    "issue_type": str(issue.get("type") or ""),
+                    "table": str(issue.get("table") or ""),
+                    "legacy_ref": str(issue.get("legacy_ref") or ""),
+                    "detail_json": json.dumps(issue.get("detail") or {}, ensure_ascii=False),
+                }
+            )
     return len(rows)
 
 
@@ -129,7 +126,7 @@ def cmd_import(args: argparse.Namespace) -> int:
     from zw_brain.shared.migrate import ensure_runtime_schema
 
     ensure_runtime_schema()
-    runner = LegacyImportRunner()
+    runner = LegacyImportRunner(only_clean=getattr(args, "only_clean", False))
     result = runner.import_schema(args.schema)
     if result is None:
         print(f"no mapper registered for schema: {args.schema}", file=sys.stderr)
@@ -188,11 +185,15 @@ def main(argv: list[str] | None = None) -> int:
     p_import.add_argument("schema", help="Schema name (currently: dsp_bsp)")
     p_import.add_argument("--json", action="store_true", help="Emit JSON instead of human text")
     p_import.add_argument(
+        "--only-clean",
+        action="store_true",
+        help="只导入符合 zw-brain 标准的干净业务记录（目录/资源/申请）；不达标的跳过并记 stats.skip(<table>.unclean:<reason>)。治理基线（机构/区划/字典/actor）不过滤。",
+    )
+    p_import.add_argument(
         "--unmapped-csv",
         type=Path,
         default=None,
-        help="把 mapper 产出的 issue 落 csv 方便现场补 manifest（默认范围："
-             "unmapped_permission / missing_role_mapping / iam_account_missing / missing_org_relationship）",
+        help="把 mapper 产出的 issue 落 csv 方便现场补 manifest（默认范围：unmapped_permission / missing_role_mapping / iam_account_missing / missing_org_relationship）",
     )
     p_import.add_argument(
         "--issue-types",

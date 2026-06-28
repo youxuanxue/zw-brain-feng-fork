@@ -4,6 +4,7 @@ Phase-1 scope: parse-only stats + per-schema row counts. Mapper plumbing (govern
 catalog, exchange, …) is added in subsequent commits and registered into
 `LegacyImportRunner.MAPPERS` without changing this file's public surface.
 """
+
 from __future__ import annotations
 
 import inspect
@@ -50,9 +51,11 @@ def _cache_root() -> Path:
 class LegacyImportRunner:
     """Coordinates parse → cache → map → verify across schemas."""
 
-    def __init__(self, *, tenant_id: str = DEFAULT_TENANT, cache_dir: Path | None = None):
+    def __init__(self, *, tenant_id: str = DEFAULT_TENANT, cache_dir: Path | None = None, only_clean: bool = False):
         self.tenant_id = tenant_id
         self.cache_dir = (cache_dir or _cache_root()).resolve()
+        # --only-clean：业务记录 mapper（目录/资源/申请）只收够格的干净数据，跳过项记 stats.skip。
+        self.only_clean = only_clean
 
     def mappers_for(self, schema: str) -> list[object]:
         """Return all mappers that should run on `schema`.
@@ -70,7 +73,7 @@ class LegacyImportRunner:
         if schema in {"dsp_catalog", "dsp_metaresource"}:
             from zw_brain.adapters.legacy.mappers.catalog_metadata import CatalogMetadataMapper
 
-            out.append(CatalogMetadataMapper(tenant_id=self.tenant_id))
+            out.append(CatalogMetadataMapper(tenant_id=self.tenant_id, only_clean=self.only_clean))
         if schema == "dsp_metaresource":
             from zw_brain.adapters.legacy.mappers.graph_lineage import GraphLineageMapper
 
@@ -82,7 +85,7 @@ class LegacyImportRunner:
         if schema in {"dsp_require", "dsp_catalog"}:
             from zw_brain.adapters.legacy.mappers.exchange import ExchangeMapper
 
-            out.append(ExchangeMapper(tenant_id=self.tenant_id))
+            out.append(ExchangeMapper(tenant_id=self.tenant_id, only_clean=self.only_clean))
         if schema == "dsp_example":
             from zw_brain.adapters.legacy.mappers.topic_package import TopicPackageMapper
 
