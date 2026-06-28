@@ -152,4 +152,15 @@ router.beforeEach((to) => {
   return { path: fallback, replace: true };
 });
 
+// 站内导航计数：供 PageFocusHeader 的「返回上一步」判断是否有站内来路可安全 history.back。
+// afterEach 在 hash 模式下对 SPA 跳转与裸 <a href> 锚点导航均触发，故 >1 表示当前页之前还有上一站。
+let inAppNavCount = 0;
+router.afterEach(() => {
+  inAppNavCount += 1;
+});
+/** 自应用加载以来是否有站内来路（>1 = 当前页之前还有上一站，可安全 history.back 回真实上一步）。 */
+export function hasInAppBack(): boolean {
+  return inAppNavCount > 1;
+}
+
 export default router;

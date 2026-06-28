@@ -29,6 +29,10 @@ const inboxItem = computed(() =>
 const item = computed(() => fetchedItem.value ?? inboxItem.value);
 const isPendingResponse = computed(() => (item.value?.response_status ?? item.value?.status) === 'pending_response');
 const canRespondDemand = computed(() => canPerformAction('demand.response.submit', currentRole.value) && isPendingResponse.value);
+const hasRespondRole = computed(() => canPerformAction('demand.response.submit', currentRole.value));
+// 上级平台直达通道需求（providerProjection fallback 由 directAccess.demands 派生，source==='derived'）：
+// 不走本地 demand.response 响应流，由上级平台渠道响应——给诚实说明而非静默空白。
+const isNationalChannel = computed(() => item.value?.source === 'derived');
 
 watch(
   [id, currentRole],
@@ -226,6 +230,9 @@ async function respondDemand(decision: 'provide' | 'reject' | 'need_fix') {
         </DetailActions>
         <p v-if="canRespondDemand && !resourceRef" class="hint">确认提供前可先检索匹配目录，命中后会自动填入关联资源编号。</p>
         <p v-else-if="item.response_status === 'responded'" class="hint">该需求已完成响应，可返回收件箱继续处理其他待办。</p>
+        <p v-else-if="!hasRespondRole" class="hint">当前岗位无对接权限；供需对接由部门管理员处理，请切换至部门管理员岗位后再办。</p>
+        <p v-else-if="isNationalChannel" class="hint">该需求来自上级平台直达通道，本系统暂不支持在此直接对接，请通过上级平台渠道响应。</p>
+        <p v-else class="hint">该需求当前状态为「{{ item.response_status || item.status || '—' }}」，不在可对接阶段，暂无对接操作。</p>
       </template>
       <p v-else-if="source === 'live' && detailLoaded" class="focus-empty">未找到该需求编号。</p>
       <p v-else-if="detailLoading" class="focus-empty">正在加载需求详情……</p>

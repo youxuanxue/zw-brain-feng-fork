@@ -128,13 +128,14 @@ def test_credential_query_truly_absent_request_still_not_found(brain):
 
 
 # ──────────────────────────────────────────────────────────────────────
-# 投影：历史导入申请卡带 legacyImport 标识（供前端隐藏运行时专属动作入口）
+# 投影：历史导入申请卡带 isLegacyImport 标识（供前端隐藏运行时专属动作入口）
+# key 与前端 P3RequestDetail / 快照卡单一契约统一为 isLegacyImport（旧名 legacyImport 已退役）。
 # ──────────────────────────────────────────────────────────────────────
 
 
 def test_request_projection_flags_legacy_import(brain):
-    """record_to_request 投影对历史导入单标 legacyImport=True；运行时单（无 kind）不标."""
+    """record_to_request 投影对历史导入单标 isLegacyImport=True；运行时单（无 kind）不标."""
     _inject_legacy_import_application(brain, "LEGACY-CRED-4", status="apply")
     req = brain.get_request("LEGACY-CRED-4")
-    assert req.get("legacyImport") is True
+    assert req.get("isLegacyImport") is True
 

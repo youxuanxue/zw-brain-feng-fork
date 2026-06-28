@@ -84,6 +84,20 @@ function gateOf(item: WorkbenchTodoActionItem, decision: WorkbenchTodoDecision):
 function rowsOf(item: WorkbenchTodoActionItem) {
   return mapDetailRows(item.context);
 }
+// 行内决策项 → 实体详情深链（只读，不过 gate，始终可见）：basePayload 携 catalog_code → 目录详情、
+// resource_code → 资源详情（供数管理视角路由）。异议/申请类无对应详情路由则不出链。
+function detailHrefOf(item: WorkbenchTodoActionItem): string | null {
+  const bp = (item.basePayload ?? {}) as Record<string, unknown>;
+  const catalogCode = bp.catalog_code;
+  if (typeof catalogCode === 'string' && catalogCode) {
+    return `#/provider/catalog/${encodeURIComponent(catalogCode)}`;
+  }
+  const resourceCode = bp.resource_code;
+  if (typeof resourceCode === 'string' && resourceCode) {
+    return `#/provider/resource/${encodeURIComponent(resourceCode)}`;
+  }
+  return null;
+}
 
 // 正在填理由的「记录+决策」复合键；同一时刻仅一处理由框展开。
 const reasonFor = reactive<{ key: string; text: string }>({ key: '', text: '' });
@@ -169,6 +183,12 @@ function cancelReason(): void {
         data-testid="workbench-decision-item"
       >
         <p class="todo-item-label">{{ item.label }}</p>
+        <a
+          v-if="detailHrefOf(item)"
+          :href="detailHrefOf(item)!"
+          class="todo-item-detail-link"
+          data-testid="workbench-item-detail"
+        >查看详情</a>
         <DetailPanel v-if="item.context.length" :rows="rowsOf(item)" />
         <div class="todo-item-actions">
           <template v-for="(decision, idx) in item.decisions" :key="idx">

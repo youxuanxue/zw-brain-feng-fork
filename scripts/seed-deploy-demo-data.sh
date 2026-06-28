@@ -83,10 +83,21 @@ fi
 # 下游 catalog/exchange 适配器解析机构/区划时依赖它（口径同 trial-up.sh DEFAULT_SCHEMAS /
 # customer_acceptance_up.sh REQUIRED_SCHEMAS）。此前漏 dsp_bsp → actor_projection=0、
 # 身份治理用户列表空、权限/部门隔离类 e2e 全失败（仅靠脚本末尾手工 upsert 6 org 兜底机构）。
-for schema in dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example; do
+# 补 dsp_pipelines：经 DatasourceEndpointMapper 建 datasource_endpoint_projection——此前漏导致
+# #/provider/datasources 空。仅补这一项（用户实测缺口）；权威全集 migration_batch.PROFILE_SCHEMAS
+# ["customer-core-v1"] 另含 dsp_connect/dsp_service/dsp_monitor/dsp_perform，但 demo 不导入：
+# dsp_service/connect 会把 catalog 从 ~226 膨胀到 ~1200（API 服务/连接条目涌入发现页、拖慢筛选）。
+# 生产迁移（zw-brain-migrate-legacy / run_acceptance_migration）走全 11 schema，不受此 demo 取舍影响。
+for schema in dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example dsp_pipelines; do
   echo "[demo-seed] import $schema"
   python scripts/import_legacy_dumps.py import "$schema" --json > "'"$REPORT_DIR_CONTAINER"'/import-${schema}.json"
 done
+
+# e2e/demo fixtures（容器内 in-network，写 postgres:5432，不依赖 host 端口——避免 host-venv 连
+# 5432/5433 撞 Homebrew pg）：国家通道待转报样例 + demo J1 凭据，供 national_channel / 凭据三语样例
+# e2e 与演示用。非致命：失败只告警，不阻断种子。
+python scripts/seed_national_escalate_fixture.py || echo "[demo-seed] WARN: national fixture 跳过（非致命）"
+python scripts/customer_demo_j1.py >/dev/null 2>&1 && echo "[demo-seed] demo J1 凭据已种子" || echo "[demo-seed] WARN: demo J1 跳过（非致命）"
 
 python - <<'"'"'PY'"'"'
 from sqlalchemy import create_engine, text

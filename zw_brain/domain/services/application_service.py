@@ -99,7 +99,10 @@ class ApplicationService:
             # 只在 legacy 导入单（payload 带 ``kind``）/ 运行时单尚未进会话时被调；运行时进会话
             # 卡走 CardSession 不经此。前端据此把历史导入识别为只读：隐藏运行时专属动作入口
             # （撤回/暂停/重新签发），无权/不可动作=不可见。判别同 card_session 反面（payload 带 kind）。
-            "legacyImport": bool((record.payload_json or {}).get("kind")),
+            # key 与前端 P3RequestDetail / 快照卡 discovery_snapshot_projection 单一契约统一为
+            # isLegacyImport（#357 改名漏了详情/审批两处投影 → 历史导入只读 banner + !isLegacyImport
+            # 动作守卫在详情/审批页形同虚设；此处补齐）。
+            "isLegacyImport": bool((record.payload_json or {}).get("kind")),
             "resourceId": resource_id,
             "resourceName": payload.get("resource_name") or resource.get("name") or record.application_code,
             "applicant": applicant_snapshot["applicant_name"],

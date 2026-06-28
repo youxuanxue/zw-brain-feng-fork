@@ -31,7 +31,9 @@ async function firstGrantedRequestId(page: import('@playwright/test').Page): Pro
   const reqs = (body.requests ?? []) as Array<Record<string, unknown>>;
   for (const r of reqs) {
     const status = String(r.status ?? '');
-    if (status === 'granted' || status === 'in_delivery' || status === 'suspended') {
+    // 撤回/暂停只对**运行时授权**有意义；历史导入单（isLegacyImport）只读、无运行时 grant 可撤回，
+    // 守卫正确隐藏其撤回/暂停按钮，故本矩阵须取运行时 grant（如 demo J1 的 REQ-*），跳过 legacy。
+    if ((status === 'granted' || status === 'in_delivery' || status === 'suspended') && !r.isLegacyImport) {
       const id = String(r.id ?? '');
       if (id) return id;
     }

@@ -35,6 +35,12 @@ const { resource, loading, fetchError } = useResourceDetail(() => id.value, () =
 // 故抑制消费框架（不显申请按钮、不显「暂不可申请」），改给「回供数管理」回链，消除心智错配
 // （负责人定档 B，全文见决策档）。
 const providerView = computed(() => route.path.startsWith('/provider/'));
+// 「返回上一步」：history.back 回真实来路（多入口可达）；深链/刷新无来路时回退到本视角父级。
+const backTarget = computed(() =>
+  providerView.value
+    ? { href: '#/provider/resources', label: '返回' }
+    : { href: '#/discovery', label: '返回' },
+);
 const canApply = computed(
   () =>
     !providerView.value &&
@@ -172,13 +178,8 @@ async function apply() {
 
 <template>
   <main class="focus-page focus-detail">
-    <!-- 档 B：供数视角面包屑回供数资源管理，消费视角回资源发现（route.path 判，与详情壳同源）。 -->
-    <nav class="crumbs">
-      <a v-if="providerView" href="#/provider/resources">← 资源管理</a>
-      <a v-else href="#/discovery">← 资源发现</a>
-    </nav>
     <section class="panel">
-      <PageFocusHeader :title="headerTitle" :meta="headerMeta">
+      <PageFocusHeader :title="headerTitle" :meta="headerMeta" :back="backTarget">
         <template v-if="kindLabel" #aside>
           <span class="kind-badge" data-testid="resource-kind-badge">{{ kindLabel }}</span>
         </template>

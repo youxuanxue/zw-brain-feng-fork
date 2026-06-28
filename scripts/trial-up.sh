@@ -41,7 +41,10 @@ DUMPS_DIR="$REPO_ROOT/old/10示例数据"
 # + governance baseline + topic packages. Order matters: governance must
 # precede catalog/exchange so org/region projections exist when downstream
 # adapters resolve them.
-DEFAULT_SCHEMAS="dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example"
+# 补 dsp_pipelines（数据源 datasource_endpoint_projection，此前漏导致 #/provider/datasources 空）。
+# 仅补这一项；dsp_connect/dsp_service 会把 catalog 膨胀到 ~1200（API/连接涌入发现页），trial 不导入。
+# 权威全集见 migration_batch.PROFILE_SCHEMAS；生产迁移走全 11 schema，不受此取舍影响。
+DEFAULT_SCHEMAS="dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example dsp_pipelines"
 SCHEMAS="${ZW_BRAIN_TRIAL_SCHEMAS:-$DEFAULT_SCHEMAS}"
 
 DO_RESET=1

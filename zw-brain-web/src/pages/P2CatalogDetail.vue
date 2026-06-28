@@ -24,6 +24,13 @@ const requests = useRequests();
 // /provider/catalog/:code（复用本组件），按 route.path 前缀判供数视角（route.path 可靠，不用 route.query）。
 // 供数方是来「管理/审核」自己的目录、非来「申请」，加一句管理视角横幅 + 回目录管理回链（目录无申请，故仅定向）。
 const providerView = computed(() => route.path.startsWith('/provider/'));
+// 「返回上一步」：history.back 回真实来路（如目录审核收件箱 / 管理清单 / 浏览页，多入口可达）；
+// 深链/刷新无来路时回退到本视角的父级（供数→目录管理，消费→目录浏览）。
+const backTarget = computed(() =>
+  providerView.value
+    ? { href: '#/provider/catalogs', label: '返回' }
+    : { href: '#/discovery/catalog-browse', label: '返回' },
+);
 const { catalog, resources, total, loading, fetchError, source } = useCatalogResources(
   () => code.value,
   () => role.value,
@@ -90,13 +97,8 @@ async function applyTo(id: string) {
 
 <template>
   <main class="focus-page focus-detail">
-    <!-- 档 B：供数视角面包屑回目录管理，消费视角回目录浏览。 -->
-    <nav class="crumbs">
-      <a v-if="providerView" href="#/provider/catalogs">← 目录管理</a>
-      <a v-else href="#/discovery/catalog-browse">← 目录浏览</a>
-    </nav>
     <section class="panel">
-      <PageFocusHeader :title="headerTitle" :meta="headerMeta" />
+      <PageFocusHeader :title="headerTitle" :meta="headerMeta" :back="backTarget" />
 
       <!-- 档 B（供数管理视角）横幅（/provider/catalog/:code）——供数方看自己的目录，给「回目录管理」定向。 -->
       <p v-if="providerView" class="provider-manage-banner" data-testid="catalog-provider-manage-note">

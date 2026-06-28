@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { getProductRole } from '@/composables/useProductRole';
 import { canPerformAction, filterByRouteAccess } from '@/lib/pageAccess';
+import { hasInAppBack } from '@/router';
 
 export interface FocusLink {
   label: string;
@@ -26,9 +27,25 @@ const props = defineProps<{
   title: string;
   meta?: string;
   links?: FocusLink[];
+  /**
+   * 可选「返回上一步」。详情页（多入口可达，如目录详情既可从目录管理也可从审核收件箱进）传入即渲染
+   * 返回按钮：有站内来路时走 history.back 回真实上一步；深链/刷新无来路时回退到 href（合理父级）。
+   * label 缺省「返回」。
+   */
+  back?: { href: string; label?: string };
 }>();
 
 const role = getProductRole();
+
+function goBack(): void {
+  if (!props.back) return;
+  if (hasInAppBack()) {
+    window.history.back();
+    return;
+  }
+  const href = props.back.href;
+  window.location.hash = href.startsWith('#') ? href.slice(1) : href;
+}
 
 // 单点过滤经由 pageAccess.filterByRouteAccess（同 P5Provider 待办卡 + 任何页内 nav），
 // 调用方写死的 links 无权岗位直接看不到入口。
@@ -43,6 +60,13 @@ const visibleLinks = computed<FocusLink[]>(() => {
   <header class="focus-head">
     <div class="focus-head-row">
       <div class="focus-head-main">
+        <button
+          v-if="back"
+          type="button"
+          class="focus-back"
+          data-testid="page-focus-back"
+          @click="goBack"
+        >← {{ back.label || '返回' }}</button>
         <h1 class="focus-title">{{ title }}</h1>
         <p v-if="meta" class="focus-meta">{{ meta }}</p>
       </div>
@@ -81,6 +105,20 @@ const visibleLinks = computed<FocusLink[]>(() => {
 }
 .focus-head-main {
   flex-shrink: 0;
+}
+.focus-back {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 6px;
+  padding: 2px 0;
+  background: none;
+  border: none;
+  color: var(--b-primary, #006be6);
+  font-size: 13px;
+  cursor: pointer;
+}
+.focus-back:hover {
+  text-decoration: underline;
 }
 .focus-title {
   margin: 0;

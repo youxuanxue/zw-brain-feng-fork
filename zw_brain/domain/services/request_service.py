@@ -456,7 +456,9 @@ class RequestService:
                     "id": case.application_code,
                     "status": case.current_status,
                     "suggestion": "待审",
-                    "legacyImport": bool(getattr(case, "legacy_id", None)),
+                    # 与前端单一契约统一（同 application_service record_to_request）：审批详情也发 isLegacyImport，
+                    # 让 P3ReviewDetail 的 reviewActionable=!isLegacyImport 历史导入只读守卫真正生效。
+                    "isLegacyImport": bool(getattr(case, "legacy_id", None)),
                 }
         raise NotFoundError(request_id)
 
