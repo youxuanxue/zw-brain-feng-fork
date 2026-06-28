@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // Bug3 回归：找数助手「解析未命中」根因 = P2 NL 加速器对无权限岗位（search.intent.parse
-// 返 403）/ 任意调用失败，把错误统统冒泡成 parse_status:'pending'（前端文案「解析未命中」）。
-// 修复后 parseP2 try/catch 优雅降级到纯关键词搜索动作（搜索本身不依赖意图增强），
-// 403 额外给「当前岗位无找数助手增强」诚实提示。本 spec 通过 mock postSkill 锁定该行为。
+// 返 403）把错误统统冒泡成 parse_status:'pending'（前端文案「解析未命中」）。
+// 403 → 优雅降级到纯关键词搜索（搜索本身不依赖意图增强）+「当前岗位无找数助手增强」提示。
+// 5xx/超时/网络中断 → 向上抛出，由面板渲染诚实错误态 + 重试（不再伪装「已直接搜索」）。
 
 const postSkillMock = vi.fn();
 vi.mock('@/composables/useApiClient', () => ({
@@ -45,15 +45,13 @@ describe('NL 加速器 P2 — 智能解析失败优雅降级（Bug3）', () => {
     expect(res.actions[0].payload).toMatchObject({ zone: '营商环境专区' });
   });
 
-  it('非 403 失败（网络 / 5xx）→ 同样降级关键词搜索，提示不同', async () => {
+  it('非 403 失败（网络 / 5xx）→ 向上抛出，由面板渲染诚实错误态', async () => {
     postSkillMock.mockRejectedValueOnce(
       Object.assign(new Error('HTTP 500'), { status: 500 }),
     );
-    const res = await parseNLAcceleratorLive('P2', '社保缴费', 'ROLE_ORGAN_OPERATER');
-    expect(res.parse_status).toBe('partial');
-    expect(res.actions[0]).toMatchObject({ kind: 'filter', target: 'query', payload: { query: '社保缴费' } });
-    expect(res.summary).toContain('智能解析暂不可用');
-    expect(res.summary).not.toContain('当前岗位无');
+    await expect(
+      parseNLAcceleratorLive('P2', '社保缴费', 'ROLE_ORGAN_OPERATER'),
+    ).rejects.toMatchObject({ status: 500 });
   });
 
   it('降级时空查询 → 无可执行动作才落 pending（诚实空态）', async () => {

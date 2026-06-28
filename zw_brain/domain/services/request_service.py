@@ -312,6 +312,10 @@ class RequestService:
         if status == "need-fix":
             return "申请人（待补正）"  # 退回补正：球在申请人手里，非受理台
         if status == "dept_approved":
+            # 国家通道（channel_class=='national'）：受理通过的单不是等部门审核，而是等业务运营员转报国家平台。
+            channel_class = str(request.get("channelClass") or request.get("channel_class") or "internal").strip()
+            if channel_class == "national":
+                return "业务运营员（待转报）"
             prov = str(request.get("providerOrgName") or request.get("provider_org_name") or "").strip()
             return f"部门管理员·{prov}" if prov else "部门管理员（部门审核）"
         # 补录态：已审批下发基层差异补录，在镇街/村社区填报人桌上。运行时审批写 status='supplementing'

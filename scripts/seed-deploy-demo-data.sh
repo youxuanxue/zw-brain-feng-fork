@@ -78,7 +78,12 @@ print(f"[demo-seed] schema rebuilt on {get_database_url()}")
 PY
 fi
 
-for schema in dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example; do
+# dsp_bsp（治理基线）必须最先导入：它经 tests/fixtures/m0-sd-default/iaf-binding-manifest.json
+# 建 actor_projection（用户）+ actor_org_role_binding（角色绑定）+ 完整 org/region 投影，
+# 下游 catalog/exchange 适配器解析机构/区划时依赖它（口径同 trial-up.sh DEFAULT_SCHEMAS /
+# customer_acceptance_up.sh REQUIRED_SCHEMAS）。此前漏 dsp_bsp → actor_projection=0、
+# 身份治理用户列表空、权限/部门隔离类 e2e 全失败（仅靠脚本末尾手工 upsert 6 org 兜底机构）。
+for schema in dsp_bsp dsp_catalog dsp_metaresource dsp_require dsp_handling dsp_example; do
   echo "[demo-seed] import $schema"
   python scripts/import_legacy_dumps.py import "$schema" --json > "'"$REPORT_DIR_CONTAINER"'/import-${schema}.json"
 done

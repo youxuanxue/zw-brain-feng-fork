@@ -145,8 +145,11 @@ function triggerAction(action: StructuredAction) {
         </ul>
         <p v-else class="nl-fallback">未解析出可执行动作；请使用页面上的按钮直接操作。</p>
       </section>
-      <div v-else-if="error" class="nl-error">
-        加速器调用出错：{{ error }}（已尝试离线建议）
+      <div v-else-if="error" class="nl-error" role="alert">
+        <p class="nl-error-msg">智能解析调用失败，请稍后重试。</p>
+        <button type="button" class="nl-retry" :disabled="loading" @click="submit">
+          {{ loading ? '重试中…' : '重试' }}
+        </button>
       </div>
     </aside>
   </div>
@@ -202,7 +205,15 @@ function triggerAction(action: StructuredAction) {
 .nl-action-btn strong { display: block; font-weight: 600; }
 .nl-action-btn em { display: block; font-style: normal; font-size: 12px; color: var(--b-muted, #5c6370); margin-top: 2px; }
 .nl-fallback { font-size: 12px; color: var(--b-muted, #5c6370); margin: 0; }
-.nl-error { font-size: 12px; color: #7a1a1a; }
+.nl-error { font-size: 12px; color: #7a1a1a; display: grid; gap: 8px; justify-items: start; }
+.nl-error-msg { margin: 0; }
+.nl-retry {
+  padding: 4px 12px; border-radius: 6px;
+  background: #fff; color: #7a1a1a; border: 1px solid #e0a3a3;
+  cursor: pointer; font-size: 12px;
+}
+.nl-retry:hover { background: #fbeaea; }
+.nl-retry:disabled { cursor: wait; opacity: 0.6; }
 .sr-only {
   position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
   overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;

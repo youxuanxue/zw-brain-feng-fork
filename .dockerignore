@@ -40,3 +40,11 @@ yarn-error.log*
 docs/approved
 docs/reconstructs
 docs/preflight-debt.md
+
+# old/（~3.5GB 历史导入语料）不进构建上下文：镜像构建不引用（COPY . 只为打 wheel），
+# 种子时由 seed-deploy-demo-data.sh 单独挂载 old/10示例数据 到容器。避免每次构建把
+# 3.5GB 烤进 builder 层、传输上下文耗时数分钟。
+old
+.legacy_cache
+.testing
+test-results

@@ -12,7 +12,7 @@ import DetailPanel from '@/components/DetailPanel.vue';
 import ResourceCard from '@/components/ResourceCard.vue';
 import { decisionRows, compilationRows, catalogSummary, DECISION_SECTION_TITLE } from '@/lib/typedDetailDisplay';
 import { resourceKindLabel } from '@/lib/resourceKind';
-import { displayRecordName } from '@/lib/userLanguage';
+import { displayRecordName, isTestMarkerName } from '@/lib/userLanguage';
 import { canPerformAction } from '@/lib/pageAccess';
 import { buildExistingRequestsByResource } from '@/lib/existingRequests';
 
@@ -56,7 +56,11 @@ const headerTitle = computed(() => {
   if (loading.value && !catalog.value?.title) return '正在加载……';
   // R12：标题经 displayRecordName 收口——真实业务名直出；标题缺失/标题==编码/标题是
   // 机构区划长编码串时统一降级为「未命名目录（编码 …末6位）」，绝不把编码当主标题。
-  return displayRecordName(catalog.value?.title, code.value, '目录');
+  // 深链直达可能命中浏览列表已按 isTestMarkerName 过滤掉的测试/脏数据标题
+  //（如"测试目录上线"），这类名不直出——置空让其降级到「未命名目录（编码 …）」。
+  const rawTitle = catalog.value?.title;
+  const cleanTitle = isTestMarkerName(rawTitle) ? undefined : rawTitle;
+  return displayRecordName(cleanTitle, code.value, '目录');
 });
 
 const headerMeta = computed(() => {

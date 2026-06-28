@@ -48,6 +48,7 @@ const title = ref('');
 const hint = ref('');
 const selectedId = ref('');
 const loading = ref(true);
+const loadError = ref('');
 const detailRef = ref<HTMLElement | null>(null);
 const role = getProductRole();
 const canRegisterDemand = computed(() => canPerformAction('demand.register', role.value));
@@ -76,6 +77,7 @@ function sortDemands(rows: DemandRow[]): DemandRow[] {
 
 async function loadDemands() {
   loading.value = true;
+  loadError.value = '';
   try {
     const resp = await authFetch(apiUrl('/api/skills/demand.list'), {
       method: 'POST',
@@ -85,6 +87,9 @@ async function loadDemands() {
     if (!resp.ok) throw new Error('暂时无法加载需求列表，请稍后再试。');
     const payload = (await resp.json()) as { items?: Record<string, unknown>[] };
     items.value = sortDemands((payload.items ?? []).map(mapDemandRow));
+  } catch (e) {
+    // 后端故障 / 超时不能伪装成「暂无登记记录」空态：留 error 态 + 重试入口（与 P3ObjectionInbox 同口径）。
+    loadError.value = e instanceof Error ? e.message : '暂时无法加载需求列表，请稍后再试。';
   } finally {
     loading.value = false;
   }
@@ -119,7 +124,11 @@ const detailRows = computed(() => {
 });
 
 const headerMeta = computed(() =>
-  loading.value ? '正在加载……' : `${items.value.length} 条登记 · 选中后可跟踪提供方响应`,
+  loading.value
+    ? '正在加载……'
+    : loadError.value
+      ? loadError.value
+      : `${items.value.length} 条登记 · 选中后可跟踪提供方响应`,
 );
 
 async function scrollToDetail() {
@@ -140,11 +149,13 @@ async function registerDemand() {
     payload: {
       title: title.value.trim(),
       target_resource_hint: hint.value.trim() || undefined,
-      applicant_dept: '申请部门',
+      // applicant_dept 由后端从会话机构派生（caller_org_code → org_name），前端不再写死固定字面量。
     },
     successTitle: '需求已登记',
     refreshSnapshotAfter: true,
   });
+  // 失败（403/422/5xx）：保留用户已填的标题/期望资源，不清空、不伪装成功（invokeActionStub 已弹错误 toast）。
+  if (!result.ok) return;
   const data = result.data as Record<string, unknown> | undefined;
   const inner = (data?.result ?? data) as Record<string, unknown> | undefined;
   const newId = String(inner?.id ?? '');
@@ -195,9 +206,9 @@ function statusStepClass(index: number): string {
 
       <div v-if="canRegisterDemand" class="form-grid">
         <label for="demand-title">需求标题</label>
-        <input id="demand-title" v-model="title" placeholder="描述找不到的数据用途" />
+        <input id="demand-title" v-model="title" maxlength="100" placeholder="描述找不到的数据用途" />
         <label for="demand-hint">期望资源提示（可选）</label>
-        <input id="demand-hint" v-model="hint" placeholder="关键词或资源类型" />
+        <input id="demand-hint" v-model="hint" maxlength="80" placeholder="关键词或资源类型" />
         <DetailActions>
           <button type="button" class="gov-btn gov-btn-primary" :disabled="!title.trim()" @click="registerDemand">
             登记需求
@@ -205,7 +216,7 @@ function statusStepClass(index: number): string {
         </DetailActions>
       </div>
 
-      <div ref="detailRef" class="detail-workspace">
+      <div v-if="selected || items.length" ref="detailRef" class="detail-workspace">
         <template v-if="selected">
           <DetailPanel
             title="当前需求"
@@ -261,6 +272,10 @@ function statusStepClass(index: number): string {
           </tr>
         </tbody>
       </table>
+      <p v-else-if="loadError" class="focus-empty">
+        {{ loadError }}
+        <button type="button" class="gov-btn" style="margin-left: 8px" @click="loadDemands">重试</button>
+      </p>
       <p v-else-if="!loading" class="focus-empty">
         {{ canRegisterDemand ? '暂无登记记录，填写上方表单提交第一条需求。' : '暂无登记记录。' }}
       </p>

@@ -78,7 +78,7 @@ def test_web_snapshot_redaction_uses_only_known_roles():
     for frozenset_name in (
         "_DISCOVERY", "_REQUEST", "_DELIVERY",
         "_PROVIDER_FULL", "_PROVIDER_PARTIAL",
-        "_COMPLIANCE", "_ZONES", "_CAPABILITY", "_OPS",
+        "_COMPLIANCE", "_COMPLIANCE_VIEW", "_ZONES", "_CAPABILITY", "_OPS",
     ):
         s = getattr(web_snapshot_redaction, frozenset_name)
         unknown = set(s) - known

@@ -219,16 +219,29 @@ class _ListHandler(logging.Handler):
 
 @pytest.fixture
 def capture_zw_logs():
-    """把捕获 handler 挂在 zw_brain logger 上（不依赖 root 传播，与 setup 配置无关）。"""
-    logger = logging.getLogger("zw_brain")
+    """把捕获 handler 挂在 zw_brain 树（父 + access 子 logger 直连）。
+
+    REST access 行由 ``zw_brain.entry.rest.access`` 打出；全量 pytest 里其它用例可能
+    动过 logging 配置，单靠父 logger 传播在 CI 上偶发丢行（test_rest_access_log_line
+    StopIteration）。access 直连 handler + 测后还原 propagate/handlers。
+    """
     handler = _ListHandler()
     handler.addFilter(ContextFilter())  # 与真实 handler 同款：把 request context 钉上 record
-    saved_level = logger.level
-    logger.addHandler(handler)
-    logger.setLevel(logging.DEBUG)
+    parent = logging.getLogger("zw_brain")
+    access = logging.getLogger("zw_brain.entry.rest.access")
+    saved = (
+        (parent, list(parent.handlers), parent.level, parent.propagate),
+        (access, list(access.handlers), access.level, access.propagate),
+    )
+    for logger in (parent, access):
+        logger.addHandler(handler)
+        logger.setLevel(logging.DEBUG)
     yield handler.records
-    logger.removeHandler(handler)
-    logger.setLevel(saved_level)
+    for logger, handlers, level, propagate in saved:
+        logger.removeHandler(handler)
+        logger.handlers[:] = handlers
+        logger.setLevel(level)
+        logger.propagate = propagate
 
 
 @pytest.fixture
@@ -272,7 +285,7 @@ def test_rest_rejects_header_injection_in_request_id(rest_port):
     assert headers.get("X-Request-Id", "").startswith("req-")
 
 
-def test_rest_access_log_line(rest_port, capture_zw_logs):
+def test_rest_access_log_line(capture_zw_logs, rest_port):
     _get(rest_port, "/health", {"X-Request-Id": "e2e-access-001"})
     row = next(
         r
@@ -286,7 +299,7 @@ def test_rest_access_log_line(rest_port, capture_zw_logs):
     assert row.log_entry == "rest"
 
 
-def test_rest_404_access_log_status(rest_port, capture_zw_logs):
+def test_rest_404_access_log_status(capture_zw_logs, rest_port):
     status, _, _ = _get(rest_port, "/no/such/path", {"X-Request-Id": "e2e-404-001"})
     assert status == 404
     row = next(r for r in capture_zw_logs if getattr(r, "request_id", "") == "e2e-404-001")
@@ -433,7 +446,7 @@ def fresh_rate_window():
     reset_client_log_rate_window()
 
 
-def test_client_logs_endpoint_writes_log_not_db(rest_port, capture_zw_logs, fresh_rate_window):
+def test_client_logs_endpoint_writes_log_not_db(capture_zw_logs, rest_port, fresh_rate_window):
     payload = json.dumps(
         {
             "kind": "unhandledrejection",
@@ -478,7 +491,7 @@ def test_client_logs_endpoint_caps_and_rate_limits(rest_port, fresh_rate_window,
     assert _post_client_log(rest_port, ok)[0] == 429
 
 
-def test_client_logs_redacts_sensitive_fields(rest_port, capture_zw_logs, fresh_rate_window):
+def test_client_logs_redacts_sensitive_fields(capture_zw_logs, rest_port, fresh_rate_window):
     payload = json.dumps(
         {
             "kind": "error",

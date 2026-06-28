@@ -492,6 +492,22 @@ def test_redact_empty_provider_includes_inbox_keys() -> None:
     assert redacted["provider"] == _EMPTY_PROVIDER
 
 
+@pytest.mark.no_db
+def test_system_role_redacts_compliance_view_but_retains_tickets() -> None:
+    """ROLE_SYSTEM 不含 governance.dispute_list 权威集 → 快照不预载异议/告警/知识库，运维工单仍保留。"""
+    full = {
+        "disputes": [{"id": "d1"}],
+        "alerts": [{"id": "a1"}],
+        "knowledge_articles": [{"id": "k1"}],
+        "tickets": [{"id": "t1"}],
+    }
+    out = redact_webui_snapshot(full, "ROLE_SYSTEM")
+    assert out["disputes"] == []
+    assert out["alerts"] == []
+    assert out["knowledge_articles"] == []
+    assert out["tickets"] == [{"id": "t1"}]
+
+
 def test_enrich_zones_snapshot_attaches_package_code(seed_db: str) -> None:
     from zw_brain.domain.provider_snapshot_projection import enrich_zones_snapshot
 

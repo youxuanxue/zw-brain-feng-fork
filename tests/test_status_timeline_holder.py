@@ -55,6 +55,18 @@ def test_terminal_states_no_current_no_holder() -> None:
         assert _current(status) == {}, f"{status} 应无当前段"
 
 
+def test_national_channel_dept_approved_holder_is_busiaudit_escalate() -> None:
+    """国家通道 dept_approved = 待业务运营员转报，不是部门管理员审核。"""
+    svc = RequestService.__new__(RequestService)
+    rows = svc.status_timeline(
+        {"id": "R", "status": "dept_approved", "channelClass": "national"},
+        None,
+        perspective="applicant",
+    )
+    cur = next(s for s in rows if s["status"] == "current")
+    assert cur["holder"] == "业务运营员（待转报）"
+
+
 def test_provider_name_absent_falls_back_no_fabrication() -> None:
     """部门审核 holder 缺提供方局名时退「部门管理员（部门审核）」，不捏造局名。"""
     svc = RequestService.__new__(RequestService)

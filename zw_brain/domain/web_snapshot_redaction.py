@@ -44,8 +44,17 @@ _PROVIDER_PARTIAL_KEYS = frozenset({"catalogs", "services", "resources", "dataso
 # 查审计页 shell（disputes / alerts / tickets / knowledge_articles 等合规运营内容）。
 # 异议 / 合规 capability 角色由 S5 流处理；此 shell-preload 集本流不收窄（仅审计日志另拆 _AUDIT_LOG）。
 # ROLE_SECURITY_ADMIN 随安全管理员本期退役而移除（D55/P16）。
+# tickets（ops.ticket.* = ROLE_SYSTEM）shell 预载集：平台运维员经此拿运维工单，保持不变。
 _COMPLIANCE = frozenset(
     {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT", "ROLE_SYSTEM"}
+)
+# 异议 / 告警 / 知识库 = 合规内容，权威角色集 = backend policy
+# governance.dispute_list / compliance.case.query = {MANAGER, BUSIAUDIT, SECURITY_AUDIT}，
+# **不含 ROLE_SYSTEM**（平台运维员经 API 调 dispute/compliance 恒 access_denied）。
+# 此前并入 _COMPLIANCE 一起放行 → snapshot 把 disputes/alerts/knowledge 泄漏给平台运维员
+# （与 policy 漂移）。拆出独立集，与权威 policy set-equal。
+_COMPLIANCE_VIEW = frozenset(
+    {"ROLE_ORGAN_MANAGER", "ROLE_BUSIAUDIT", "ROLE_SECURITY_AUDIT"}
 )
 # 审计日志 / 证据回放 / 审计事件面（audit_events / audit_ai）—— 查审计拆分（D55/P8·P9，Wave1-S3）：
 # 收窄到「业务运营员 + 安全审计员」。部门管理员 / 平台运维员退审计日志，不再预载。
@@ -119,11 +128,14 @@ def redact_webui_snapshot(full: dict[str, Any], role: str) -> dict[str, Any]:
         out["provider"] = partial
     else:
         out["provider"] = copy.deepcopy(_EMPTY_PROVIDER)
-    if role not in _COMPLIANCE:
+    if role not in _COMPLIANCE_VIEW:
+        # 异议/告警/知识库随合规权威角色集收口（平台运维员看不到，与 policy 一致）。
         out["disputes"] = []
         out["alerts"] = []
-        out["tickets"] = []
         out["knowledge_articles"] = []
+    if role not in _COMPLIANCE:
+        # 运维工单仍按原 shell 集（含平台运维员）。
+        out["tickets"] = []
     # 审计日志面单独收窄（D55/P8·P9）：管理员 / 运维员虽进合规 shell，但不预载审计事件 / AI 摘要。
     if role not in _AUDIT_LOG:
         out["audit_events"] = []

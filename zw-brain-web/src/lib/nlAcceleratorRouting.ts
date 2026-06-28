@@ -83,19 +83,17 @@ function buildP2SearchAction(searchQ: string, rawQuery: string): StructuredActio
   };
 }
 
-// 找数助手失败时的优雅降级：search.intent.parse 只是「意图增强」，搜索本身不依赖它。
-// 当前岗位无该 cap（403）或调用本身失败时，不再把任何错误统统报「解析未命中」，而是
-// 直接用用户原始输入产出一个可执行的关键词搜索动作（搜索面始终可用）。403 额外给出
-// 「当前岗位无找数助手增强」的诚实提示，区分「无权限」与「真的没解析出动作」。
-function degradeP2(query: string, isForbidden: boolean): NLAcceleratorParseResult {
+// 403 优雅降级：search.intent.parse 只是「意图增强」，搜索本身不依赖它。当前岗位无该
+// cap（后端给出确定性 403 应答）时，直接用用户原始输入产出一个可执行的关键词搜索动作
+// （搜索面始终可用），并诚实标注「无找数助手增强」，区分「无权限」与「真没解析出动作」。
+// 注意：5xx / 超时 / 网络中断等真后端故障不在此降级 —— 那是失败，不是「没命中」，由
+// parseP2 向上抛出、面板渲染诚实错误态，避免把故障伪装成「已直接搜索」的成功结果。
+function degradeP2(query: string): NLAcceleratorParseResult {
   const raw = query.trim();
   const action = buildP2SearchAction(raw, query);
   const actions = action ? [action] : [];
-  const summary = isForbidden
-    ? `当前岗位无「找数助手」增强能力；已按关键词「${raw || '（空）'}」直接搜索。`
-    : `智能解析暂不可用；已按关键词「${raw || '（空）'}」直接搜索。`;
   return {
-    summary,
+    summary: `当前岗位无「找数助手」增强能力；已按关键词「${raw || '（空）'}」直接搜索。`,
     // 有可执行搜索动作即 partial（仍可操作、只是少了意图增强）；连查询词都为空才 pending。
     parse_status: actions.length ? 'partial' : 'pending',
     actions,
@@ -112,10 +110,12 @@ async function parseP2(query: string, role: string): Promise<NLAcceleratorParseR
       request_id: newRequestId('UI-NL-P2'),
     });
   } catch (e) {
-    // 无权限岗位（ROLE_SECURITY_AUDIT / 平台运维 / 系统 等）返 403，以及任何其它
-    // 调用失败：优雅降级到纯关键词搜索，避免「解析未命中」误导（Bug3）。
+    // 无权限岗位（ROLE_SECURITY_AUDIT / 平台运维 / 系统 等）返 403：优雅降级到纯关键词
+    // 搜索，避免「解析未命中」误导（Bug3）。其余（5xx / 超时 / 网络中断）是真后端故障，
+    // 向上抛出由面板渲染诚实错误态 + 重试，不再伪装成「已按关键词直接搜索」的成功结果。
     const status = (e as { status?: number } | null)?.status;
-    return degradeP2(query, status === 403);
+    if (status === 403) return degradeP2(query);
+    throw e;
   }
   const actions: StructuredAction[] = [];
   const searchQ = deriveP2SearchQuery(query, data);

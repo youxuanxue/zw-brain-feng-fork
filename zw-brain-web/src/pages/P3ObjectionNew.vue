@@ -158,7 +158,7 @@ async function createObjection() {
       <PageFocusHeader title="发起异议" meta="对象编号必须存在于库内；后端会拒绝凭空编号" />
       <div class="form-grid">
         <label for="title">异议标题</label>
-        <input id="title" v-model="title" placeholder="例如：字段描述与底册不一致" />
+        <input id="title" v-model="title" maxlength="100" placeholder="例如：字段描述与底册不一致" />
 
         <label for="ttype">对象类型</label>
         <select id="ttype" v-model="targetType">
@@ -193,6 +193,7 @@ async function createObjection() {
           id="basis"
           v-model="basis"
           rows="4"
+          maxlength="500"
           placeholder="例如：字段描述与底册不一致"
         />
       </div>

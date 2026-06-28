@@ -106,6 +106,10 @@ watch(role, () => { void load(); });
           </tr>
         </tbody>
       </table>
+      <p v-else-if="source === 'live' && errorMsg" class="focus-empty">
+        {{ errorMsg }}
+        <button type="button" class="gov-btn" style="margin-left: 8px" @click="load">重试</button>
+      </p>
       <div v-else-if="source === 'live'" class="focus-empty catalog-empty">
         <p>暂无目录数据。</p>
         <div class="empty-actions" aria-label="暂无目录后的下一步">

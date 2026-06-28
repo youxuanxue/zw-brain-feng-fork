@@ -124,8 +124,40 @@ const newResourceCode = ref('');
 // 用 v-show 保留已填内容（折叠不清空）。
 const showRegisterForm = ref(false);
 
+// F13：原始接口地址前端校验——仅校验是否为合法 http(s) URL（避免误填）。
+// 注意：不在前端拦内网/本机地址——政务代理服务的目标本就普遍是内网 10.x intranet 接口，
+// 拦内网会误伤正常注册。真正的 SSRF 出口防护须靠后端出口白名单（egress allowlist，单独立项）。
+const urlError = computed(() => {
+  const raw = originalUrl.value.trim();
+  if (!raw) return '';
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    return '请输入合法的接口地址（http:// 或 https:// 开头）';
+  }
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') return '接口地址须以 http:// 或 https:// 开头';
+  return '';
+});
+
+// F10：超时/缓存须为非负数值，空/负数/非数字均不可提交。
+const timeoutValid = computed(() => {
+  const n = Number(timeoutMs.value);
+  return timeoutMs.value.trim() !== '' && Number.isFinite(n) && n >= 0;
+});
+const cacheValid = computed(() => {
+  const n = Number(cacheTtl.value);
+  return cacheTtl.value.trim() !== '' && Number.isFinite(n) && n >= 0;
+});
+
 const canRegister = computed(
-  () => serviceName.value.trim().length >= 3 && originalUrl.value.trim().length > 0 && description.value.trim().length >= 30,
+  () =>
+    serviceName.value.trim().length >= 3 &&
+    originalUrl.value.trim().length > 0 &&
+    !urlError.value &&
+    description.value.trim().length >= 30 &&
+    timeoutValid.value &&
+    cacheValid.value,
 );
 
 function buildPayload(): Record<string, unknown> {
@@ -393,7 +425,7 @@ function resetForm() {
         <div class="step-block">
           <h4 class="step-h">① 服务基本信息</h4>
           <div class="grid2">
-            <div class="span2"><label class="field-label">服务名称（3-200 字符）<span class="req">*</span></label><input v-model="serviceName" class="gov-input" placeholder="例如：养老保险信息查询服务" /></div>
+            <div class="span2"><label class="field-label">服务名称（3-200 字符）<span class="req">*</span></label><input v-model="serviceName" maxlength="200" class="gov-input" placeholder="例如：养老保险信息查询服务" /></div>
             <div>
               <label class="field-label">关联数据目录</label>
               <select v-model="relatedCatalog" class="gov-input">
@@ -427,7 +459,7 @@ function resetForm() {
                 <option v-for="o in AUTH_MODE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</option>
               </select>
             </div>
-            <div class="span2"><label class="field-label">描述（≥30 字，须体现服务价值）<span class="req">*</span></label><textarea v-model="description" class="gov-textarea" rows="2" placeholder="说明该服务提供什么数据、面向哪些业务场景。"></textarea></div>
+            <div class="span2"><label class="field-label">描述（30-500 字，须体现服务价值）<span class="req">*</span></label><textarea v-model="description" maxlength="500" class="gov-textarea" rows="2" placeholder="说明该服务提供什么数据、面向哪些业务场景。"></textarea></div>
           </div>
         </div>
 
@@ -435,7 +467,11 @@ function resetForm() {
         <div class="step-block">
           <h4 class="step-h">② 网络信息</h4>
           <div class="grid2">
-            <div class="span2"><label class="field-label">原始接口地址<span class="req">*</span></label><input v-model="originalUrl" class="gov-input" placeholder="例如：https://10.110.16.133/api/pension/query" /></div>
+            <div class="span2">
+              <label class="field-label">原始接口地址<span class="req">*</span></label>
+              <input v-model="originalUrl" class="gov-input" placeholder="例如：https://10.110.16.133/api/pension/query" />
+              <p v-if="urlError" class="field-err">{{ urlError }}</p>
+            </div>
             <div>
               <label class="field-label">接口类型</label>
               <select v-model="apiType" class="gov-input">
@@ -458,8 +494,8 @@ function resetForm() {
         <div class="step-block">
           <h4 class="step-h">③ 配置</h4>
           <div class="grid2">
-            <div><label class="field-label">超时（毫秒）</label><input v-model="timeoutMs" class="gov-input" placeholder="5000" /></div>
-            <div><label class="field-label">缓存时长（秒，0=不缓存）</label><input v-model="cacheTtl" class="gov-input" placeholder="0" /></div>
+            <div><label class="field-label">超时（毫秒）</label><input v-model="timeoutMs" type="number" min="0" step="100" class="gov-input" placeholder="5000" /></div>
+            <div><label class="field-label">缓存时长（秒，0=不缓存）</label><input v-model="cacheTtl" type="number" min="0" step="1" class="gov-input" placeholder="0" /></div>
             <div class="span2"><label class="field-label">参数说明</label><input v-model="paramNote" class="gov-input" placeholder="例如：必传 id_card；可选 page/size" /></div>
           </div>
         </div>
@@ -479,7 +515,7 @@ function resetForm() {
           <button v-if="newResourceCode" type="button" class="gov-btn gov-btn-secondary" @click="resetForm">注册下一个</button>
         </DetailActions>
         <p v-if="newResourceCode" class="step-done">代理服务已注册为草稿，可提交服务化审核或继续注册下一个。</p>
-        <p v-if="!canRegister" class="form-hint">服务名称（≥3 字）、原始接口地址、描述（≥30 字）为必填。</p>
+        <p v-if="!canRegister" class="form-hint">服务名称（3-200 字）、合法的原始接口地址、描述（30-500 字）为必填，超时与缓存须为非负数值。</p>
       </section>
     </section>
   </main>
@@ -504,6 +540,7 @@ function resetForm() {
 .gov-btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
 .step-done { margin: 10px 0 0; font-size: 13px; color: #2c7a2c; }
 .form-hint { margin: 8px 0 0; font-size: 12px; color: var(--b-muted, #5c6370); }
+.field-err { margin: 4px 0 0; font-size: 12px; color: #c0392b; }
 .reg-list { margin-bottom: 8px; }
 .row-actions { white-space: nowrap; }
 .row-actions-none { color: var(--b-muted, #8a93a0); }

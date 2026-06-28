@@ -13,6 +13,7 @@ import { mapDetailRows } from '@/lib/detailDisplay';
 import { canPerformAction } from '@/lib/pageAccess';
 import { formatTodoStatus } from '@/lib/statusLabels';
 import { formatObjectionType, objectionTargetHref } from '@/lib/objectionLabels';
+import { shortId } from '@/lib/userLanguage';
 import { apiUrl } from '@/composables/useApiBase';
 
 interface TimelineStep { stage: string; status: string; label: string; holder?: string }
@@ -83,7 +84,8 @@ const rows = computed(() => {
     { label: '标题', value: String(c.title ?? '—') },
     { label: '状态', value: formatTodoStatus(status.value) },
     { label: '对象类型', value: formatObjectionType(tType) },
-    { label: '对象编号', value: tId, href: objectionTargetHref(tType, tId) },
+    // R12：对象编号缩短显示（32 位 hex → …末6位），与收件箱 shortId 一致；href 仍用完整 id 可达详情。
+    { label: '对象编号', value: shortId(tId), href: objectionTargetHref(tType, tId) },
   ]);
 });
 

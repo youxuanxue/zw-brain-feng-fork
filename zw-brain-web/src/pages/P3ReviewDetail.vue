@@ -60,17 +60,33 @@ const providerOrgCode = computed(() =>
 //   第二级 提供方部门管理员审核 (dept_approve)：dept_approved → granted / rejected
 // 无条件共享 = 业务运营员受理即终（approval.case.decide，单步 submitted/pending → granted）。
 const isConditional = computed(() => sharedType.value === 2);
+// 历史导入申请 = 只读迁移记录，无运行时受理实体；受理/驳回/部门审核点了后端必拒。
+// 「不可动作 = 不可见」——历史导入单整组审批入口不渲染（与 P3RequestDetail 同一 isLegacyImport 守卫）。
+// 快照申请卡字段是 isLegacyImport（_record_to_request_card 单一事实源；其余页面均读此名）。
+const isLegacyImport = computed(() => Boolean(req.value?.isLegacyImport));
+// 国家通道指示（C9）：channel_class==='national' 的申请由业务运营员经工作台转报国家平台
+//   （application.escalate_national），不在本页做部门审核/受理。故国家通道单在本页不渲染
+//   任何受理/部门审核/驳回按钮（点了后端必拒）。缺省 internal。
+const isNationalChannel = computed(
+  () =>
+    String(
+      (req.value as Record<string, unknown> | null)?.channelClass ?? 'internal',
+    ) === 'national',
+);
+// 历史导入单与国家通道单均不在本页办理：审批入口整组不渲染。
+const reviewActionable = computed(() => !isLegacyImport.value && !isNationalChannel.value);
 // 第一级受理（业务运营员）：有条件共享 submitted 单据。
 const showAcceptActions = computed(
-  () => isPlatformReviewer.value && isConditional.value && status.value === 'submitted',
+  () => reviewActionable.value && isPlatformReviewer.value && isConditional.value && status.value === 'submitted',
 );
 // 第二级部门审核（部门管理员）：有条件共享受理后 dept_approved 单据。
 const showDeptReviewActions = computed(
-  () => isReviewer.value && status.value === 'dept_approved',
+  () => reviewActionable.value && isReviewer.value && status.value === 'dept_approved',
 );
 // 无条件共享受理即终（业务运营员）：单步通过/退回/驳回。
 const showUnconditionalAcceptActions = computed(
   () =>
+    reviewActionable.value &&
     isPlatformReviewer.value &&
     !isConditional.value &&
     (status.value === 'pending' || status.value === 'submitted'),

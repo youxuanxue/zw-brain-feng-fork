@@ -52,11 +52,10 @@ export function useNLAccelerator(pageAnchor: string) {
         result.value = fixture;
         source.value = 'fixture';
       } else {
-        result.value = {
-          summary: '当前输入未能解析出可执行动作；请使用页面上的按钮直接操作。',
-          parse_status: 'pending',
-          actions: [],
-        };
+        // 真后端调用失败（5xx / 超时 / 网络中断）且无 fixture 兜底：清空 result，让面板落到
+        // 诚实的错误态（红色 + 重试入口），不再伪装成「解析未命中」的空成功结果。注意这只
+        // 覆盖「调用抛错」一支；解析成功但零动作的合法空态走 try 分支、仍是正常非错误结果。
+        result.value = null;
         source.value = 'pending';
       }
     } finally {

@@ -22,8 +22,11 @@ export function formatObjectionType(raw: string): string {
 /** 仅 resource/delivery 有 per-id 详情路由；catalog 只有浏览页（无 :id 详情）、其余类型返 undefined，UI 渲染纯文本。 */
 export function objectionTargetHref(targetType: string, targetId: string): string | undefined {
   if (!targetId) return undefined;
-  if (targetType === 'resource') return `#/discovery/resource/${targetId}`;
-  if (targetType === 'delivery') return `#/delivery-exchange/task/${targetId}`;
+  // 真实库 target_id 普遍含 `/`（catalog_code）甚至 `\` `:`，必须 encodeURIComponent，
+  // 否则 hash 路由按 `/` 多切路径段、:id 失配落空态（与 providerObjectionTargetHref 同口径）。
+  const encodedTargetId = encodeURIComponent(targetId);
+  if (targetType === 'resource') return `#/discovery/resource/${encodedTargetId}`;
+  if (targetType === 'delivery') return `#/delivery-exchange/task/${encodedTargetId}`;
   return undefined;
 }
 
