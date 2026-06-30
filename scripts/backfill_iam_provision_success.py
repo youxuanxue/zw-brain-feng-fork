@@ -162,7 +162,7 @@ def main() -> int:
     print(f"  错误:       {len(errors)}")
 
     if errors:
-        print(f"\n错误详情 (前 5 条):")
+        print("\n错误详情 (前 5 条):")
         for e in errors[:5]:
             print(f"  {e['account']:<25s} {e['error']}")
 
