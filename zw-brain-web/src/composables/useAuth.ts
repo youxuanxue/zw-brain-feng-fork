@@ -1,5 +1,5 @@
 import { ref, computed } from 'vue';
-import { setProductRole } from './useProductRole';
+import { getProductRole, setProductRole } from './useProductRole';
 import { setCurrentOrg } from './useCurrentOrg';
 import { apiUrl, appOrigin } from './useApiBase';
 
@@ -523,17 +523,31 @@ export async function refreshLiveSessionFromServer(): Promise<boolean> {
   return false;
 }
 
-/** 登录后会话 actor_snapshot.current_role → 顶栏岗位与路由守卫。 */
+/** 登录后会话 actor_snapshot.current_role → 顶栏岗位与路由守卫。
+ *
+ * 守卫顺序（优先级由高到低）：
+ * 1. 前端当前岗位（用户通过顶栏下拉菜单主动切换的）仍在允许列表内 → 保留，不覆盖。
+ *    防止「切浏览器标签页再切回来」时 `visibilitychange` → `refreshLiveSessionFromServer`
+ *    重新读取后端 BFF 会话，而该会话的 `current_role` 仍是登录时写入的默认角色
+ *    （如 `ROLE_ORGAN_OPERATER`），导致用户已切换的角色被回退覆盖。
+ * 2. 后端会话 `actor_snapshot.current_role` 有效 → 用它同步。
+ * 3. 兜底：取允许角色列表第一个。 */
 export function syncProductRoleFromSession(): void {
   const snapshot = _state.value;
   if (!snapshot?.authenticated) return;
   const roles = _allowedProductRolesFromSnapshot(snapshot);
+  // 守卫 1：前端已选角色仍有效 → 保留（不因后端会话回退覆盖）
+  if (getProductRole().value && roles.includes(getProductRole().value)) {
+    return;
+  }
   const actor = snapshot.actor_snapshot ?? {};
   const sessionRole = String((actor as { current_role?: string }).current_role ?? '');
+  // 守卫 2：后端会话缓存角色
   if (sessionRole && roles.includes(sessionRole)) {
     setProductRole(sessionRole);
     return;
   }
+  // 守卫 3：兜底取第一个
   if (roles.length) setProductRole(roles[0]);
 }
 
