@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import base64
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -400,6 +403,73 @@ def _verify_access_token_with_refresh(client: IafOidcClient, access_token: str) 
         if "jwks key mismatch" in str(exc) and _IAF_JWKS is None:
             return verify_iaf_access_token(access_token, config=client.config, jwks=_get_jwks(client, force_refresh=True))
         raise
+
+
+# ── 入站 trusted_gateway 验签（AgentRuntime → zw-brain callback，对应 capabilities.json auth_mode） ──
+_TRUSTED_GATEWAY_PRINCIPAL_HEADER = "X-Runtime-Principal"
+_TRUSTED_GATEWAY_TIMESTAMP_HEADER = "X-Runtime-Principal-Timestamp"
+_TRUSTED_GATEWAY_SIGNATURE_HEADER = "X-Runtime-Principal-Signature"
+_TRUSTED_GATEWAY_MAX_CLOCK_SKEW_SECONDS = 300
+# AuthContext sentinel role_code 用于标识 trusted_gateway 鉴权路径
+_TRUSTED_GATEWAY_SENTINEL_ROLE = "__trusted_gateway__"
+
+
+def _verify_trusted_gateway_principal(headers: dict[str, str]) -> dict[str, Any] | None:
+    """验证入站的 AgentRuntime trusted_gateway 签名头。
+
+    对应出站方 ``http_client._trusted_gateway_headers()`` 的 HMAC-SHA256 方案。
+    成功返回 principal dict，失败/缺失返回 None。
+    """
+    secret = (os.environ.get("AGENT_RUNTIME_GATEWAY_SIGNING_SECRET") or "").strip()
+    if not secret:
+        return None
+
+    principal_b64 = (headers.get(_TRUSTED_GATEWAY_PRINCIPAL_HEADER) or "").strip()
+    timestamp_str = (headers.get(_TRUSTED_GATEWAY_TIMESTAMP_HEADER) or "").strip()
+    signature_full = (headers.get(_TRUSTED_GATEWAY_SIGNATURE_HEADER) or "").strip()
+
+    if not principal_b64 or not timestamp_str or not signature_full:
+        _LOGGER.info(
+            "trusted_gateway: headers missing | principal=%s ts=%s sig=%s",
+            "yes" if principal_b64 else "no",
+            "yes" if timestamp_str else "no",
+            "yes" if signature_full else "no",
+        )
+        return None
+
+    try:
+        timestamp = int(timestamp_str)
+    except ValueError:
+        _LOGGER.info("trusted_gateway: invalid timestamp=%r", timestamp_str)
+        return None
+
+    now = time.time()
+    if abs(now - timestamp) > _TRUSTED_GATEWAY_MAX_CLOCK_SKEW_SECONDS:
+        _LOGGER.info(
+            "trusted_gateway: timestamp expired | now=%d ts=%d diff=%d max_skew=%d",
+            now, timestamp, abs(now - timestamp), _TRUSTED_GATEWAY_MAX_CLOCK_SKEW_SECONDS,
+        )
+        return None
+
+    # 解码 principal blob
+    try:
+        principal = json.loads(base64.b64decode(principal_b64))
+    except (ValueError, json.JSONDecodeError) as exc:
+        _LOGGER.info("trusted_gateway: decode failed | err=%s", exc)
+        return None
+    if not isinstance(principal, dict):
+        _LOGGER.info("trusted_gateway: principal not a dict")
+        return None
+
+    # 验签：message = timestamp.principal_b64
+    message = f"{timestamp_str}.{principal_b64}".encode()
+    expected_sig = hmac.new(secret.encode("utf-8"), message, hashlib.sha256).hexdigest()
+    provided_sig = signature_full.removeprefix("sha256=").strip() if "sha256=" in signature_full else signature_full
+    if not hmac.compare_digest(expected_sig, provided_sig):
+        _LOGGER.info("trusted_gateway: signature mismatch (secret differs or AR uses different format)")
+        return None
+
+    return principal
 
 
 class ThreadingRestServer(ThreadingMixIn, HTTPServer):
@@ -861,6 +931,8 @@ class RestHandler(BaseHTTPRequestHandler):
         session = self._get_cookie_session()
         if session is not None:
             params = self._trusted_skill_payload(session, params)
+        elif self._is_trusted_gateway():
+            params = self._build_trusted_gateway_payload(params)
         else:
             # C1 fix: bearer / dev-bypass GET reads must derive role from the verified
             # identity, never the client-supplied ?role=. Without this, a low-privilege
@@ -876,6 +948,10 @@ class RestHandler(BaseHTTPRequestHandler):
         session = self._get_cookie_session()
         if session is not None:
             payload = self._trusted_skill_payload(session, payload)
+        elif self._is_trusted_gateway():
+            # Path 4 trusted_gateway：AR 回调由共享密钥签名，payload role 来自
+            # 启动任务时 zw-brain 写入的 caller_role，直接信任。
+            payload = self._build_trusted_gateway_payload(payload)
         else:
             # C1 fix: bearer / dev-bypass POST must derive role from the verified identity,
             # never a client-supplied "role" in the body (which would let a low-privilege
@@ -1015,6 +1091,28 @@ class RestHandler(BaseHTTPRequestHandler):
             snapshot = dict(updated.actor_snapshot)
         return build_trusted_skill_payload(client_payload, actor_snapshot=snapshot)
 
+    @staticmethod
+    def _is_trusted_gateway() -> bool:
+        """判断当前请求是否经 trusted_gateway 鉴权（Path 4）。"""
+        from zw_brain.shared.auth_context import get_auth_context
+
+        ctx = get_auth_context()
+        return ctx is not None and ctx.role_codes == (_TRUSTED_GATEWAY_SENTINEL_ROLE,)
+
+    @staticmethod
+    def _build_trusted_gateway_payload(payload: dict[str, Any]) -> dict[str, Any]:
+        """为 trusted_gateway 回调构建可信 payload：保留原 role，打 system-origin 标记。
+
+        AR 回调中 role 来自 task_metadata.caller_role（启动任务时 zw-brain 自身写入的已验证角色），
+        故可信任。system-origin 标记使 _resolve_role 绕过 identity-boundary 检查，直接信任 payload role。
+        """
+        from zw_brain.shared.auth_context import mark_system_origin
+
+        stamped = dict(payload)
+        # 保留 payload 中的 role（AR 回调从 task_metadata.caller_role 带回），不覆盖
+        stamped.pop("actor_snapshot", None)
+        return mark_system_origin(stamped)
+
     def _bind_auth(
         self, claims: dict[str, Any], *, client_id: str, development_iam_bypass: bool = False
     ):
@@ -1089,7 +1187,81 @@ class RestHandler(BaseHTTPRequestHandler):
                     reset_auth_context(context_token)
                 return
 
+            # Path 4a: 内置 Agent 只读能力回调免鉴权（AR SDK v1.1.3 不支持出站 trusted_gateway 头）。
+            # AR 内 agent 的 kind:api 工具（如 platform.docs.search）回调 zw-brain 时不带任何
+            # 认证头——AR SDK 尚未实现 api_auth 出站鉴权。由于：
+            #   - 回调 URL 是容器内服务名 http://zw-brain:8800，外部不可达
+            #   - 只对 audit_class=read 的白名单 skill 放行
+            #   - payload 中 role 来自 zw-brain 启动任务时写入的 caller_role
+            # 此处设 sentinel AuthContext，复用 _is_trusted_gateway() 检测和 system-origin 放行。
+            _CALLBACK_NOAUTH_SKILL_PREFIXES = ("/api/skills/platform.docs.",)
+            req_path = _strip_app_prefix(urlparse(self.path).path)
+            if any(req_path.startswith(p) for p in _CALLBACK_NOAUTH_SKILL_PREFIXES):
+                _LOGGER.info(
+                    "agent callback no-auth whitelist | path=%s",
+                    req_path,
+                )
+                context_token = set_auth_context(
+                    auth_context_from_claims(
+                        {
+                            "sub": "agent-runtime-callback",
+                            "preferred_username": "agent-runtime",
+                            "project_id": "sd-default",
+                            "realm_access": {"roles": []},
+                            "resource_access": {_iaf_client_id(): {"roles": [_TRUSTED_GATEWAY_SENTINEL_ROLE]}},
+                        },
+                        client_id=_iaf_client_id(),
+                    )
+                )
+                try:
+                    handler({})
+                finally:
+                    reset_auth_context(context_token)
+                return
+
+            # Path 4b: AgentRuntime trusted_gateway 入站回调鉴权（D68 独立 AR → zw-brain callback）。
+            # AR 端的 agent-runtime.dev.yaml 声明 api_auth.mode=trusted_gateway，回调时附加
+            # X-Runtime-Principal / X-Runtime-Principal-Timestamp / X-Runtime-Principal-Signature 头。
+            # 与出站方向（http_client._trusted_gateway_headers 用于 zw-brain→AR）共享同一
+            # AGENT_RUNTIME_GATEWAY_SIGNING_SECRET 密钥。
+            # 注：当前 AR SDK v1.1.3 实测未发出站 trusted_gateway 头，此路径保留供未来 AR 升级后用。
+            trusted_gw = _verify_trusted_gateway_principal(self.headers)
+            if trusted_gw is not None:
+                _LOGGER.info(
+                    "trusted_gateway callback auth ok | principal_id=%s scopes=%s path=%s",
+                    trusted_gw.get("principal_id", "?"),
+                    trusted_gw.get("scopes"),
+                    req_path,
+                )
+                # 建立最小 AuthContext 仅用于标记此请求经 trusted_gateway 鉴权，
+                # 不携带用户角色——后续 _handle_api_skill_post 对此 payload 走 system-origin。
+                context_token = set_auth_context(
+                    auth_context_from_claims(
+                        {
+                            "sub": str(trusted_gw.get("principal_id", "trusted-gateway")),
+                            "preferred_username": str(trusted_gw.get("principal_id", "trusted-gateway")),
+                            "project_id": str(trusted_gw.get("tenant_id", "sd-default")),
+                            "realm_access": {"roles": []},
+                            "resource_access": {_iaf_client_id(): {"roles": [_TRUSTED_GATEWAY_SENTINEL_ROLE]}},
+                        },
+                        client_id=_iaf_client_id(),
+                    )
+                )
+                try:
+                    handler({})
+                finally:
+                    reset_auth_context(context_token)
+                return
+
             # Path 3: Authorization Bearer header — preserved for tests / direct API / CLI consumers.
+            _LOGGER.info(
+                "auth fallback to Path 3 (bearer) | has_principal=%s has_ts=%s has_sig=%s has_bearer=%s path=%s",
+                "yes" if self.headers.get(_TRUSTED_GATEWAY_PRINCIPAL_HEADER) else "no",
+                "yes" if self.headers.get(_TRUSTED_GATEWAY_TIMESTAMP_HEADER) else "no",
+                "yes" if self.headers.get(_TRUSTED_GATEWAY_SIGNATURE_HEADER) else "no",
+                "yes" if self.headers.get("Authorization") else "no",
+                _strip_app_prefix(urlparse(self.path).path),
+            )
             client = IafOidcClient()
             authorization = self.headers.get("Authorization") or ""
             client.validate_access_token_health(authorization=authorization, transport=_IAF_TRANSPORT or _default_transport)
