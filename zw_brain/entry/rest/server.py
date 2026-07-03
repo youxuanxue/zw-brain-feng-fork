@@ -1527,12 +1527,17 @@ class RestHandler(BaseHTTPRequestHandler):
         # mark_system_origin: this runs while the request AuthContext holds the *user's* identity
         # (which does not personally hold "system"); the in-process system-origin sentinel exempts it
         # from the verified-identity role boundary (C1/N1) without weakening it for client calls.
+        #
+        # tenant_id 使用系统的运行时租户 ID（而非 IAM claims.project_id），因为投影数据始终写入
+        # 本系统本地数据库租户域；IAM project_id 可能为 UUID 格式，与运行时 tenant "sd-default"
+        # 不匹配时会触发 Manifest tenant_scope 校验失败（"tenant scope violation"）。
         from zw_brain.shared.auth_context import mark_system_origin
+        from zw_brain.shared.runtime_tenant import get_runtime_tenant_id
         return get_service().invoke_skill(
             "actor.projection.sync",
             mark_system_origin({
                 "iaf_claims": claims,
-                "tenant_id": str(claims.get("project_id") or "sd-default"),
+                "tenant_id": get_runtime_tenant_id(),
                 "org_code": claims.get("org_code"),
                 "role": "system",
                 "confirmed": True,
