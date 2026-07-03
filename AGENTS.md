@@ -1,9 +1,9 @@
 <!-- dev-rules:codex BEGIN — generated, do not edit by hand -->
 
-本节由 `dev-rules/sync.sh` 经 `dev-rules/scripts/gen_codex_agents.py` 确定性生成；请勿手工编辑标记之间的内容（手写说明放到标记之外）。
+本节由 `dev-rules/sync.sh` 经 `scripts/gen_codex_agents.py` 确定性生成；请勿手工编辑标记之间的内容（手写说明放到标记之外）。
 
 ## 工作宪法（单一事实来源）
-- 会话级硬纪律与身份：见 [`dev-rules/global/CLAUDE.md`](dev-rules/global/CLAUDE.md)。Codex 与 Claude Code、Cursor 共用同一份宪法。
+- 会话级硬纪律与身份：见 [`~/.codex/AGENTS.md (global constitution symlink)`](~/.codex/AGENTS.md (global constitution symlink))。Codex 与 Claude Code、Cursor 共用同一份宪法。
 
 ## 行为规则（按需展开阅读）
 Codex 不自动加载 `.cursor/rules/*.mdc`；需要时按下表路径读取对应文件：

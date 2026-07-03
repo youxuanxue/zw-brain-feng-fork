@@ -17,9 +17,13 @@ alwaysApply: true
 ├── .codex/skills                    → ../.cursor/skills（Codex 项目级技能 symlink；项目 .gitignore 自定是否 track）
 ├── .agents/skills                   → ../.cursor/skills（Antigravity 工作区技能 symlink；同上）
 ├── scripts/preflight.sh             ← 可选项目 wrapper
-└── .git/hooks/pre-commit            ← install-hooks.sh 安装；按
+└── .git/hooks/{pre-commit,commit-msg} ← install-hooks.sh 安装；pre-commit 按
                                         scripts/preflight.sh
-                                        → dev-rules/templates/preflight.sh fallback
+                                        → dev-rules/templates/preflight.sh fallback；
+                                        commit-msg 直跑 token 类检查（高风险锚点、
+                                        契约删除公告）——唯一同时知道 staged paths
+                                        + 待提交 message 的本地阶段，token 缺失
+                                        在此硬拦截
 
 家目录消费端（symlink，由 sync.sh 维护）：
 ~/.cursor/rules/      → dev-rules/rules/
@@ -101,6 +105,12 @@ fan-out 使用 `.registered-projects` 与 `.local-projects` 的并集：跨机�
 **Codex 加载上限**：Codex 0.122 拒绝 `description` 超过 1024 字符的 `SKILL.md`（静默丢弃该技能，Cursor/Claude 无此限）。为 Codex 复用，`dev-rules/scripts/check_codex_skill_limits.py` 在 preflight 把超限技能列为 exit 1，迫使在 `.cursor/skills/` 源头收敛描述长度，而非让 Codex 端静默缺技能。
 
 **review 时的保障**：`/xj-review` 的「确定性自动化运营和运维」准则已把「本可机械化检查却写成 prose 规则」列为必报 finding——这就是本基线的 review-time 门禁，新增 skill / command 时按此自审，不另设易误报的新 check。
+
+## git worktree 与 submodule 约定
+
+普通交互式 Agent 需要新建、切换、修复或销毁 git worktree 时，必须使用 `$git-worktree-submodule`。尤其仓库含 submodule 时，不手写 `git worktree add` + `git submodule update --init`，不把 submodule 目录做 symlink；`add` / `switch` 后立即按 skill 输出的 `session-workdir` 切换当前 Agent 的 cwd / workdir，并在目标 worktree 内运行 `session-check` 后再读写文件。
+
+`/twin` 的 worker 隔离是例外：它由 `commands/twin.md`、`scripts/twin/worktree.py` 和 `templates/worktree-bootstrap.sh` 作为内部 harness 管理，失败会降级到共享 checkout。不要把 `templates/worktree-bootstrap.sh` 当成通用 worktree 入口；普通会话仍走 `$git-worktree-submodule`。
 
 ## 编辑与提交规则
 
